@@ -1,3 +1,4 @@
+import {audienceSQL} from './audience.mjs';
 import {assert,clean} from './domain.mjs';
 import {photoVisibleSQL,visiblePhoto} from './archive.mjs';
 const normalize=s=>String(s).toLocaleLowerCase('tr').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i');
@@ -14,7 +15,7 @@ export async function search({path,url,u,all,one}){
   ['photos','id','title',"'Avlu'","'search-photo'","coalesce(description,'')||' '||coalesce(place,'')||' '||coalesce(date,'')","deletedAt IS NULL AND (status='approved' OR createdBy=? OR ?!='member') AND "+photoVisibleSQL,photoArgs],
   ['events','id','title',"'Etkinlik'","'event-detail'","coalesce(description,'')||' '||coalesce(place,'')||' '||date","deletedAt IS NULL AND (status='approved' OR createdBy=? OR ?!='member') AND "+person('events.personId'),[u.id,u.role,...pArgs]],
   ['documents','id','title',"'Aile Sandığı'","'search-document'","description","deletedAt IS NULL AND (status='approved' OR createdBy=? OR ?!='member')",[u.id,u.role]],
-  ['archive_entries e','e.id','e.title',"'Arşiv'","'ar-open'","e.body||' '||CASE WHEN e.kind='quiz' THEN '' ELSE e.data END","e.deletedAt IS NULL AND (e.opensAt IS NULL OR e.opensAt<=?) AND (e.status='approved' OR e.createdBy=? OR ?!='member') AND (e.visibility!='private' OR e.createdBy=?) AND "+person('e.personId')+" AND (e.photoId IS NULL OR EXISTS(SELECT 1 FROM photos WHERE photos.id=e.photoId AND deletedAt IS NULL AND (status='approved' OR createdBy=? OR ?!='member') AND "+photoVisibleSQL+"))",[new Date().toISOString(),u.id,u.role,u.id,...pArgs,...photoArgs]]
+  ['archive_entries e','e.id','e.title',"'Arşiv'","'ar-open'","e.body||' '||CASE WHEN e.kind='quiz' THEN '' ELSE e.data END",audienceSQL('archive','e.id','e.createdBy','(SELECT ?)')+" AND e.deletedAt IS NULL AND (e.opensAt IS NULL OR e.opensAt<=?) AND (e.status='approved' OR e.createdBy=? OR ?!='member') AND (e.visibility!='private' OR e.createdBy=?) AND "+person('e.personId')+" AND (e.photoId IS NULL OR EXISTS(SELECT 1 FROM photos WHERE photos.id=e.photoId AND deletedAt IS NULL AND (status='approved' OR createdBy=? OR ?!='member') AND "+photoVisibleSQL+"))",[u.id,u.id,u.id,new Date().toISOString(),u.id,u.role,u.id,...pArgs,...photoArgs]]
  ];
 
 

@@ -1,0 +1,3 @@
+// Expressions are application-owned SQL, never user input.
+export const audienceSQL=(kind,id,owner,viewer)=>`(${owner}=${viewer} OR NOT EXISTS(SELECT 1 FROM content_audience ca WHERE ca.kind='${kind}' AND ca.recordId=${id}) OR EXISTS(SELECT 1 FROM content_audience ca WHERE ca.kind='${kind}' AND ca.recordId=${id} AND (ca.mode='family' OR (ca.mode='selected' AND EXISTS(SELECT 1 FROM json_each(ca.userIds) WHERE value=${viewer})) OR (ca.mode='group' AND EXISTS(SELECT 1 FROM group_members gm WHERE gm.groupId=ca.groupId AND gm.userId=${viewer})))))`;
+export async function audienceAllows(one,u,kind,id,owner){return !!await one(`SELECT 1 ok FROM (SELECT ? viewer) WHERE ${audienceSQL(kind,'?','?','viewer')}`,u.id,owner,id,id);}

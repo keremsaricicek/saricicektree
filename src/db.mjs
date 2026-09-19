@@ -46,3 +46,4 @@ if(!one('SELECT name FROM local_migrations WHERE name=?','0004_broad_karma'))tra
 if(!one('SELECT name FROM local_migrations WHERE name=?','0005_curly_omega_red'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0005_curly_omega_red.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0005_curly_omega_red');});
 
 if(!one('SELECT name FROM local_migrations WHERE name=?','0006_search_index'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0006_search_index.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0006_search_index');});
+if(!one('SELECT name FROM local_migrations WHERE name=?','0007_greedy_kinsey_walden'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0007_greedy_kinsey_walden.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0007_greedy_kinsey_walden');});
