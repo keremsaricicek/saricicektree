@@ -17,3 +17,18 @@ Kerem bu önerileri beğendi ve ileride değerlendirilmek üzere kaydedilmesini 
 Temel sistem geliştirme önerileri: iki aşamalı giriş, otomatik yedekleme ve geri yükleme, fotoğraf başına görünürlük, çocuk profillerinde veli kontrolü ve konum paylaşımını tek tuşla durdurma. Mevcut uygulamada olanların kapsamı geliştirmeden önce kontrol edilmeli.
 
 Asistanın önerdiği ilk üç (kullanıcının kesin öncelik sıralaması değildir): akrabalık yolu, fotoğrafta etiketleme, sesli aile hikâyeleri.
+
+## İkinci grup — kullanıcı tarafından beğenildi ve notlara eklenmesi istendi
+
+- Ailenin göç yolculuğu: kuşakların şehirler arasındaki hareketlerini yıllara göre haritada gösterme.
+- Zaman kapsülü: belirlenen gelecekteki tarihte açılacak mektup, video ve fotoğraflar.
+- Fotoğrafın hikâyesi: aynı fotoğrafa farklı akrabaların hatıralarını eklemesi.
+- Aileye sor: aile geçmişi sorularını yanıtlarla birlikte ilgili kişinin arşivine bağlama.
+- Eski fotoğrafları iyileştirme: orijinali koruyarak çizik giderme ve renklendirme; yapay zekâyla değiştirilen kopyaları açıkça işaretleme.
+- Akıllı arşiv araması: doğal dilde sorgu; yalnızca kullanıcının görmeye yetkili olduğu kayıtlarda arama.
+- Aynı kişiyi birleştirme: mükerrer soy ağacı kayıtlarını yönetici onayıyla, geri alınabilir şekilde birleştirme.
+- Aile büyükleri için kolay kullanım: büyük yazılar, sesle anı anlatma ve sade görünüm.
+- Yakınımda akrabam var mı?: seyahat edilecek şehirde şehir bilgisini paylaşmayı seçmiş akrabaları gösterme ve buluşma isteği.
+- Aile arşivinin devamlılığı: ikinci yönetici ve yönetim devri.
+
+Bu ikinci grup da geliştirme fikridir; uygulanmış özellik listesi değildir.
