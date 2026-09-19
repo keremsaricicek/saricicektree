@@ -1,8 +1,17 @@
+FROM node:24-bookworm-slim AS client
+WORKDIR /build
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY src/build-client.mjs ./src/build-client.mjs
+COPY mobile ./mobile
+COPY public ./public
+RUN node src/build-client.mjs
+
 FROM node:24-bookworm-slim
 WORKDIR /app
 COPY --chown=node:node package.json ./
 COPY --chown=node:node src ./src
-COPY --chown=node:node public ./public
+COPY --from=client --chown=node:node /build/public ./public
 COPY --chown=node:node drizzle ./drizzle
 RUN mkdir -p /app/data && chown node:node /app/data
 USER node

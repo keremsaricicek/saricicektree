@@ -38,6 +38,8 @@
     "@capacitor/core": "^7.6.9",
     "@capacitor/ios": "^7.6.9",
     "@capacitor/local-notifications": "^7.0.7",
-    "leaflet": "^1.9.4"
+    "leaflet": "^1.9.4",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   }
 }

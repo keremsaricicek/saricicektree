@@ -43,4 +43,4 @@ Android: JDK 21, Android SDK ve Android Studio gerekir. iOS: macOS ve Xcode gere
 - [Apple inceleme kuralları](https://developer.apple.com/app-store/review/guidelines/): işlevsellik, inceleme erişimi, kullanıcı içeriği ve hesap silme.
 - [Google Play arka plan konumu](https://support.google.com/googleplay/android-developer/answer/9799150): belirgin açıklama, izin ve inceleme gereksinimleri.
 - [Konum eklentisi](https://github.com/capacitor-community/background-geolocation): izinler, Android kalıcı bildirim ve native ağ çağrıları.
-- [Harita kullanım koşulları](https://operations.osmfoundation.org/policies/tiles/): atıf korunmalı; toplu indirme/ön yükleme yapılmamalı. Büyüyen trafik için uygun kapasiteli harita sağlayıcısı seçilmelidir.
+- [Natural Earth dünya verileri](https://github.com/topojson/world-atlas): ülke ve kıyı sınırları uygulamaya gömülüdür; harita karo servisi kullanılmaz. Bu bir sokak/navigasyon haritası değildir.

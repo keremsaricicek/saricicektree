@@ -6,7 +6,7 @@ Konum isteğe bağlıdır. Kullanıcı yaklaşık veya kesin konumunu 1, 8 veya 
 
 Mesajlar yalnızca iki katılımcı için sorgulanabilir. Şikâyet edilen mesajın içeriği ve nedeni moderatörlere görünür. Aktarım HTTPS ile korunur; uçtan uca şifreleme uygulanmaz. Altyapı işletmecilerinin teknik erişimi ayrı bir güvenlik/yetkilendirme konusudur.
 
-Harita karoları OpenStreetMap sunucularından alınır; bu istekler IP adresini ve görüntülenen harita bölgesini harita sağlayıcısına iletir. Fotoğraf/belge dosyaları özel depoda tutulur; indirmeler oturum ve yetki gerektirir.
+Dünya haritası uygulamaya gömülü Natural Earth ülke/kıyı sınırlarından çizilir; dış harita sunucusuna istek gönderilmez. Fotoğraf/belge dosyaları özel depoda tutulur; indirmeler oturum ve yetki gerektirir.
 
 Normal üye Hesabım → Hesabımı sil ile erişimini, kişisel canlı konumunu ve özel konuşmalarını silebilir. Ortak arşiv katkıları anonim hesap adına korunur; bunların kaldırılması için aile yöneticisiyle görüşülür. Kurucu hesabı için yönetim devri gerekir.
 

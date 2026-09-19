@@ -6,3 +6,5 @@
 @media print{.sidebar,.topbar,.mobile-nav,.demo-strip,.footer,.page-head .row,.toolbar,.tree-tools,.tree-note,.tree-legend,.skip,#toast,dialog{display:none!important}.shell{margin:0}.content{padding:0}.tree-board,.tree-viewport{height:auto!important;overflow:visible!important;box-shadow:none;border:0}.tree-canvas{transform:scale(.65)!important;transform-origin:top left}.page-head h1{font-size:24px}body{background:white} @page{size:A3 landscape;margin:10mm}}
 
 .map-pin{transform:none;border-radius:50%}.map-pin:after{content:'';position:absolute;bottom:-5px;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #294c3d}.map-pin.cluster:after{display:none}.chat-badge{font:11px system-ui;min-width:19px;text-align:center}
+
+#family-map{background:#dbe7e7}.country-label{font:13px system-ui;color:#294c3d;background:#fffffff0;border:0;border-radius:6px;box-shadow:0 2px 14px #294c3d20}
