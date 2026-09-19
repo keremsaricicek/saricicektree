@@ -2,6 +2,8 @@
 
 Özel aile arşivi: soy ağacı, kişiler, fotoğraf albümü, aile takvimi, hikâyeler ve rol tabanlı moderasyon.
 
+Güncel kapsam ve dış kurulumlar: [Özellik durumu](docs/FEATURE-STATUS.md). Kullanıcı seçimlerinin kaydı: [Geliştirme notları](docs/FEATURE-WISHLIST.md).
+
 ## Eklenen ortak özellikler
 
 - İstenen bölüm adları: Aile Konağı, Avlu, Soy Ağacı (Antep fıstığı ağacı simgesi), Geçmişten Günümüze, Bizimkiler Nerede?
@@ -9,6 +11,10 @@
 - Birebir sohbet, okunmamış mesajlar, engelleme ve seçilen mesajı şikâyet etme. Moderatör yalnızca bildirilen mesajları inceleyebilir.
 - PDF belgeleri için Aile Sandığı, moderasyon ve özel indirme.
 - Buluşmalara katılım yanıtları; soy ağacını tarayıcıdan PDF/yazdırma; mobil yerel takvim hatırlatmaları.
+- Yaşayan Arşiv: ses/video anlatıları, tarifler, sorular, fotoğraf hatıraları, anmalar, başarılar, kaynaklar, zaman kapsülleri, sergiler ve gönüllü meslek rehberi.
+- Aile Bağlarımız: akrabalık yolu, yıl seçimiyle tarihsel görünüm ve göç rotaları.
+- Özel aile grupları, tarih oylamaları, buluşma albümü, aile yarışması ve fotoğraflı PDF aile kitabı.
+- TOTP ile iki aşamalı giriş, fotoğraf görünürlüğü, veli koruması, yönetim devri, mükerrer kayıt birleştirme/geri alma ve kayıt yedekleri.
 - `ios/` ve `android/` native projeleri, Türkçe izin açıklamaları, uygulama simgeleri ve GitHub derleme iş akışları.
 
 Mağaza yayını tamamlanmadı. Mobil istemci aynı HTTPS web arayüzünü yerel cihaz özellikleriyle kullanır; gerçek cihaz giriş/arka plan testleri ve imzalama gerekir. Ayrıntılar: [Mobil yayın durumu](docs/MOBILE-RELEASE.md).
@@ -72,7 +78,7 @@ Yönetici hesabı yokken açık kayıt veya varsayılan yönetici şifresi bulun
 
 ## Önemli ayrım
 
-**Önizleme**, etkileşimli tasarımı denemek içindir; verileri sadece tarayıcıda saklar. **Node sunucusu**, ortak veri tabanı ve gerçek üyelik sistemidir. Site önizlemesinin yayımlanmış olması Node sunucusunun üretime kurulduğu anlamına gelmez.
+**İndirilen HTML ve `?demo=1`**, örnek verili tasarım denemesidir; değişiklikler yalnızca tarayıcıda saklanır. **Canlı Sites adresi**, D1/R2 üzerinde gerçek ortak kayıt sistemidir. **Node sunucusu**, aynı uygulamanın ayrıca kendi sunucunuzda kurulabilen sürümüdür.
 
 Alan adı satın alma ve gerçek posta kutusu açma tamamlanmış değildir. Ayarlara alan adı yazmak yalnızca planı kaydeder; DNS veya e-posta sağlayıcısında işlem yapmaz. Davet bağlantısı oluşturulur ama otomatik e-posta gönderilmez. Bu sürümde bağlantıyı yönetici kendisi paylaşır.
 

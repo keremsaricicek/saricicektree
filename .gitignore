@@ -22,3 +22,4 @@ public/assets/mobile-bridge.js
 exports/
 ios-build/
 public/assets/world-map.js
+/public/__mobile-check.html

@@ -18,7 +18,7 @@ Caddy, erişilebilir alan adı için HTTPS sertifikasını yönetir. Uygulama `A
 docker compose exec -e ADMIN_EMAIL -e ADMIN_NAME -e ADMIN_PASSWORD app node src/admin.mjs
 ```
 
-Oluşturduktan sonra şifre ortam değişkenini kaldırın. Kurucu varsa komut tekrar hesap açmaz. Güçlü şifre ve hesap güvenliği aile yöneticisinin sorumluluğundadır. MFA bu sürümde yoktur.
+Oluşturduktan sonra şifre ortam değişkenini kaldırın. Kurucu varsa komut tekrar hesap açmaz. Güçlü şifre ve hesap güvenliği aile yöneticisinin sorumluluğundadır. TOTP iki aşamalı giriş profil/güvenlik ekranından açılabilir. Kurulum anahtarını güvenli saklayın; kurtarma kodu sistemi henüz yoktur. Node için SECURITY_KEY sabit bir gizli değer olmalıdır; verilmezse yerel veri tabanında oluşturulur. Bu anahtarı değiştirmek kayıtlı TOTP sırlarını okunamaz yapar.
 
 ## 2. E-posta alan adı
 
@@ -32,7 +32,7 @@ Sitede alan adını ayarlayın. Yönetici panelinden e-posta adresine bağlı bi
 
 Tutarlı yedek için uygulamayı kısa süre durdurun, `family_data` volume'unun tamamını şifreli yedekleyin, tekrar başlatın. Alternatif olarak SQLite backup API ile canlı veri tabanı yedeği ve koordineli upload dizini yedeği alın. Her gece yedekleme ve düzenli geri yükleme denemesi planlayın. Site içindeki JSON dışa aktarma **tek başına tam yedek değildir**: fotoğraf dosyalarını, şifre özetlerini ve oturumları içermez.
 
-Medya özel endpoint üzerinden sunulur. Üye sayısı ve aile bağları yalnızca giriş yapanlar tarafından görülür. Bu sürümde üye bazında ayrı özel alt arşiv bulunmaz; tüm onaylı aile içerikleri tüm aktif üyelere açıktır. Tarih / konum paylaşırken aile üyelerinin rızasıyla kayıt tutun.
+Medya özel endpoint üzerinden sunulur. Üye sayısı ve aile bağları yalnızca giriş yapanlar tarafından görülür. Fotoğraf ve arşiv katkıları yalnızca sahibi görecek şekilde özel tutulabilir. Veli koruması etiketli fotoğrafları ve bağlı arşiv kayıtlarını sınırlar; temel soy ağacı profilini gizlemez. Grup sohbetleri yalnızca grup üyelerine açıktır. Tarih / konum paylaşırken aile üyelerinin rızasıyla kayıt tutun.
 
 ## 4. Kapasite
 
@@ -44,7 +44,7 @@ Disk kapasitesini izleyin. Kişi başına 100 fotoğraf yüklenirse depolama bü
 
 Proxy arkasında hız sınırlaması güvenli varsayılan olarak bağlantı IP'sini kullanır; aynı proxy IP'si tüm girişleri kapsayabilir. Büyük dağıtımda yalnızca güvendiğiniz proxy için gerçek istemci IP'si aktarımını ve rate-limit politikasını yapılandırın; keyfi X-Forwarded-For'a güvenmeyin.
 
-Daha yüksek trafik için PostgreSQL, obje depolama, thumbnail üretimi, queue tabanlı e-posta, MFA, merkezi hız sınırlaması ve gözlemleme sonraki üretim iyileştirmeleridir.
+Daha yüksek trafik için PostgreSQL, obje depolama, thumbnail üretimi, queue tabanlı e-posta, MFA kurtarma kodları, merkezi hız sınırlaması ve gözlemleme sonraki üretim iyileştirmeleridir.
 
 ## 5. Yayından önce
 
@@ -54,3 +54,11 @@ Daha yüksek trafik için PostgreSQL, obje depolama, thumbnail üretimi, queue t
 - Yedek / geri yükleme denensin, disk uyarıları kurulsun.
 - Örnek önizleme bağlantısıyla gerçek üretim adresi karıştırılmasın.
 - İhtiyaç varsa aileye özel gizlilik metni ve açık paylaşım kuralları hazırlansın.
+
+## 6. Yaşayan arşiv yapılandırması
+
+0002 ve 0003 migration dosyaları yeni arşiv ve güvenlik tablolarını ekler. Uygulanmış dosyaları değiştirmeyin. Node ve Sites sürümlerinde yöneticinin günün ilk ziyaretinde kayıt yedeği alınır; zamanlanmış bağımsız gece işi değildir. Yedek ekranı eksik kayıtları geri ekler, mevcut kayıtların üstüne yazmaz. Yedekler medya dosyalarının kendisini, kullanıcı hesaplarını ve sohbetleri içermez; tam veri deposu yedeği ayrıca gerekir.
+
+Fotoğraf iyileştirme isteğe bağlıdır: OPENAI_API_KEY gizli ortam değeri ve IMAGE_MODEL (varsayılan gpt-image-1.5) yapılandırılmadan devre dışıdır. Sites için OpenAI Developers bağlantısı üzerinden anahtar kurulumu gerekir. Kullanıcı fotoğrafın harici hizmete gönderilmesini işlem sırasında onaylar. Oluşan kopya açıkça etiketlenir; özgün fotoğraf silinmez. Gerçek servis testi anahtar sağlanmadığı için yapılmadı. API: https://developers.openai.com/api/reference/resources/images/methods/edit
+
+Site şu anda sahibine özeldir. Akrabaların erişimi için Sites erişim listesi ayrıca düzenlenmeli veya bağımsız sunucu kendi alan adında kurulmalıdır. Uygulama daveti platform erişimini kendiliğinden açmaz.

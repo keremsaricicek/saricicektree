@@ -36,3 +36,7 @@ export const audit=(user,action,id='')=>run('INSERT INTO audit(userId,action,ent
 // Shared community schema uses the same generated migration in both runtimes.
 db.exec('CREATE TABLE IF NOT EXISTS local_migrations(name TEXT PRIMARY KEY)');
 if(!one('SELECT name FROM local_migrations WHERE name=?','0001_stormy_husk'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0001_stormy_husk.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0001_stormy_husk');});
+
+if(!one('SELECT name FROM local_migrations WHERE name=?','0002_tan_sheva_callister'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0002_tan_sheva_callister.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0002_tan_sheva_callister');});
+
+if(!one('SELECT name FROM local_migrations WHERE name=?','0003_heavy_betty_ross'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0003_heavy_betty_ross.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0003_heavy_betty_ross');});

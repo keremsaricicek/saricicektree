@@ -17,7 +17,7 @@ window.makeDemo = function() {
  if(path==='/api/export'){owner();return structuredClone(data);}
  if(path==='/api/logout'){return{ok:true};}
  if(path==='/api/settings'){owner();Object.assign(data.settings,b);audit('Aile ayarları güncellendi');persist();return{ok:true};}
- if(path==='/api/invites'&&method==='POST'){owner();if(!/^\S+@\S+\.\S+$/.test(b.email))throw Error('Geçerli bir e-posta girin.');const id=crypto.randomUUID();data.invites.push({...b,id,expires:Date.now()+604800000,used:0});persist();return{url:null,email:b.email,demo:true};}
+ if(path==='/api/invites'&&method==='POST'){owner();if(!/^\S+@\S+\.\S+$/.test(b.email))throw Error('Geçerli bir e-posta girin.');const id=(crypto.randomUUID?.()||'demo-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2));data.invites.push({...b,id,expires:Date.now()+604800000,used:0});persist();return{url:null,email:b.email,demo:true};}
  if(path.startsWith('/api/invites/')&&method==='DELETE'){owner();data.invites=data.invites.filter(x=>x.id!==path.split('/').pop());persist();return{ok:true};}
  if(path==='/api/reset-link')return{url:null,demo:true};
  if(path.startsWith('/api/users/')){owner();const u=data.users.find(u=>u.id===path.split('/').pop());if(u?.role==='owner')throw Error('Kurucu değiştirilemez.');Object.assign(u,b);audit('Üye yetkisi değiştirildi');persist();return{ok:true};}
@@ -26,7 +26,7 @@ window.makeDemo = function() {
  if(table==='people'||table==='relations')staff();
  if(method==='POST'){
  if(table==='relations'){if(b.personA===b.personB)throw Error('Aynı kişiyi seçemezsiniz.');const visited=new Set(),q=[b.personB];while(q.length){const p=q.pop();if(b.type!=='spouse'&&p===b.personA)throw Error('Bu ilişki döngü oluşturur.');if(visited.has(p))continue;visited.add(p);data.relations.filter(r=>r.type!=='spouse'&&r.personA===p).forEach(r=>q.push(r.personB));}if(data.relations.some(r=>r.type===b.type&&((r.personA===b.personA&&r.personB===b.personB)||(b.type==='spouse'&&r.personA===b.personB&&r.personB===b.personA))))throw Error('Bu ilişki zaten var.');}
- const record={...b,id:crypto.randomUUID(),createdAt:new Date().toISOString(),createdBy:data.user.id,status:data.user.role==='member'?'pending':'approved'};
+ const record={...b,id:(crypto.randomUUID?.()||'demo-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)),createdAt:new Date().toISOString(),createdBy:data.user.id,status:data.user.role==='member'?'pending':'approved'};
  if(table==='photos'){record.url=b.data;delete record.data;}data[table].push(record);audit('Yeni kayıt eklendi');persist();return{id:record.id,status:record.status};
  }
  const item=data[table].find(x=>x.id===id);if(!item)throw Error('Kayıt bulunamadı.');if(data.user.role==='member'&&item.createdBy!==data.user.id)throw Error('Yetkiniz yok.');

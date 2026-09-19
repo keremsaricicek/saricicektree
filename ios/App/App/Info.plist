@@ -74,6 +74,8 @@
 	<array>
 		<string>location</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Aile hikâyelerini kendi sesinizle kaydetmek için mikrofon izni istenir.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Seçtiğin fotoğrafları aile avlusunda paylaşabilmen için fotoğraf seçimine erişir.</string>
 	<key>NSCameraUsageDescription</key>

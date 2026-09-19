@@ -31,4 +31,18 @@ Asistanın önerdiği ilk üç (kullanıcının kesin öncelik sıralaması değ
 - Yakınımda akrabam var mı?: seyahat edilecek şehirde şehir bilgisini paylaşmayı seçmiş akrabaları gösterme ve buluşma isteği.
 - Aile arşivinin devamlılığı: ikinci yönetici ve yönetim devri.
 
-Bu ikinci grup da geliştirme fikridir; uygulanmış özellik listesi değildir.
+Bu ikinci grup daha sonra uygulama kapsamına alındı. Her fikrin uygulanan ayrıntısı ve kalan bağımlılıkları FEATURE-STATUS.md içindedir.
+
+## Üçüncü gruptan seçilenler ve uygulama talebi
+
+Kullanıcı önceki iki grubun tamamını ve aşağıdaki beş fikri uygulamamızı istedi:
+- O tarihte ailemiz: yıl seçimiyle tarihsel aile görünümü ve zaman çizelgesi.
+- Aile bilgi yarışması: etkinlik olarak oynanabilen, aile kayıtlarından sorular.
+- Aile başarıları: bugün ne oldu akışıyla ve kişi profilleriyle bağlantılı kutlamalar.
+- Hatıraların kaynakları: belge/anlatıcı bağlantısı, doğrulanmış bilgi ile aktarılan anlatının ayrılması.
+- Dijital aile sergisi: temalı fotoğraf, ses ve hikâye sunumları.
+Üçüncü gruptaki diğer beş öneri uygulama kapsamına alınmadı.
+
+## Uygulama takibi
+
+Seçilen maddeler kaynak koduna işlendi. Gerçek kapsam, sınırlı uygulamalar ve dış hesap bekleyen maddeler FEATURE-STATUS.md içinde tek tek belirtilir; bu nottaki fikirler koşulsuz tamamlandı anlamına gelmez.
