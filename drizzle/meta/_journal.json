@@ -29,6 +29,27 @@
       "when": 1789807117336,
       "tag": "0003_heavy_betty_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789818757048,
+      "tag": "0004_broad_karma",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789819150621,
+      "tag": "0005_curly_omega_red",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789819472203,
+      "tag": "0006_search_index",
+      "breakpoints": true
     }
   ]
 }

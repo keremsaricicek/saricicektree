@@ -40,3 +40,9 @@ if(!one('SELECT name FROM local_migrations WHERE name=?','0001_stormy_husk'))tra
 if(!one('SELECT name FROM local_migrations WHERE name=?','0002_tan_sheva_callister'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0002_tan_sheva_callister.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0002_tan_sheva_callister');});
 
 if(!one('SELECT name FROM local_migrations WHERE name=?','0003_heavy_betty_ross'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0003_heavy_betty_ross.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0003_heavy_betty_ross');});
+
+if(!one('SELECT name FROM local_migrations WHERE name=?','0004_broad_karma'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0004_broad_karma.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0004_broad_karma');});
+
+if(!one('SELECT name FROM local_migrations WHERE name=?','0005_curly_omega_red'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0005_curly_omega_red.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0005_curly_omega_red');});
+
+if(!one('SELECT name FROM local_migrations WHERE name=?','0006_search_index'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0006_search_index.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0006_search_index');});

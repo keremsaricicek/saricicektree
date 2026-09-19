@@ -31,3 +31,8 @@ export const person_guardians=sqliteTable('person_guardians',{personId:text('per
 export const security_factors=sqliteTable('security_factors',{userId:text('userId').primaryKey().references(()=>users.id),secret:text('secret').notNull(),enabled:integer('enabled').notNull().default(0),lastStep:integer('lastStep').notNull().default(-1)});
 export const security_sessions=sqliteTable('security_sessions',{token:text('token').primaryKey(),userId:text('userId').notNull().references(()=>users.id),expires:integer('expires').notNull()},t=>[index('security_sessions_user').on(t.userId,t.expires)]);
 export const archive_backups=sqliteTable('archive_backups',{id:text('id').primaryKey(),filename:text('filename').notNull(),createdAt:text('createdAt').notNull(),recordCount:integer('recordCount').notNull()});
+export const security_recovery=sqliteTable('security_recovery',{userId:text('userId').notNull().references(()=>users.id),digest:text('digest').notNull(),createdAt:text('createdAt').notNull()},t=>[primaryKey({columns:[t.userId,t.digest]})]);
+export const push_keys=sqliteTable('push_keys',{id:integer('id').primaryKey(),publicKey:text('publicKey').notNull(),privateKey:text('privateKey').notNull()});
+export const push_subscriptions=sqliteTable('push_subscriptions',{endpoint:text('endpoint').primaryKey(),userId:text('userId').notNull().references(()=>users.id),createdAt:text('createdAt').notNull()},t=>[index('push_user').on(t.userId)]);
+
+// search_fts (FTS5), search_catalog and their five source-table triggers are owned by custom migration 0006_search_index.sql. They are derived indexes, not authoritative family records.

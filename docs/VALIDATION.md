@@ -1,6 +1,6 @@
 # Doğrulama — 19 Eylül 2026
 
-`npm test`: 37 test. Node gerçek HTTP sunucusu ve geçici SQLite; Worker için gerçek SQLite kullanan D1 adaptörü ve bellek içi R2. Bunlar üretim altyapısının canlı uçtan uca testi değildir.
+`npm test`: 44 test. Node gerçek HTTP sunucusu ve geçici SQLite; Worker için gerçek SQLite kullanan D1 adaptörü ve bellek içi R2. Bunlar üretim altyapısının canlı uçtan uca testi değildir.
 
 - Davet, kimlik, rol, CSRF, moderasyon, kalıcılık, şifre sıfırlama ve oturum iptali.
 - Aile bağı döngüsü, tarih doğrulama, profil ve ana sayfa render, kullanıcı metninin kaçışlanması.
@@ -18,5 +18,7 @@
 İç önizlemede ana sayfa, Yaşayan Arşiv, Aile Bağlarımız ve dünya haritası görüntülendi. Tarif ekleme ve sayfa yenilemesi sonrası korunması denendi. Mehmet–Deniz akrabalık yolu doğru torun sonucunu verdi. Göç formunun harita seçim alanı görüntülendi. Bu işlemler örnek verili modda yapılmıştır; gerçek aile kayıtları eklenmedi.
 
 Mobil CSS kırılımları mevcuttur; gerçek mobil viewport etkileşim testi ve fiziksel iOS/Android testleri tamamlanmadı. Native projeler önceki sürümde senkronize edildi; yeni mikrofon izinleri kaynaklara eklendi. İmzalı mağaza derlemesi alınmadı.
+
+Son ek doğrulamalar: kurtarma kodlarının tek kullanımı/özetlenmesi, temel çocuk profilinin arama ve haritadan saklanması, indeksli eski kayıt araması, medya geri yükleme ve bozuk yedek reddi, push abonelik adres doğrulaması ve VAPID imzası, SSE alıcı izolasyonu. Üst menü ve sohbet ekranı tarayıcıda kontrol edildi. 1000 ayrı oturumla yerel stres ölçümleri STRESS-RESULTS.md içindedir.
 
 Canlı platformun dağıtım sonucu ayrıca teslimatta bildirilir. Dış kurulumlar ve kapsam sınırları FEATURE-STATUS.md ve MOBILE-RELEASE.md içindedir.

@@ -2,6 +2,8 @@
 
 Özel aile arşivi: soy ağacı, kişiler, fotoğraf albümü, aile takvimi, hikâyeler ve rol tabanlı moderasyon.
 
+Üst menü, sosyal sohbet, sunucu araması, kurtarma kodları, veli gizliliği ve medya yedekleri: [Son güncelleme](docs/SOCIAL-UPGRADE.md). [Stres testi](docs/STRESS-RESULTS.md).
+
 Güncel kapsam ve dış kurulumlar: [Özellik durumu](docs/FEATURE-STATUS.md). Kullanıcı seçimlerinin kaydı: [Geliştirme notları](docs/FEATURE-WISHLIST.md).
 
 ## Eklenen ortak özellikler

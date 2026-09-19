@@ -1,0 +1,3 @@
+// Notifications only. Private application responses and media are never cached.
+self.addEventListener('push',event=>event.waitUntil(self.registration.showNotification('Sarıçiçek · Yeni mesaj',{body:'Ailenden bir mesaj var. Görmek için sohbeti aç.',tag:'family-message',data:{url:'/#chat'}})));
+self.addEventListener('notificationclick',event=>{event.notification.close();event.waitUntil((async()=>{const tabs=await clients.matchAll({type:'window',includeUncontrolled:true});const tab=tabs.find(t=>new URL(t.url).origin===self.location.origin);if(tab){await tab.navigate('/#chat');await tab.focus();}else await clients.openWindow('/#chat');})());});

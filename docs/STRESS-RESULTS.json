@@ -1,0 +1,82 @@
+{
+  "date": "2026-09-19T12:10:31.302Z",
+  "fixture": {
+    "users": 1000,
+    "people": 5000,
+    "messages": 20000,
+    "archiveEntries": 5000
+  },
+  "environment": {
+    "node": "v24.19.0",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "logicalCPUs": 9,
+    "ramGB": 16
+  },
+  "bursts": [
+    {
+      "concurrency": 100,
+      "requests": 200,
+      "errors": 0,
+      "p50ms": 421,
+      "p95ms": 698,
+      "p99ms": 701,
+      "requestsPerSecond": 150,
+      "elapsedMs": 1332,
+      "statuses": {
+        "200": 160,
+        "201": 40
+      }
+    },
+    {
+      "concurrency": 250,
+      "requests": 500,
+      "errors": 0,
+      "p50ms": 870,
+      "p95ms": 1559,
+      "p99ms": 1560,
+      "requestsPerSecond": 166,
+      "elapsedMs": 3007,
+      "statuses": {
+        "200": 400,
+        "201": 100
+      }
+    },
+    {
+      "concurrency": 500,
+      "requests": 1000,
+      "errors": 0,
+      "p50ms": 1663,
+      "p95ms": 3033,
+      "p99ms": 3043,
+      "requestsPerSecond": 164,
+      "elapsedMs": 6102,
+      "statuses": {
+        "200": 800,
+        "201": 200
+      }
+    },
+    {
+      "concurrency": 1000,
+      "requests": 2000,
+      "errors": 0,
+      "p50ms": 3139,
+      "p95ms": 6160,
+      "p99ms": 6163,
+      "requestsPerSecond": 164,
+      "elapsedMs": 12176,
+      "statuses": {
+        "200": 1600,
+        "201": 400
+      }
+    }
+  ],
+  "streams": {
+    "connections": 1000,
+    "opened": 1000,
+    "initialDeliveryMs": 397
+  },
+  "serverMemory": "VmHWM:\t  314564 kB; VmRSS:\t  302096 kB",
+  "serverErrors": [],
+  "integrity": "ok",
+  "foreignKeyErrors": 0
+}
