@@ -1,0 +1,13 @@
+{
+  "appId": "com.saricicek.family",
+  "appName": "Sarıçiçek Aile Konağı",
+  "webDir": "native-www",
+  "server": {
+    "url": "https://saricicek-family.saricicek.chatgpt.site",
+    "cleartext": false,
+    "allowNavigation": ["saricicek-family.saricicek.chatgpt.site"],
+    "errorPath": "offline.html"
+  },
+  "android": {"useLegacyBridge": true,"allowMixedContent": false},
+  "plugins": {"CapacitorHttp": {"enabled": false}, "LocalNotifications": {"smallIcon": "ic_stat_family", "iconColor": "#294c3d"}}
+}
