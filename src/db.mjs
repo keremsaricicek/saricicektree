@@ -47,3 +47,5 @@ if(!one('SELECT name FROM local_migrations WHERE name=?','0005_curly_omega_red')
 
 if(!one('SELECT name FROM local_migrations WHERE name=?','0006_search_index'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0006_search_index.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0006_search_index');});
 if(!one('SELECT name FROM local_migrations WHERE name=?','0007_greedy_kinsey_walden'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0007_greedy_kinsey_walden.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0007_greedy_kinsey_walden');});
+
+if(!one('SELECT name FROM local_migrations WHERE name=?','0008_aberrant_genesis'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0008_aberrant_genesis.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0008_aberrant_genesis');});

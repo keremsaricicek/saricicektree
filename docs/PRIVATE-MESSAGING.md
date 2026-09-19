@@ -18,7 +18,7 @@ Zaman çizelgesi doğum, vefat, kayıtlı evlilik, kişiye bağlı etkinlik, tar
 
 ## Bugün, etkinlikler ve fotoğraf hikâyeleri
 
-**Bugün ailemizde** cihazının yerel tarihine denk gelen doğum günlerini, yıldönümlerini ve önceki yılların aynı günündeki fotoğraf/anıları gösterir. Genel sosyal medya akışı eklenmedi.
+**Bugün ailemizde** cihazının yerel tarihine denk gelen doğum günlerini, yıldönümlerini ve önceki yılların aynı günündeki fotoğraf/anıları gösterir. Aile Konağı sosyal paylaşım akışı için FAMILY-FEED.md kılavuzuna bakın.
 
 Etkinlik ayrıntısından katılım durumu ve etkinlik albümüne ulaşılır. **Takvime ve hatırlatmalara ekle** bir takvim dosyası indirir; cihaz takvimine eklemen gerekir. Dosyada 12 saat önce hatırlatma vardır; teslimatı kullandığın takvim uygulaması belirler.
 

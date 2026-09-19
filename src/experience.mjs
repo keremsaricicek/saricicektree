@@ -1,3 +1,4 @@
+import {feed} from './feed.mjs';
 import {assert,clean} from './domain.mjs';
 import {hiddenPeople} from './privacy.mjs';
 import {visiblePhoto} from './archive.mjs';
@@ -6,6 +7,7 @@ import {publishChange} from './realtime.mjs';
 import {sendPush} from './notifications.mjs';
 const now=()=>new Date().toISOString();
 export async function experience(ctx){
+ if(ctx.path.startsWith('/api/experience/feed'))return feed(ctx);
  const {path,method,url,u,read,one,all,run,batch,storage,limit,keyText,defer}=ctx;
  const reply=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
  async function thread(kind,id){assert(['dm','group'].includes(kind),400,'Konuşma türü geçersiz.');if(kind==='dm'){assert(id!==u.id&&await one('SELECT id FROM users WHERE id=? AND active=1',id),404,'Kişi bulunamadı.');return{blocked:!!await one('SELECT 1 FROM blocks WHERE (userId=? AND blockedId=?) OR (userId=? AND blockedId=?)',u.id,id,id,u.id)};}assert(await one('SELECT 1 FROM group_members WHERE groupId=? AND userId=?',id,u.id),404,'Grup bulunamadı.');return{blocked:false};}

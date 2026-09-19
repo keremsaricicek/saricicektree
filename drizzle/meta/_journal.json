@@ -57,6 +57,13 @@
       "when": 1789838736957,
       "tag": "0007_greedy_kinsey_walden",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789858352447,
+      "tag": "0008_aberrant_genesis",
+      "breakpoints": true
     }
   ]
 }
