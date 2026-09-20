@@ -64,6 +64,13 @@
       "when": 1789858352447,
       "tag": "0008_aberrant_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1789896875194,
+      "tag": "0009_fearless_iron_fist",
+      "breakpoints": true
     }
   ]
 }

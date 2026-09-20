@@ -41,3 +41,21 @@ Bu belge seçilen fikirlerin uygulamadaki gerçek kapsamını gösterir. Liste v
 - Canlı site sahibine özel. Uygulama daveti yanında platform erişimi de gerekir.
 
 Uygulanmamış dış kurulumlar tamamlanmış olarak sunulmaz. Sohbetler ve kapsüller uçtan uca şifreli değildir; sunucu yöneticisi veri tabanı yedeğini yönetebilir.
+
+
+## 20 Eylül 2026 — Hayat / Avlu / Duvarı
+
+- Ana akış Hayat, galeri Avlu; krem ve taze fıstık tonları korunur.
+- Bir yükleme ekranı: 1–8 fotoğraf, albüm sırası/kapak, fotoğraf başına zorunlu tarih–kişi–yer–hatıra. Soy ağacı dışı kişiler isimle belirtilebilir. Yaklaşık yıl/ay açıkça gösterilir.
+- Hayat’ta paylaş seçeneği aynı arşiv dosyasını kullanır. Paylaşım yazısı ve yorumlar kalıcı fotoğraf hikâyesine kopyalanmaz. Eski akış fotoğrafları Avlu açıldıkça 30’luk gruplarla dosya çoğaltılmadan bağlanır; bilinmeyen eski bilgiler uydurulmaz.
+- Görünürlük özeti, kişi/lakap araması, fotoğraf üstü konum etiketleri, profillere geçiş, çekim yılına göre arşiv ve devam sayfaları.
+- Albüm kolajı, büyük fotoğraf + yan hikâye, erişilebilir diğer kareler, kaynak/çeken kişi, arşivden tekrar paylaşım.
+- Dosya özetiyle aynı fotoğraf uyarısı: yalnızca erişilebilir kayıtlar. Benzer yüz/görüntü tanıma değildir; eski arşivde özeti olmayan dosyalar karşılaştırmaya katılmaz. Tarayıcıda güvenli bağlantı gerekir.
+- Bilgi düzeltme önerileri, fotoğraf sahibi veya moderatör onayı. Ses kaydı/dosya yükleme + metin; tarayıcı konuşma hizmeti isteğe bağlı ve tarayıcı desteğine bağlıdır. Gerçek mikrofon/donanım kaydı bu sürümde otomatik test edilmedi.
+- Kişi lakabı/doğduğu yer, ayrı kapak ve portre, nesil/yaş/yer/izleyiciye göre akrabalık, açıklamalı ağaç/kalem/ayar simgeleri.
+- Duvarı: kendi/etiketli gönderiler, arşiv fotoğrafları ve yorumlar; filtre ve devam yükleme. Her yüklenen gönderi için en yeni 100 ilgili yorum önizlenir; tüm yorumlara konuşmayı açarak ulaşılır. Gönderi sayfaları yayın sırasıyla alınır; eski bir gönderiye yeni eklenen yorum, o gönderi yüklenince kendi tarihine göre yerleşir.
+- Etiketli yorumlar, profil bağlantılı kişi çipleri ve akışta son yorumlar. Özel içerik ve veli kısıtları arşiv/duvar/ilgili kareler/ses/portre için de denetlenir.
+- Yeni tablolar ve ses dosyaları tam yedek kapsamındadır. Eski yedeklerin yeni tabloları içermemesi geri yüklemeyi engellemez.
+- Uygulamanın soru işaretinden açılan resimli kılavuz: gerçek önizleme ekranları, numaralı kontroller ve basit kullanım adımları. Ekranlardaki kişi/fotoğraflar tanıtım verisidir.
+
+Doğrulama: mevcut 52 test + 4 yeni bütünleşik fotoğraf/arşiv testi (56 toplam). Tarayıcıda fotoğraf yükleme, Hayat+Avlu kaydı, etiketten profile geçiş, kapak, lakap ve duvar filtreleri denendi. Bunlar 1.000 eşzamanlı üretim kullanıcısı kapasite garantisi değildir; önceki kapasite raporunun sınırları geçerlidir.

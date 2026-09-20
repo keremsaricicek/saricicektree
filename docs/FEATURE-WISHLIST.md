@@ -46,3 +46,27 @@ Kullanıcı önceki iki grubun tamamını ve aşağıdaki beş fikri uygulamamı
 ## Uygulama takibi
 
 Seçilen maddeler kaynak koduna işlendi. Gerçek kapsam, sınırlı uygulamalar ve dış hesap bekleyen maddeler FEATURE-STATUS.md içinde tek tek belirtilir; bu nottaki fikirler koşulsuz tamamlandı anlamına gelmez.
+
+## 2026-09-20 — Hayat, profiller ve aile hafızası: kullanıcı tarafından kabul edilen kapsam
+
+Durum: Kullanıcının sonraki talebiyle uygulama kapsamına alındı. Gerçek kapsam ve sınırlar FEATURE-STATUS.md içinde kayıtlıdır.
+
+- Son isim kararı: ana akış Hayat, fotoğraf arşivi Avlu. Önceki Hayat (Galeri) adı geçersizdir; fotoğraflar çekim tarihine göre sıralanır.
+- Hayat ve Avlu üzerinden fotoğraf yüklenebilecek. Hayat fotoğrafı da aynı kayıt üzerinden Avlu’da yer alacak; kopya dosya oluşturulmayacak.
+- Fotoğraf için tarih, fotoğraftaki kişiler, çekildiği yer, hatırası/önemi zorunlu. Soy ağacından seçilen kişi etiketleri profiline bağlanacak; ağaç dışındaki kişiler için isim belirtilebilecek.
+- Fotoğrafın arşiv hikâyesi ile Hayat paylaşım metni ve yorumları ayrı tutulacak. Avlu’nun sade zaman çizelgesi Hayat sohbetlerini göstermeyecek.
+- Profilde ayrı kapak ve profil resmi; fıstık yeşili başlıkta isim, nesil, doğum yeri, yaşadığı yer ve yaş yer alacak.
+- İzleyicinin bağlı soy ağacı kaydına göre akrabalık sıfatı başlıkta otomatik gösterilecek. Bağlı kayıt yoksa akrabalık uydurulmayacak.
+- Profil ayrıntıları başlığa entegre edilecek. Ağaçta göster ve düzenle işlevleri erişilebilir açıklamalı ağaç/kalem ikonları olacak.
+- Paylaşımları sekmesi Duvarı olacak; kendi gönderileri, fotoğrafları ve etiketlendiği gönderi/fotoğraf/yorumlar erişim sınırları korunarak tarihe göre gösterilecek.
+- Aile bağları sekmesi ve Benim neyim oluyor düğmesi kaldırılacak; Hayat hikâyesi kalacak.
+- Gerçek ekran görüntüleri ve numaralı düğmelerle sade, ayrıntılı kullanım kılavuzu hazırlanacak.
+
+Kullanıcının “Hepsi güzel not al” dediği beş öneri:
+1. Kaydetmeden önce hedef alan ve kimlerin göreceğini gösteren kısa özet.
+2. Avlu’da masaüstü yıl cetveli / mobil yatay yıl seçimi.
+3. Duvar filtreleri: Tümü / Kendi paylaşımları / Etiketlendiği içerikler.
+4. Fotoğraf üzerinde kişi konumunu işaretleme ve profil bağlantısı.
+5. Kesin tarih / Yaklaşık tarih seçimi. Son onay, önceki zorunlu gün-ay-yıl talebine bu açık istisnayı kabul ediyor: tarih bilgisi zorunlu, yaklaşık kayıtta bilinmeyen gün/ay uydurulmaz; belirsizlik görünür tutulur.
+
+Sonraki 16 öneri kullanıcı tarafından birlikte kabul edildi ve uygulama kapsamına alındı. Ek karar: kişilerin varsa lakabı kaydedilir. Bu dosya tek başına bütün ayrıntıların tamamlandığı iddiası değildir; uygulanan davranışlar ve sınırlar aşağıdaki sürüm kaydında izlenir.

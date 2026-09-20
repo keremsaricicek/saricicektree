@@ -12,7 +12,7 @@ export function personInput(b) {
   assert(!birthDate || !deathDate || birthDate <= deathDate, 400, 'Vefat tarihi doğumdan önce olamaz.');
   assert(!birthDate || birthDate <= new Date().toISOString().slice(0,10), 400, 'Doğum tarihi gelecekte olamaz.');
   assert(!deathDate || deathDate <= new Date().toISOString().slice(0,10), 400, 'Vefat tarihi gelecekte olamaz.');
-  return {name, birthDate, deathDate, place:clean(b.place,120), country:clean(b.country,60), biography:clean(b.biography,5000), source:clean(b.source,1000)};
+  return {name, nickname:clean(b.nickname,100), birthPlace:clean(b.birthPlace,200), birthDate, deathDate, place:clean(b.place,120), country:clean(b.country,60), biography:clean(b.biography,5000), source:clean(b.source,1000)};
 }
 export function validateRelation(links, a, b, type) {
   assert(a !== b,400,'Kişi kendisiyle ilişkilendirilemez.');
