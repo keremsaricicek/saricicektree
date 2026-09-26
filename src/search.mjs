@@ -2,7 +2,7 @@ import {audienceSQL} from './audience.mjs';
 import {assert,clean} from './domain.mjs';
 import {photoVisibleSQL,visiblePhoto} from './archive.mjs';
 const normalize=s=>String(s).toLocaleLowerCase('tr').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i');
-function folded(expr){for(const [a,b] of [['İ','i'],['I','i'],['ı','i'],['Ş','s'],['ş','s'],['Ğ','g'],['ğ','g'],['Ç','c'],['ç','c'],['Ö','o'],['ö','o'],['Ü','u'],['ü','u']])expr="replace("+expr+",'"+a+"','"+b+"')";return 'lower('+expr+')';}
+export function folded(expr){for(const [a,b] of [['İ','i'],['I','i'],['ı','i'],['Ş','s'],['ş','s'],['Ğ','g'],['ğ','g'],['Ç','c'],['ç','c'],['Ö','o'],['ö','o'],['Ü','u'],['ü','u']])expr="replace("+expr+",'"+a+"','"+b+"')";return 'lower('+expr+')';}
 export async function search({path,url,u,all,one}){
  const reply=x=>new Response(JSON.stringify(x),{headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
  if(path.startsWith('/api/search/photo/')){const p=await visiblePhoto(one,u,path.split('/').pop());assert(p,404,'Fotoğraf bulunamadı.');return reply({...p,url:'/media/'+p.id,peopleIds:(await all('SELECT personId FROM photo_people WHERE photoId=?',p.id)).map(x=>x.personId)});}
@@ -29,7 +29,10 @@ export async function search({path,url,u,all,one}){
   const missing=(await one(`SELECT (SELECT COUNT(*) FROM ${table})!=(SELECT COUNT(*) FROM search_catalog WHERE kind=?) missing`,source)).missing;
   if(missing){args.push(...params,...terms.map(t=>'%'+t.replace(/[!%_]/g,'!$&')+'%'));const fallback=terms.map(()=>folded(title+"||' '||"+body)+" LIKE ? ESCAPE '!'").join(' AND ');queries.push(`SELECT ${fields} FROM ${table} WHERE ${access} AND NOT EXISTS(SELECT 1 FROM search_catalog WHERE kind='${source}' AND recordId=${id}) AND ${fallback}`);}
  }
- const rows=await all(queries.join(' UNION ALL ')+' ORDER BY createdAt DESC,id LIMIT 61 OFFSET ?',...args,offset);
+ // Nicknames were introduced after the original FTS catalogue; include them even on indexed people.
+ queries.push(`SELECT id,name title,'Kişi' kind,'profile' action,createdAt FROM people WHERE deletedAt IS NULL AND ${person('people.id')} AND ${terms.map(()=>folded("name||' '||coalesce(nickname,'')")+" LIKE ? ESCAPE '!'").join(' AND ')}`);
+ args.push(...pArgs,...terms.map(t=>'%'+t.replace(/[!%_]/g,'!$&')+'%'));
+ const rows=await all(queries.join(' UNION ')+' ORDER BY createdAt DESC,id LIMIT 61 OFFSET ?',...args,offset);
  return reply({items:rows.slice(0,60),hasMore:rows.length>60,nextOffset:offset+60});
 }
 

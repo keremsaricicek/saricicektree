@@ -9,6 +9,7 @@ export async function notifications({path,method,u,read,one,run,limit,keyText}){
  assert(false,404,'Bildirim işlemi bulunamadı.');
 }
 export async function sendPush({userId,one,all,run,keyText,origin,transport=fetch}){
+ const preferences=JSON.parse((await one('SELECT data FROM user_preferences WHERE userId=?',userId))?.data||'{}');if(preferences.notifications?.messages===false)return;
  const subscriptions=await all('SELECT endpoint FROM push_subscriptions WHERE userId=?',userId);if(!subscriptions.length)return;
  const saved=await one('SELECT * FROM push_keys WHERE id=1');if(!saved)return;
  const privateKey=await crypto.subtle.importKey('jwk',JSON.parse(await crypt(saved.privateKey,keyText,true)),{name:'ECDSA',namedCurve:'P-256'},false,['sign']);

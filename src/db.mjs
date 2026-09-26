@@ -51,3 +51,4 @@ if(!one('SELECT name FROM local_migrations WHERE name=?','0007_greedy_kinsey_wal
 if(!one('SELECT name FROM local_migrations WHERE name=?','0008_aberrant_genesis'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0008_aberrant_genesis.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0008_aberrant_genesis');});
 
 if(!one('SELECT name FROM local_migrations WHERE name=?','0009_fearless_iron_fist'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0009_fearless_iron_fist.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0009_fearless_iron_fist');});
+if(!one('SELECT name FROM local_migrations WHERE name=?','0010_happy_kronos'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0010_happy_kronos.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0010_happy_kronos');});

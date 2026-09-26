@@ -71,6 +71,13 @@
       "when": 1789896875194,
       "tag": "0009_fearless_iron_fist",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1789976721299,
+      "tag": "0010_happy_kronos",
+      "breakpoints": true
     }
   ]
 }

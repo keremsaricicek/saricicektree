@@ -1,4 +1,5 @@
 import {memories} from './memories.mjs';
+import {konak} from './konak.mjs';
 import {feed} from './feed.mjs';
 import {assert,clean} from './domain.mjs';
 import {hiddenPeople} from './privacy.mjs';
@@ -8,6 +9,7 @@ import {publishChange} from './realtime.mjs';
 import {sendPush} from './notifications.mjs';
 const now=()=>new Date().toISOString();
 export async function experience(ctx){
+ if(['/api/experience/preferences','/api/experience/message-search','/api/experience/review'].includes(ctx.path))return konak(ctx);
  if(ctx.path.startsWith('/api/experience/memories'))return memories(ctx);
  if(ctx.path.startsWith('/api/experience/feed'))return feed(ctx);
  const {path,method,url,u,read,one,all,run,batch,storage,limit,keyText,defer}=ctx;
