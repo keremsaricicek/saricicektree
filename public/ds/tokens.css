@@ -1,0 +1,111 @@
+/* Design tokens. Every colour, size, radius and shadow in ds/ comes from here. */
+:root {
+  /* Surfaces: warm paper, not white. */
+  --bg: #f4f1e8;
+  --bg-sunken: #ece8dc;
+  --surface: #fffdf8;
+  --surface-2: #f9f6ee;
+  --surface-3: #f2eee3;
+  --overlay: rgba(22, 30, 24, 0.46);
+  --glass: rgba(246, 243, 235, 0.82);
+
+  /* Lines */
+  --line: #e7e1d2;
+  --line-soft: #efeadf;
+  --line-strong: #d8d0bc;
+
+  /* Text */
+  --ink: #1d2b22;
+  --ink-2: #45513f;
+  --muted: #7a8171;
+  --faint: #a3a797;
+  --on-dark: #f6f3ea;
+
+  /* Brand: forest green + fresh pistachio, a touch of heirloom gold. */
+  --forest: #2d4a35;
+  --forest-2: #223a29;
+  --forest-3: #3d5f45;
+  --pistachio: #cfe39b;
+  --pistachio-2: #bcd67f;
+  --pistachio-soft: #e9f1d4;
+  --pistachio-wash: #f3f7e6;
+  --pistachio-ink: #4b6827;
+  --gold: #a9834a;
+  --gold-soft: #f3ead7;
+  --gold-ink: #7a5a2a;
+  --heart: #d0503f;
+  --danger: #b0443a;
+  --danger-soft: #f7e4e0;
+  --success: #3f7a4a;
+
+  /* Typography */
+  --font-sans: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-base: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
+  --fs-3xl: 34px;
+  --fs-4xl: 44px;
+
+  /* Shape */
+  --r-xs: 8px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-full: 999px;
+
+  /* Depth */
+  --sh-1: 0 1px 2px rgba(29, 43, 34, 0.04), 0 0 0 1px rgba(29, 43, 34, 0.035);
+  --sh-2: 0 1px 2px rgba(29, 43, 34, 0.04), 0 10px 30px -12px rgba(29, 43, 34, 0.16);
+  --sh-3: 0 30px 80px -20px rgba(18, 28, 21, 0.38), 0 2px 8px rgba(18, 28, 21, 0.06);
+  --ring: 0 0 0 3px rgba(188, 214, 127, 0.55);
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 140ms;
+  --t: 220ms;
+  --t-slow: 380ms;
+
+  /* Layout */
+  --topbar-h: 64px;
+  --bottombar-h: 68px;
+  --gutter: 32px;
+  --page-max: 1180px;
+  --feed-max: 640px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Avatar tones (bg / fg) */
+  --tone-1-bg: #e3edc8; --tone-1-fg: #42602a;
+  --tone-2-bg: #f1e4cb; --tone-2-fg: #7a5a2a;
+  --tone-3-bg: #e9ddd2; --tone-3-fg: #6b4a37;
+  --tone-4-bg: #d9e8e1; --tone-4-fg: #2e5a4d;
+  --tone-5-bg: #ecdfe3; --tone-5-fg: #6e4455;
+  --tone-6-bg: #e1e4ec; --tone-6-fg: #3f4a69;
+
+  /* Legacy variables now resolve to the same palette. */
+  --paper: var(--bg);
+  --white: var(--surface);
+  --olive: var(--forest);
+  --soft: var(--surface-3);
+  --serif: var(--font-serif);
+  --sans: var(--font-sans);
+  --radius: var(--r-lg);
+  --pistachio-deep: var(--pistachio-ink);
+
+  color-scheme: light;
+}
+
+@media (max-width: 700px) {
+  :root {
+    --topbar-h: 56px;
+    --gutter: 16px;
+  }
+}

@@ -1,0 +1,32 @@
+/*
+  Sarıçiçek Konağı · stylesheet entry.
+  Cascade layers keep the order explicit instead of fighting specificity:
+    vendor  – third-party styles (Leaflet)
+    legacy  – earlier page styles, kept for surfaces that still rely on them
+    ds      – the design system: tokens, base, components and page layouts
+  Anything in a later layer wins over an earlier one, whatever its selector.
+*/
+@layer vendor, legacy, ds;
+
+@import url("assets/leaflet.css") layer(vendor);
+
+@import url("style.css?v=13") layer(legacy);
+@import url("archive.css?v=13") layer(legacy);
+@import url("social.css?v=13") layer(legacy);
+@import url("experience.css?v=13") layer(legacy);
+@import url("feed.css?v=13") layer(legacy);
+@import url("redesign.css?v=13") layer(legacy);
+@import url("memories.css?v=13") layer(legacy);
+@import url("konak.css?v=13") layer(legacy);
+
+@import url("ds/fonts.css?v=13") layer(ds);
+@import url("ds/tokens.css?v=13") layer(ds);
+@import url("ds/base.css?v=13") layer(ds);
+@import url("ds/components.css?v=13") layer(ds);
+@import url("ds/shell.css?v=13") layer(ds);
+@import url("ds/feed.css?v=13") layer(ds);
+@import url("ds/viewer.css?v=13") layer(ds);
+@import url("ds/tree.css?v=13") layer(ds);
+@import url("ds/avlu.css?v=13") layer(ds);
+@import url("ds/pages.css?v=13") layer(ds);
+@import url("ds/chat.css?v=13") layer(ds);

@@ -2,8 +2,9 @@
 const $=(s,root=document)=>root.querySelector(s), $$=(s,root=document)=>[...root.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icon=name=>name==='git-fork'?`<svg class="pistachio-icon" viewBox="0 0 32 32" fill="none" aria-label="Antep fıstığı ağacı"><path d="M16 29V14m0 8-7-6m7 2 7-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M5 15C1 8 10 2 15 8 17 0 28 3 26 11 33 15 25 22 19 17 14 23 7 21 5 15Z" fill="#81916a" fill-opacity=".3" stroke="currentColor" stroke-width="1.4"/><ellipse cx="10" cy="11" rx="2" ry="3" fill="#b89166"/><ellipse cx="23" cy="14" rx="2" ry="3" fill="#b89166"/></svg>`:`<i data-lucide="${name}" aria-hidden="true"></i>`;
-const initials=n=>String(n||'?').split(' ').filter(Boolean).map(x=>x[0]).slice(0,2).join('');
-const avatar=(p,cls='')=>`<span class="avatar ${cls}">${esc(initials(typeof p==='string'?p:p.name))}</span>`;
+const initials=n=>{const w=String(n||'?').split('·')[0].trim().split(/\s+/).filter(x=>/\p{L}/u.test(x[0]||''));return(w.length>1?w[0][0]+w.at(-1)[0]:(w[0]||'?')[0]).toLocaleUpperCase('tr');};
+const avatarTone=n=>{let h=0;for(const c of String(n||'').split('·')[0].trim())h=(h*31+c.codePointAt(0))>>>0;return h%6+1;};
+const avatar=(p,cls='')=>{const n=typeof p==='string'?p:p?.name;return`<span class="avatar ${cls}" data-tone="${avatarTone(n)}" aria-hidden="true">${esc(initials(n))}</span>`;};
 const dateText=(d,opts={day:'numeric',month:'long',year:'numeric'})=>d?new Date(d+'T12:00:00').toLocaleDateString('tr-TR',opts):'Tarih bilinmiyor';
 const roleName={owner:'Aile yöneticisi',moderator:'Moderatör',member:'Aile üyesi'};
 const types={birthday:'Doğum günü',marriage:'Evlilik yıldönümü',memorial:'Anma günü',funeral:'Cenaze',gathering:'Aile buluşması',migration:'Göç',story:'Aile hikâyesi'};
@@ -21,7 +22,7 @@ const area=(label,name,value='',extra='')=>`<div class="field full"><label for="
 function select(label,name,options,value='',extra=''){return`<div class="field"><label for="f-${name}">${label}</label><select id="f-${name}" name="${name}" ${extra}>${options.map(([v,l])=>`<option value="${esc(v)}" ${v===value?'selected':''}>${esc(l)}</option>`).join('')}</select></div>`;}
 function hydrate(){window.lucide?.createIcons();}
 function toast(text){clearTimeout(toastTimer);$('#toast').textContent=text;$('#toast').classList.add('show');toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),4000);}
-function modal(title,content,wide=false){lastFocus=document.activeElement;dialog.style.width=wide?'min(900px,calc(100% - 32px))':'';dialog.innerHTML=`<div class="dialog-header"><h2 id="dialog-title">${title}</h2><button class="icon-btn" data-action="close" aria-label="Pencereyi kapat">${icon('x')}</button></div><div class="dialog-body">${content}</div>`;if(!dialog.open)dialog.showModal();hydrate();}
+function modal(title,content,wide=false){lastFocus=document.activeElement;dialog.style.width='';dialog.classList.toggle('is-wide',!!wide);dialog.innerHTML=`<div class="dialog-header"><h2 id="dialog-title">${title}</h2><button class="icon-btn" data-action="close" aria-label="Pencereyi kapat">${icon('x')}</button></div><div class="dialog-body">${content}</div>`;if(!dialog.open)dialog.showModal();hydrate();}
 function closeModal(){dialog.close();lastFocus?.focus?.();}
 function form(content,label='Kaydet'){return`<form id="modal-form"><div class="form-grid">${content}</div><div class="form-error" role="alert"></div><div class="form-actions">${button('Vazgeç','close',null,'','type="button"')}<button class="btn primary" type="submit">${icon('check')}${label}</button></div></form>`;}
 function submitWith(callback){$('#modal-form').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget,b=Object.fromEntries(new FormData(f)),submit=$('[type=submit]',f),error=$('.form-error',f);submit.disabled=true;error.textContent='';try{await callback(b,f);}catch(err){error.textContent=err.message;}finally{submit.disabled=false;}});}

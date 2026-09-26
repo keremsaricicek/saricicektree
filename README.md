@@ -4,6 +4,8 @@
 
 Üst menü, sosyal sohbet, sunucu araması, kurtarma kodları, veli gizliliği ve medya yedekleri: [Son güncelleme](docs/SOCIAL-UPGRADE.md). [Stres testi](docs/STRESS-RESULTS.md).
 
+Arayüz tasarım sistemi: [Tasarım sistemi](docs/DESIGN-SYSTEM.md).
+
 Güncel kapsam ve dış kurulumlar: [Özellik durumu](docs/FEATURE-STATUS.md). Kullanıcı seçimlerinin kaydı: [Geliştirme notları](docs/FEATURE-WISHLIST.md).
 
 ## Eklenen ortak özellikler
