@@ -1,4 +1,4 @@
-// Rendering checks on the real app in demo mode (all scripts, including ui.js). These replace
+// Rendering checks on the real app in demo mode (all scripts, including public/ui/). These replace
 // three Node VM tests that only exercised older render functions the app no longer uses.
 import { test, expect } from "@playwright/test";
 
