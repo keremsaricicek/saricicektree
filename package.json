@@ -31,6 +31,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@capacitor-community/background-geolocation": "^1.2.26",
     "@capacitor/android": "^7.6.9",
     "@capacitor/app": "^7.1.2",
