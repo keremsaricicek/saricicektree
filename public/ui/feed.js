@@ -412,7 +412,28 @@ function uiCommentPeople(c) {
 }
 function uiComment(c, postId, replyTo) {
   const mine = c.createdBy === state.user.id;
-  return `<article class="ds-comment ${replyTo !== undefined ? "is-reply" : ""}" data-comment="${c.id}">${avatar(c.author)}<div class="ds-comment-main"><div class="ds-bubble">${c.likes ? `<span class="ds-comment-likes" aria-label="${c.likes} beğeni">${icon("heart")}${c.likes}</span>` : ""}<strong>${uiNameHtml(c.author)}</strong><p>${replyTo ? `<span class="ds-reply-to">@${esc(uiName(replyTo).name)}</span> ` : ""}${esc(c.body)}</p></div>${uiCommentPeople(c)}<div class="ds-comment-meta"><time datetime="${esc(c.createdAt || "")}" title="${esc(uiFullDate(c.createdAt))}">${uiWhen(c.createdAt)}</time><button type="button" data-ui="comment-like" data-post="${postId}" data-id="${c.id}" aria-pressed="${!!c.liked}" class="${c.liked ? "is-on" : ""}">${c.liked ? "Beğendin" : "Beğen"}</button><button type="button" data-ui="reply" data-post="${postId}" data-id="${c.id}">Cevap ver</button>${mine || isStaff() ? `<button type="button" data-ui="comment-delete" data-post="${postId}" data-id="${c.id}">Kaldır</button>` : ""}</div></div></article>`;
+  // Everything inserted below is escaped unless wrapped in raw() (already-safe markup).
+  return String(
+    html`<article class="ds-comment ${replyTo !== undefined ? "is-reply" : ""}" data-comment="${c.id}">
+      ${raw(avatar(c.author))}
+      <div class="ds-comment-main">
+        <div class="ds-bubble">
+          ${c.likes ? html`<span class="ds-comment-likes" aria-label="${c.likes} beğeni">${raw(icon("heart"))}${c.likes}</span>` : ""}<strong
+            >${raw(uiNameHtml(c.author))}</strong
+          >
+          <p>${replyTo ? html`<span class="ds-reply-to">@${uiName(replyTo).name}</span> ` : ""}${c.body}</p>
+        </div>
+        ${raw(uiCommentPeople(c))}
+        <div class="ds-comment-meta">
+          <time datetime="${c.createdAt || ""}" title="${uiFullDate(c.createdAt)}">${uiWhen(c.createdAt)}</time
+          ><button type="button" data-ui="comment-like" data-post="${postId}" data-id="${c.id}" aria-pressed="${!!c.liked}" class="${c.liked ? "is-on" : ""}">
+            ${c.liked ? "Beğendin" : "Beğen"}</button
+          ><button type="button" data-ui="reply" data-post="${postId}" data-id="${c.id}">Cevap ver</button
+          >${mine || isStaff() ? html`<button type="button" data-ui="comment-delete" data-post="${postId}" data-id="${c.id}">Kaldır</button>` : ""}
+        </div>
+      </div>
+    </article>`,
+  );
 }
 function uiThreadList(items, postId) {
   const byId = new Map(items.map((c) => [c.id, c])),

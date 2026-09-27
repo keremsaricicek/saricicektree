@@ -108,7 +108,10 @@ async function uiLifeStrip() {
     ? `<ol class="ds-life-list" tabindex="0" aria-label="${esc(p.name)} hayat şeridi">${items
         .map((x) => {
           const tag = x.attrs ? "button" : "div";
-          return `<li><${tag} class="ds-life-item"${x.attrs ? ` type="button" ${x.attrs}` : ""}><time>${esc(x.text)}</time><span class="ds-life-dot">${icon(x.icon)}</span><strong>${esc(x.title)}</strong>${x.detail ? `<small>${esc(x.detail)}</small>` : ""}</${tag}></li>`;
+          // x.attrs is built with esc() where the item is created; everything else is escaped here.
+          return String(
+            html`<li><${raw(tag)} class="ds-life-item"${raw(x.attrs ? ` type="button" ${x.attrs}` : "")}><time>${x.text}</time><span class="ds-life-dot">${raw(icon(x.icon))}</span><strong>${x.title}</strong>${x.detail ? html`<small>${x.detail}</small>` : ""}</${raw(tag)}></li>`,
+          );
         })
         .join("")}</ol>`
     : `<p class="ds-life-empty">Tarihli bir kayıt eklendikçe bu şerit dolacak.</p>`;

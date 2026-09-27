@@ -62,7 +62,20 @@ function uiDmPendingBubble(w) {
   const failed = p.state === "failed";
   log.insertAdjacentHTML(
     "beforeend",
-    `<article class="dm-message mine ds-dm-pending ${failed ? "is-failed" : ""}" aria-live="polite">${p.preview ? `<img src="${esc(p.preview)}" alt="Gönderilen fotoğraf">` : ""}${p.voice ? `<p class="ds-dm-voice-note">${icon("mic")} Sesli mesaj${p.voice ? " · " + uiClock(p.voice) : ""}</p>` : ""}${p.body ? `<p>${esc(p.body)}</p>` : ""}<footer>${failed ? `<span class="ds-dm-status is-failed">${icon("circle-alert")} Gönderilemedi</span><button type="button" class="ds-dm-retry" data-ui="dm-retry" data-key="${esc(w.key)}">Yeniden dene</button>` : `<span class="ds-dm-status is-sending">${icon("clock-3")}<span class="sr-only">Gönderiliyor</span></span><time>Gönderiliyor…</time>`}</footer></article>`,
+    String(
+      html`<article class="dm-message mine ds-dm-pending ${failed ? "is-failed" : ""}" aria-live="polite">
+        ${p.preview ? html`<img src="${p.preview}" alt="Gönderilen fotoğraf" />` : ""}${p.voice ? html`<p class="ds-dm-voice-note">${raw(icon("mic"))} Sesli mesaj · ${uiClock(p.voice)}</p>` : ""}${p.body ? html`<p>${p.body}</p>` : ""}
+        <footer>
+          ${
+            failed
+              ? html`<span class="ds-dm-status is-failed">${raw(icon("circle-alert"))} Gönderilemedi</span
+                  ><button type="button" class="ds-dm-retry" data-ui="dm-retry" data-key="${w.key}">Yeniden dene</button>`
+              : html`<span class="ds-dm-status is-sending">${raw(icon("clock-3"))}<span class="sr-only">Gönderiliyor</span></span
+                  ><time>Gönderiliyor…</time>`
+          }
+        </footer>
+      </article>`,
+    ),
   );
   hydrate();
   log.scrollTop = log.scrollHeight;

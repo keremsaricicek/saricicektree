@@ -14,6 +14,24 @@ const ui = {
 const uiPhone = () => matchMedia("(max-width:700px)").matches;
 const uiReduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/* ---------- Safe HTML templates ----------
+   html`<p>${text}</p>` escapes every inserted value, so user text can never become markup.
+   Markup that is already safe (icons, avatars, other html`` results) is passed with raw(…).
+   Arrays are joined. The result is a raw value, so templates can be nested. */
+class UiRaw {
+  constructor(markup) {
+    this.markup = markup;
+  }
+  toString() {
+    return this.markup;
+  }
+}
+const raw = (markup) => new UiRaw(String(markup ?? ""));
+const uiPiece = (v) => (v instanceof UiRaw ? v.markup : Array.isArray(v) ? v.map(uiPiece).join("") : v == null || v === false ? "" : esc(String(v)));
+function html(strings, ...values) {
+  return new UiRaw(strings.reduce((out, s, i) => out + s + (i < values.length ? uiPiece(values[i]) : ""), ""));
+}
+
 /* ---------- Relative time ---------- */
 function uiWhen(iso) {
   if (!iso) return "";

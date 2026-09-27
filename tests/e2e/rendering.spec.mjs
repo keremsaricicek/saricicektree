@@ -52,3 +52,22 @@ test("a member sees no management or person editing controls", async ({ page }) 
   await expect(page.locator("#dialog[open]")).toBeVisible();
   await expect(page.locator("#dialog")).not.toContainText("Yönetim paneli");
 });
+
+test("a comment containing markup is shown as text, with its likes and actions intact", async ({ browser }) => {
+  const { apiAs, authFile, openApp } = await import("./helpers.mjs");
+  const ayse = await apiAs("ayse");
+  const id = (await ayse.call("/api/experience/feed", "POST", { clientId: crypto.randomUUID(), body: "Yorum güvenliği", visibility: "family" })).body.id;
+  const body = '<b id="pwn">kalın</b> & "tırnak"';
+  await ayse.call(`/api/experience/feed/${id}/comments`, "POST", { body, clientId: crypto.randomUUID() });
+  const cid = (await ayse.call(`/api/experience/feed/${id}/comments`)).body.items[0].id;
+  await ayse.call(`/api/experience/feed/comments/${cid}/like`, "PUT");
+  const ctx = await browser.newContext({ storageState: authFile("mehmet") });
+  const page = await ctx.newPage();
+  await openApp(page);
+  const comment = page.locator(`[data-feed-card="${id}"] .ds-comment`).first();
+  await expect(comment.locator("p")).toHaveText(body);
+  expect(await page.locator("#pwn").count()).toBe(0);
+  await expect(comment.locator(".ds-comment-likes")).toContainText("1");
+  await expect(comment.locator('[data-ui="reply"]')).toBeVisible();
+  await ctx.close();
+});
