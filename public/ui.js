@@ -2458,39 +2458,54 @@ function uiAfterRender() {
 if (state) render();
 
 /* ---------- Back gesture closes the open window first ----------
-   Each dialog (story, photo, sheet, lightbox) adds one history entry. The phone's back
-   gesture then closes the top dialog instead of leaving the page; closing a dialog with
-   its own button removes that entry again unless the page moved on meanwhile. */
+   Each window (story, photo, sheet, lightbox) adds one history step, so the phone's back gesture
+   (and Android's back button, see mobile/bridge.mjs) closes the top window instead of leaving the
+   page. Closing a window with its own button never calls history.back(): that raced with a page
+   change made at the same moment. The step is marked spent instead, and a later back gesture that
+   lands on a spent step of the same page moves on once more, so no back press is wasted. */
+const uiHist = { state: history.state, href: location.href };
+const uiRemember = () => Object.assign(uiHist, { state: history.state, href: location.href });
 const uiShowModal = HTMLDialogElement.prototype.showModal;
 HTMLDialogElement.prototype.showModal = function () {
   uiShowModal.call(this);
   if (this.dataset.histDepth) return;
   const depth = (history.state?.dsOverlay || 0) + 1;
-  history.pushState({ ...(history.state || {}), dsOverlay: depth }, "");
+  history.pushState({ ...(history.state || {}), dsOverlay: depth, dsSpent: false }, "");
+  uiRemember();
   this.dataset.histDepth = depth;
 };
 addEventListener("popstate", () => {
-  const depth = history.state?.dsOverlay || 0;
+  const left = uiHist,
+    depth = history.state?.dsOverlay || 0;
+  let closed = false;
   for (const d of $$("dialog[open]"))
     if (Number(d.dataset.histDepth) > depth) {
       d.dataset.histClosing = "1";
       d.close();
+      closed = true;
     }
+  const wasted = !closed && left.state?.dsSpent && left.href === location.href;
+  uiRemember();
+  if (wasted) history.back(); // the step we left was a window already closed by its button
 });
-document.addEventListener(
-  "close",
-  (e) => {
-    const d = e.target;
-    if (!(d instanceof HTMLDialogElement) || !d.dataset.histDepth) return;
-    const depth = Number(d.dataset.histDepth),
-      byBack = d.dataset.histClosing;
-    delete d.dataset.histDepth;
-    delete d.dataset.histClosing;
-    if (byBack) return;
-    const href = location.href;
-    setTimeout(() => {
-      if (location.href === href && (history.state?.dsOverlay || 0) >= depth) history.back();
-    }, 0);
-  },
-  true,
-);
+addEventListener("hashchange", uiRemember);
+// Closed by its own button while its step is still current: mark that step spent. This runs
+// inside dialog.close() itself, because the "close" event arrives later (after a quick back press).
+function uiSpendStep(d) {
+  if (!d.dataset.histDepth) return;
+  const depth = Number(d.dataset.histDepth),
+    byBack = d.dataset.histClosing;
+  delete d.dataset.histDepth;
+  delete d.dataset.histClosing;
+  if (!byBack && history.state?.dsOverlay === depth) {
+    history.replaceState({ ...history.state, dsOverlay: depth - 1, dsSpent: true }, "");
+    uiRemember();
+  }
+}
+const uiDialogClose = HTMLDialogElement.prototype.close;
+HTMLDialogElement.prototype.close = function (...args) {
+  if (this.open) uiSpendStep(this);
+  return uiDialogClose.apply(this, args);
+};
+// Closes the browser performs itself (Escape) only announce themselves through the event.
+document.addEventListener("close", (e) => e.target instanceof HTMLDialogElement && uiSpendStep(e.target), true);

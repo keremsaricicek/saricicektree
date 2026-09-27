@@ -50,7 +50,6 @@ test("closing a window and moving on at once never bounces back to the old page"
 });
 
 test("a closed window leaves no dead back step behind", async ({ page }) => {
-  test.fixme(true, "known bug: closing a window races with the back step (fails about 3 in 4 runs)");
   await openApp(page, "home");
   await page.evaluate(() => {
     location.hash = "gallery";

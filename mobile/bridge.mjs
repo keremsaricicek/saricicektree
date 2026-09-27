@@ -80,9 +80,10 @@ window.FamilyNative = {
   },
 };
 if (Capacitor.isNativePlatform()) {
-  App.addListener("backButton", () => {
-    const dialog = document.querySelector("dialog[open]");
-    if (dialog) dialog.close();
+  // Android back button uses the same history as the browser's back gesture: it closes the top
+  // window first (see "Back gesture" in public/ui.js), then goes back through pages.
+  App.addListener("backButton", ({ canGoBack }) => {
+    if (document.querySelector("dialog[open]") || canGoBack) history.back();
     else if (location.hash && location.hash !== "#home") location.hash = "home";
     else App.minimizeApp();
   });
