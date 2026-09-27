@@ -77,7 +77,15 @@ export default {
       method = req.method;
     try {
       if (path === "/health") return json(res, 200, { ok: true, storage: "D1/R2" });
-      if (path === "/api/config") return json(res, 200, { demo: false, configured: true, auth: "chatgpt", mediaOptimizer: "client" });
+      if (path === "/api/config")
+        return json(res, 200, {
+          demo: false,
+          configured: true,
+          auth: "chatgpt",
+          mediaOptimizer: "client",
+          operatorName: env.SITE_OPERATOR_NAME || null,
+          supportEmail: env.SUPPORT_EMAIL || null,
+        });
       if (!path.startsWith("/api/") && !path.startsWith("/media/") && !path.startsWith("/document/") && !path.startsWith("/archive-media/")) {
         assert(["GET", "HEAD"].includes(method), 405, "Yöntem desteklenmiyor.");
         const asset = assets[path === "/" ? "/index.html" : path];

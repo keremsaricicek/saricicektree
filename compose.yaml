@@ -7,6 +7,9 @@ services:
       NODE_ENV: production
       DATA_DIR: /app/data
       TRUST_PROXY: "1" # the app is reached only through Caddy
+      # Shown on the public privacy, support and account-deletion pages.
+      SITE_OPERATOR_NAME: ${SITE_OPERATOR_NAME:-}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
       # Full encrypted backups (docs/BACKUP.md). Empty BACKUP_TARGET turns them off.
       BACKUP_TARGET: ${BACKUP_TARGET:-}
       BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:-}

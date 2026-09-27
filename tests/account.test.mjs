@@ -125,3 +125,12 @@ test("personal data export holds the member's own data and nothing private of ot
   for (const secret of ["neighbour@test.invalid", "Komşunun gizli notu", "Komşunun grup mesajı", "Komşunun aile paylaşımı", "password", "authId"])
     assert.ok(!text.includes(secret), "export contains " + secret);
 });
+
+test("the public pages get the operator's name and support address only from settings", async () => {
+  const { call, env } = fixture();
+  assert.deepEqual([(await call("/api/config")).body.operatorName, (await call("/api/config")).body.supportEmail], [null, null]);
+  Object.assign(env, { SITE_OPERATOR_NAME: "Sarıçiçek ailesi adına Test Kişi", SUPPORT_EMAIL: "destek@example.test" });
+  const config = (await call("/api/config")).body;
+  assert.equal(config.operatorName, "Sarıçiçek ailesi adına Test Kişi");
+  assert.equal(config.supportEmail, "destek@example.test");
+});

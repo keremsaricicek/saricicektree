@@ -12,7 +12,9 @@ Alan adı, sunucu ve e-posta kurulumu için [DEPLOYMENT.md](DEPLOYMENT.md), mobi
 | `PORT` / `HOST` | Hayır | `3000` / `0.0.0.0` | Dinlenen adres. |
 | `DATA_DIR` | Hayır | `./data` | SQLite (`family.sqlite`) ve yüklenen dosyalar. **Yedeklenecek tek klasör budur.** |
 | `TRUST_PROXY` | Docker'da `1` | — | Uygulama yalnız Caddy arkasındaysa `1`: giriş/davet/şifre sınırları ziyaretçi adresini `X-Forwarded-For` başlığının son değerinden alır. Uygulama doğrudan internete açıksa verilmez. |
+| `SITE_OPERATOR_NAME`, `SUPPORT_EMAIL` | Yayından önce evet | — | Veri sorumlusunun adı ve destek adresi; gizlilik, destek ve hesap silme sayfalarında gösterilir. Boşsa sayfalar bu alanların eksik olduğunu açıkça yazar. |
 | `NODE_ENV` | Üretimde `production` | — | Güvenli çerez ve statik dosya önbelleği. |
+| `BACKUP_TARGET`, `BACKUP_PASSPHRASE`, `BACKUP_ALERT_URL`, `BACKUP_KEEP`, `BACKUP_S3_*` | Önerilir | — | Tam şifreli yedek: [BACKUP.md](BACKUP.md). |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | Yalnız ilk kurulumda | — | `npm run admin` ilk yöneticiyi oluşturur; sonra parolayı ortamdan kaldırın. |
 | `SECURITY_KEY` | Hayır | Otomatik üretilir | İki adımlı doğrulama sırlarını şifreler. Verilmezse veri tabanında saklanır; hiçbir API yanıtına girmez (test: `tests/api.test.mjs`). Değiştirilirse kayıtlı iki adımlı doğrulamalar çözülemez. |
 | `MEDIA_JOBS` | Hayır | açık | `off` sunucudaki fotoğraf kopyası işini kapatır (kopyaları tarayıcı yapar). Yalnız test için. |

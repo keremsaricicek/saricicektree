@@ -177,6 +177,8 @@ async function handler(req, res) {
         demo: process.env.DEMO_MODE === "1",
         configured: !!one("SELECT id FROM users LIMIT 1"),
         mediaOptimizer: mediaJobs ? "server" : "client",
+        operatorName: process.env.SITE_OPERATOR_NAME || null,
+        supportEmail: process.env.SUPPORT_EMAIL || null,
       });
     if (path.startsWith("/api/") || path.startsWith("/media/") || path.startsWith("/document/") || path.startsWith("/archive-media/")) {
       const { u, session } = authorize(req);

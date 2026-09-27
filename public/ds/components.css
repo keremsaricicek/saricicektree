@@ -1465,3 +1465,18 @@ dialog.is-search #server-results {
   min-height: 36px;
   padding: 0 14px;
 }
+
+/* Links to the public privacy, support and account-deletion pages (sign-in screen, account window). */
+.legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin-top: 12px;
+  font-size: var(--fs-sm);
+}
+.legal-links a {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
