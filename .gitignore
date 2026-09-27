@@ -24,3 +24,6 @@ ios-build/
 public/assets/world-map.js
 /public/__mobile-check.html
 public/app.bundle.css
+tests/e2e/.auth/
+test-results/
+playwright-report/
