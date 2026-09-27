@@ -896,6 +896,44 @@ function archiveBind() {
   hydrate();
 }
 async function archiveHandle(action, el) {
+  // Etkinlik albümü
+  {
+    if (action === "ar-event-album") return archiveEventAlbum(el.dataset.id);
+    if (action === "ar-event-photo") return archiveNew("memory", { eventId: el.dataset.id });
+    if (action === "ar-source-person-edit") return personForm(el.dataset.id);
+  }
+  // Fotoğraf iyileştirme
+  {
+    if (action === "ar-photo-enhance") return archivePhotoEnhance(el.dataset.id);
+  }
+  // Güvenlik ve yedekler
+  {
+    const id = el.dataset.id;
+    if (action === "ar-security") return archiveSecurity();
+    if (action === "ar-backups") return archiveBackups();
+    if (action === "ar-backup-create") {
+      await archiveApi("/backups", "POST", {});
+      return archiveBackups();
+    }
+    if (action === "ar-backup-download") {
+      const data = await archiveApi("/backups/" + id);
+      download("saricicek-arsiv-yedegi.json", JSON.stringify(data, null, 2));
+      return;
+    }
+    if (action === "ar-backup-restore") {
+      modal(
+        "Eksik kayıtları geri ekle",
+        `<p>Mevcut kayıtlar ve dosyalar değiştirilmez. Eksik kayıtlar ve yeni tam yedeklerdeki eksik medya dosyaları geri eklenir. İşlem öncesinde kayıt anlık görüntüsü korunur.</p>${form(input("Onay için ARŞİVİ GERİ YÜKLE yaz", "confirm", "", "text", "required"), "Eksik kayıtları geri ekle")}`,
+      );
+      submitWith(async (b) => {
+        await archiveApi("/backups/" + id + "/restore", "POST", b);
+        closeModal();
+        await refresh();
+        toast("Yedekteki eksik kayıtlar geri eklendi.");
+      });
+      return;
+    }
+  }
   if (!action.startsWith("ar-")) return;
   const id = el.dataset.id,
     e = archiveItems.find((x) => x.id === id);
@@ -1138,35 +1176,6 @@ async function archiveBackups() {
     true,
   );
 }
-const archiveHandleBase = archiveHandle;
-archiveHandle = async function (action, el) {
-  const id = el.dataset.id;
-  if (action === "ar-security") return archiveSecurity();
-  if (action === "ar-backups") return archiveBackups();
-  if (action === "ar-backup-create") {
-    await archiveApi("/backups", "POST", {});
-    return archiveBackups();
-  }
-  if (action === "ar-backup-download") {
-    const data = await archiveApi("/backups/" + id);
-    download("saricicek-arsiv-yedegi.json", JSON.stringify(data, null, 2));
-    return;
-  }
-  if (action === "ar-backup-restore") {
-    modal(
-      "Eksik kayıtları geri ekle",
-      `<p>Mevcut kayıtlar ve dosyalar değiştirilmez. Eksik kayıtlar ve yeni tam yedeklerdeki eksik medya dosyaları geri eklenir. İşlem öncesinde kayıt anlık görüntüsü korunur.</p>${form(input("Onay için ARŞİVİ GERİ YÜKLE yaz", "confirm", "", "text", "required"), "Eksik kayıtları geri ekle")}`,
-    );
-    submitWith(async (b) => {
-      await archiveApi("/backups/" + id + "/restore", "POST", b);
-      closeModal();
-      await refresh();
-      toast("Yedekteki eksik kayıtlar geri eklendi.");
-    });
-    return;
-  }
-  return archiveHandleBase(action, el);
-};
 window.archiveApp.handle = archiveHandle;
 async function archivePhotoEnhance(id) {
   const status = demoMode ? { available: false } : await archiveApi("/photo-enhance");
@@ -1193,11 +1202,6 @@ async function archivePhotoEnhance(id) {
       toast("İyileştirilmiş kopya Avlu’ya eklendi.");
     });
 }
-const archiveHandleSecurity = archiveHandle;
-archiveHandle = async function (action, el) {
-  if (action === "ar-photo-enhance") return archivePhotoEnhance(el.dataset.id);
-  return archiveHandleSecurity(action, el);
-};
 window.archiveApp.handle = archiveHandle;
 function archiveReadFile(file) {
   return new Promise((resolve, reject) => {
@@ -1216,13 +1220,6 @@ function archiveEventAlbum(id) {
     true,
   );
 }
-const archiveHandlePhoto = archiveHandle;
-archiveHandle = async function (action, el) {
-  if (action === "ar-event-album") return archiveEventAlbum(el.dataset.id);
-  if (action === "ar-event-photo") return archiveNew("memory", { eventId: el.dataset.id });
-  if (action === "ar-source-person-edit") return personForm(el.dataset.id);
-  return archiveHandlePhoto(action, el);
-};
 window.archiveApp.handle = archiveHandle;
 
 document.addEventListener("DOMContentLoaded", () => {

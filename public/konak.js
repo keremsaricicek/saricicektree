@@ -228,6 +228,135 @@ function knCreate() {
   );
 }
 async function knAction(action, el) {
+  // Mesaj araması kutusu
+  {
+    if (action === "message-search") {
+      dm.inbox = false;
+      dmPosition();
+    }
+  }
+  // Yardım ve ilk adımlar
+  {
+    if (action === "onboarding") {
+      const me = await exApi("/me");
+      modal(
+        "Konağa ilk adımlar",
+        `<div class="kn-onboarding"><p>Küçük adımlarla başla; istediğin zaman bu rehbere geri gelebilirsin.</p><section><b>1</b><div><h3>Kendi profilin</h3><p>${me.personId ? "Hesabın soy ağacına bağlı. Profilini düzenleyebilirsin." : "Aile yöneticisi hesabını soy ağacındaki kaydına bağlamalı."}</p>${me.personId ? button("Profilimi aç", "profile", "user", "", 'data-id="' + esc(me.personId) + '"') : ""}</div></section><section><b>2</b><div><h3>Bir yakınını bul</h3>${button("Soy ağacına git", "nav", "git-fork", "", 'data-page="tree"')}</div></section><section><b>3</b><div><h3>Bir fotoğraf sakla</h3>${knButton("Fotoğraf ekle", "photo")}</div></section><section><b>4</b><div><h3>Bir selam gönder</h3>${button("Mesajları aç", "nav", "messages-square", "", 'data-page="chat"')}</div></section></div><div class="form-actions">${knButton("Rehberi kapat", "dismiss-onboarding", "", "btn primary")}</div>`,
+      );
+      return;
+    }
+    if (action === "dismiss-onboarding") {
+      await knPrefs({ onboardingDismissed: true });
+      closeModal();
+      return;
+    }
+  }
+  // Hayat paylaşım işlemleri ve Kolay görünüm
+  {
+    if (action === "notice-prefs") return knNoticePrefs();
+    if (action === "message-search") return knSearch(false, true);
+    if (action === "copy-post") {
+      await navigator.clipboard.writeText(location.origin + location.pathname + "#post/" + el.dataset.id);
+      toast("Paylaşım bağlantısı kopyalandı. Yalnızca erişimi olan aile üyeleri açabilir.");
+      return;
+    }
+    if (action === "delete-post") {
+      const id = Number(el.dataset.id);
+      await ffApi("/" + id, "DELETE", {});
+      closeModal();
+      await ffLoad();
+      knUndo("Paylaşım kaldırıldı.", async () => {
+        await ffApi("/" + id + "/restore", "POST", {});
+        await ffLoad();
+      });
+      return;
+    }
+    if (action === "easy") {
+      kn.easy = !kn.easy;
+      knStore("easy", kn.easy);
+      document.body.classList.toggle("kn-easy", kn.easy);
+      el.setAttribute("aria-pressed", String(kn.easy));
+      el.textContent = kn.easy ? "Kolay görünüm açık" : "Kolay görünüm kapalı";
+      await knPrefs({ easy: kn.easy });
+      return;
+    }
+  }
+  // Soy ağacı
+  {
+    if (action === "tree-person") return ffPerson(el.dataset.id);
+    if (action === "tree-help") {
+      modal(
+        "Soy ağacında gezin",
+        `<div class="hm-guide"><p>Arama: isim veya lakap yaz, bir aile dalına odaklan.</p><p>Kişi kartı: profilini aç veya Ağaçta göster ile yakınlarını gör.</p><p>+ / −: yakınlaştır veya uzaklaştır. Köşeli simge: ekrana sığdır.</p><p>Yeşil çizgi ebeveyn–çocuk, açık renk çizgi eş bağını gösterir. Kesikli yeşil çizgi evlat edinme bağıdır.</p></div>`,
+      );
+      return;
+    }
+  }
+  // Avlu görünümü
+  {
+    if (action === "gallery-view") {
+      kn.view = el.dataset.view;
+      knStore("gallery-view", kn.view);
+      render();
+      return;
+    }
+  }
+  // Fotoğraf yükleme adımları
+  {
+    if (action === "upload-next") {
+      hmCapture();
+      if (!hm.uploads.length) return toast("Önce fotoğraf seç.");
+      if (knUploadStep === 2) {
+        for (let i = 0; i < hm.uploads.length; i++) {
+          try {
+            hmValid(hm.uploads[i]);
+          } catch (e) {
+            hm.index = i;
+            hmShowUpload();
+            $(".form-error", $("#hm-upload-form")).textContent = i + 1 + ". fotoğraf: " + e.message;
+            return;
+          }
+        }
+      }
+      $(".form-error", $("#hm-upload-form")).textContent = "";
+      knUploadGo(Math.min(3, knUploadStep + 1));
+      return;
+    }
+    if (action === "upload-back") {
+      hmCapture();
+      knUploadGo(Math.max(1, knUploadStep - 1));
+      return;
+    }
+    if (action === "batch-meta") {
+      hmCapture();
+      const p = hm.uploads[hm.index];
+      for (const x of hm.uploads)
+        if (x !== p)
+          for (const k of ["date", "datePrecision", "place", "description", "peopleIds", "outsiders", "source", "photographer"])
+            x[k] = Array.isArray(p[k]) ? [...p[k]] : p[k];
+      knSavePhotos();
+      toast("Tarih, yer, kişiler ve hikâye diğer fotoğraflara uygulandı. Her kareyi ayrı düzenleyebilirsin.");
+      return;
+    }
+    if (action === "resume-photos") {
+      const d = kn.pendingPhotos;
+      hm.uploads = d.photos;
+      hm.index = d.index || 0;
+      hm.clientId = d.clientId;
+      $("#hm-share").checked = d.share;
+      $("#kn-photo-body").value = d.body || "";
+      $("#kn-resume-photo").innerHTML = "";
+      hmShowUpload();
+      knUploadGo(2);
+      return;
+    }
+    if (action === "discard-photos") {
+      await knPhotoDraft("delete");
+      kn.pendingPhotos = null;
+      $("#kn-resume-photo").innerHTML = "";
+      return;
+    }
+  }
   if (action === "create") return knCreate();
   if (action === "photo") {
     closeModal();
@@ -263,14 +392,6 @@ async function knAction(action, el) {
     return;
   }
   if (action === "notifications") return knNotifications();
-  if (action === "easy") {
-    kn.easy = !kn.easy;
-    knStore("easy", kn.easy);
-    document.body.classList.toggle("kn-easy", kn.easy);
-    el.setAttribute("aria-pressed", String(kn.easy));
-    el.textContent = kn.easy ? "Kolay görünüm açık" : "Kolay görünüm kapalı";
-    return;
-  }
 }
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-konak]");
@@ -552,63 +673,6 @@ hmShowUpload = function () {
   hmSummary();
   knSavePhotos();
 };
-const knPhotoAction = knAction;
-knAction = async function (action, el) {
-  if (action === "upload-next") {
-    hmCapture();
-    if (!hm.uploads.length) return toast("Önce fotoğraf seç.");
-    if (knUploadStep === 2) {
-      for (let i = 0; i < hm.uploads.length; i++) {
-        try {
-          hmValid(hm.uploads[i]);
-        } catch (e) {
-          hm.index = i;
-          hmShowUpload();
-          $(".form-error", $("#hm-upload-form")).textContent = i + 1 + ". fotoğraf: " + e.message;
-          return;
-        }
-      }
-    }
-    $(".form-error", $("#hm-upload-form")).textContent = "";
-    knUploadGo(Math.min(3, knUploadStep + 1));
-    return;
-  }
-  if (action === "upload-back") {
-    hmCapture();
-    knUploadGo(Math.max(1, knUploadStep - 1));
-    return;
-  }
-  if (action === "batch-meta") {
-    hmCapture();
-    const p = hm.uploads[hm.index];
-    for (const x of hm.uploads)
-      if (x !== p)
-        for (const k of ["date", "datePrecision", "place", "description", "peopleIds", "outsiders", "source", "photographer"])
-          x[k] = Array.isArray(p[k]) ? [...p[k]] : p[k];
-    knSavePhotos();
-    toast("Tarih, yer, kişiler ve hikâye diğer fotoğraflara uygulandı. Her kareyi ayrı düzenleyebilirsin.");
-    return;
-  }
-  if (action === "resume-photos") {
-    const d = kn.pendingPhotos;
-    hm.uploads = d.photos;
-    hm.index = d.index || 0;
-    hm.clientId = d.clientId;
-    $("#hm-share").checked = d.share;
-    $("#kn-photo-body").value = d.body || "";
-    $("#kn-resume-photo").innerHTML = "";
-    hmShowUpload();
-    knUploadGo(2);
-    return;
-  }
-  if (action === "discard-photos") {
-    await knPhotoDraft("delete");
-    kn.pendingPhotos = null;
-    $("#kn-resume-photo").innerHTML = "";
-    return;
-  }
-  return knPhotoAction(action, el);
-};
 const knPhotoDetail = photoDetail;
 photoDetail = async function (id) {
   await knPhotoDetail(id);
@@ -632,16 +696,6 @@ gallery = function () {
     '<div id="hm-gallery">',
     `<div class="kn-view-switch" aria-label="Avlu görünümü">${knButton(icon("grid-2x2") + " Mozaik", "gallery-view", 'data-view="mosaic" aria-pressed="' + (kn.view === "mosaic") + '"', "btn")}${knButton(icon("list") + " Zaman çizelgesi", "gallery-view", 'data-view="timeline" aria-pressed="' + (kn.view === "timeline") + '"', "btn")}</div><div id="hm-gallery" class="kn-gallery-${kn.view}">`,
   );
-};
-const knGalleryAction = knAction;
-knAction = async function (action, el) {
-  if (action === "gallery-view") {
-    kn.view = el.dataset.view;
-    knStore("gallery-view", kn.view);
-    render();
-    return;
-  }
-  return knGalleryAction(action, el);
 };
 // Neighbouring spouses and parent barycentres keep the real family connections readable.
 tree = function () {
@@ -724,18 +778,6 @@ tree = function () {
     .join(
       "",
     )}</div></div><div class="tree-tools"><button data-action="zoom-out" aria-label="Uzaklaştır">${icon("minus")}</button><span id="zoom-label">${Math.round(zoom * 100)}%</span><button data-action="zoom-in" aria-label="Yakınlaştır">${icon("plus")}</button><button data-action="zoom-fit" aria-label="Ekrana sığdır">${icon("maximize")}</button></div><div class="tree-legend"><span>Ebeveyn / çocuk</span><span>Eş</span><span>Kesikli: evlat edinme</span></div></section><p class="tree-note">${total > 120 ? "Bu görünümde 120 kişi var. Aramayla istediğin aile dalına odaklan." : "Bir kişiye dokun; profilini aç veya yalnızca yakınlarını gör. Ağacı kaydırarak gezebilirsin."}</p>${isStaff() ? button("Yazdır / PDF", "print-tree", "printer", "text-btn") : ""}`;
-};
-const knTreeAction = knAction;
-knAction = async function (action, el) {
-  if (action === "tree-person") return ffPerson(el.dataset.id);
-  if (action === "tree-help") {
-    modal(
-      "Soy ağacında gezin",
-      `<div class="hm-guide"><p>Arama: isim veya lakap yaz, bir aile dalına odaklan.</p><p>Kişi kartı: profilini aç veya Ağaçta göster ile yakınlarını gör.</p><p>+ / −: yakınlaştır veya uzaklaştır. Köşeli simge: ekrana sığdır.</p><p>Yeşil çizgi ebeveyn–çocuk, açık renk çizgi eş bağını gösterir. Kesikli yeşil çizgi evlat edinme bağıdır.</p></div>`,
-    );
-    return;
-  }
-  return knTreeAction(action, el);
 };
 async function knPrefs(body) {
   if (demoMode) {
@@ -1001,33 +1043,6 @@ ffHandle = async function (action, el) {
   }
   return knOptions(action, el);
 };
-const knSocialAction = knAction;
-knAction = async function (action, el) {
-  if (action === "notice-prefs") return knNoticePrefs();
-  if (action === "message-search") return knSearch(false, true);
-  if (action === "copy-post") {
-    await navigator.clipboard.writeText(location.origin + location.pathname + "#post/" + el.dataset.id);
-    toast("Paylaşım bağlantısı kopyalandı. Yalnızca erişimi olan aile üyeleri açabilir.");
-    return;
-  }
-  if (action === "delete-post") {
-    const id = Number(el.dataset.id);
-    await ffApi("/" + id, "DELETE", {});
-    closeModal();
-    await ffLoad();
-    knUndo("Paylaşım kaldırıldı.", async () => {
-      await ffApi("/" + id + "/restore", "POST", {});
-      await ffLoad();
-    });
-    return;
-  }
-  if (action === "easy") {
-    await knSocialAction(action, el);
-    await knPrefs({ easy: kn.easy });
-    return;
-  }
-  return knSocialAction(action, el);
-};
 const knRoute = readRoute;
 readRoute = function () {
   const m = location.hash.match(/^#post\/(\d+)$/);
@@ -1097,23 +1112,6 @@ handle = async function (action, el) {
     hydrate();
   }
   return result;
-};
-const knHelpAction = knAction;
-knAction = async function (action, el) {
-  if (action === "onboarding") {
-    const me = await exApi("/me");
-    modal(
-      "Konağa ilk adımlar",
-      `<div class="kn-onboarding"><p>Küçük adımlarla başla; istediğin zaman bu rehbere geri gelebilirsin.</p><section><b>1</b><div><h3>Kendi profilin</h3><p>${me.personId ? "Hesabın soy ağacına bağlı. Profilini düzenleyebilirsin." : "Aile yöneticisi hesabını soy ağacındaki kaydına bağlamalı."}</p>${me.personId ? button("Profilimi aç", "profile", "user", "", 'data-id="' + esc(me.personId) + '"') : ""}</div></section><section><b>2</b><div><h3>Bir yakınını bul</h3>${button("Soy ağacına git", "nav", "git-fork", "", 'data-page="tree"')}</div></section><section><b>3</b><div><h3>Bir fotoğraf sakla</h3>${knButton("Fotoğraf ekle", "photo")}</div></section><section><b>4</b><div><h3>Bir selam gönder</h3>${button("Mesajları aç", "nav", "messages-square", "", 'data-page="chat"')}</div></section></div><div class="form-actions">${knButton("Rehberi kapat", "dismiss-onboarding", "", "btn primary")}</div>`,
-    );
-    return;
-  }
-  if (action === "dismiss-onboarding") {
-    await knPrefs({ onboardingDismissed: true });
-    closeModal();
-    return;
-  }
-  return knHelpAction(action, el);
 };
 const knGo = go;
 go = function (next, id = "") {
@@ -1279,14 +1277,6 @@ dmHost = function () {
     inbox.querySelector("header")?.insertAdjacentHTML("afterend", knButton(icon("search") + " Mesaj metninde ara", "message-search", "", "text-btn"));
     hydrate();
   }
-};
-const knPhotoSwitch = knAction;
-knAction = async function (action, el) {
-  if (action === "message-search") {
-    dm.inbox = false;
-    dmPosition();
-  }
-  return knPhotoSwitch(action, el);
 };
 if (/^#post\//.test(location.hash)) readRoute();
 if (state) render();

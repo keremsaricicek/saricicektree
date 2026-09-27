@@ -120,6 +120,9 @@ function dmPosition() {
     el.classList.toggle("dm-minimized", !mobile && w.minimized);
   }
   $("#dm-page-list")?.classList.toggle("dm-list-hidden", mobile && !!dm.active);
+  // Keep the live message stream open only while a conversation is on screen.
+  if (state && (dm.windows.size || dm.inbox || route === "chat")) dmStream();
+  else dmStreamController?.abort();
 }
 async function dmOpen(kind, id) {
   dmHost();
@@ -845,12 +848,6 @@ async function dmStream() {
     if (dmStreamController === controller) dmStreamController = null;
   }
 }
-const dmBasePosition = dmPosition;
-dmPosition = function () {
-  dmBasePosition();
-  if (state && (dm.windows.size || dm.inbox || route === "chat")) dmStream();
-  else dmStreamController?.abort();
-};
 const dmOldCleanup = window.familyEnhancements.cleanup;
 window.familyEnhancements.cleanup = function () {
   dmOldCleanup();
