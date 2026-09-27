@@ -33,10 +33,9 @@ Cloudflare/Sites derlemesinde kimlik `oai-authenticated-user-*` başlıklarında
 
 1. Dalda yerel denetimler: `npm ci`, `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm test`, `npm run test:e2e`. CI aynılarını çalıştırır (`.github/workflows/ci.yml`).
 2. Yeni migration varsa üretim verisinin bir kopyasında deneyin: `DATA_DIR` olarak kopyayı verip `npm start`; açılış hatasız olmalı.
-3. Sunucuda **önce yedek**: yönetim ekranındaki arşiv yedeği yeterli değildir (hesapları ve sohbetleri içermez). `family_data` volume'unu kopyalayın:
+3. Sunucuda **önce tam yedek** alın ([BACKUP.md](BACKUP.md)); yönetim ekranındaki arşiv yedeği hesapları ve sohbetleri içermez:
    ```sh
-   docker compose stop app
-   docker run --rm -v saricicektree_family_data:/data -v "$PWD/yedek:/yedek" alpine tar czf /yedek/data-$(date +%F-%H%M).tgz -C /data .
+   docker compose exec app node scripts/backup.mjs
    ```
 4. Güncelle: `git pull && docker compose build app && docker compose up -d app`.
 5. Doğrula: `curl -fsS https://ALAN_ADI/health`, giriş, Hayat akışı, bir fotoğraf yükleme; yönetim panelinde hata kaydı (`/api/experience/ops/errors`) boş ya da açıklanabilir olmalı. Günlükler JSON satırlarıdır: `docker compose logs app | grep '"level":"error"'`.
@@ -48,14 +47,8 @@ Cloudflare/Sites derlemesinde kimlik `oai-authenticated-user-*` başlıklarında
   ```sh
   git checkout ÖNCEKİ_COMMIT && docker compose build app && docker compose up -d app
   ```
-- **Veri bozulduysa**: uygulamayı durdurun, 3. adımdaki arşivi geri açın, önceki sürümü başlatın. Yedekten sonra girilen veriler kaybolur; bu yüzden güncellemeyi az kullanılan bir saatte yapın.
-  ```sh
-  docker compose stop app
-  docker run --rm -v saricicektree_family_data:/data -v "$PWD/yedek:/yedek" alpine sh -c "rm -rf /data/* && tar xzf /yedek/DOSYA.tgz -C /data"
-  git checkout ÖNCEKİ_COMMIT && docker compose build app && docker compose up -d app
-  ```
-- Volume adı proje klasörüne göre değişir; `docker volume ls` ile doğrulayın.
-- Not: 3. ve 4. adımdaki `docker` yedek/geri yükleme komutları henüz boş bir ortamda denenmedi; deneme sonucu buraya yazılacak.
+- **Veri bozulduysa**: 3. adımdaki yedeği boş bir birime geri yükleyip önceki sürümü o birimle başlatın ([BACKUP.md](BACKUP.md) → Geri yükleme). Bozulan birimi, sorun anlaşılana kadar silmeyin. Yedekten sonra girilen veriler kaybolur; bu yüzden güncellemeyi az kullanılan bir saatte yapın.
+- Yedek ve geri yükleme komutları 2026-09-27'de Docker'da boş bir birime geri yüklenerek denendi (BACKUP.md → Denendi).
 
 ## 5. Capacitor 7 → 8 değerlendirmesi
 

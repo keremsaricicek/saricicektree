@@ -7,6 +7,15 @@ services:
       NODE_ENV: production
       DATA_DIR: /app/data
       TRUST_PROXY: "1" # the app is reached only through Caddy
+      # Full encrypted backups (docs/BACKUP.md). Empty BACKUP_TARGET turns them off.
+      BACKUP_TARGET: ${BACKUP_TARGET:-}
+      BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:-}
+      BACKUP_ALERT_URL: ${BACKUP_ALERT_URL:-}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-}
+      BACKUP_S3_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
+      BACKUP_S3_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
     volumes:
       - family_data:/app/data
     expose:

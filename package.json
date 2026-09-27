@@ -31,6 +31,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
+    "@aws-crypto/sha256-js": "^5.2.0",
     "@axe-core/playwright": "^4.13.0",
     "@capacitor-community/background-geolocation": "^1.2.26",
     "@capacitor/android": "^7.6.9",
@@ -41,6 +42,7 @@
     "@capacitor/local-notifications": "^7.0.7",
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.56.1",
+    "@smithy/signature-v4": "^5.7.4",
     "@types/node": "^22.20.4",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",

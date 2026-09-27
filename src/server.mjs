@@ -10,6 +10,9 @@ import { archive, archivePath } from "./archive.mjs";
 import { community, communityPath } from "./community.mjs";
 import { coreApi } from "./core-api.mjs";
 import { log } from "./log.mjs";
+import { backupDue } from "./offsite-backup.mjs";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { recordError } from "./ops.mjs";
 import http from "node:http";
 import { readFile, writeFile, mkdir, unlink } from "node:fs/promises";
@@ -255,6 +258,16 @@ async function handler(req, res) {
         return res.end(Buffer.from(await r.arrayBuffer()));
       }
       if (path === "/api/me") return json(res, 200, { user: publicUser(u), csrf: session.csrf });
+      if (path === "/api/ops/backup-status" && method === "GET") {
+        assert(u.role !== "member", 403, "Bu işlem yöneticiye açık.");
+        const status = JSON.parse(await readFile(resolve(dataDir, "backup-status.json"), "utf8").catch(() => "{}"));
+        return json(res, 200, {
+          configured: !!process.env.BACKUP_TARGET,
+          target: (process.env.BACKUP_TARGET || "").startsWith("s3://") ? "s3" : process.env.BACKUP_TARGET ? "folder" : null,
+          ...status,
+          lastWhere: undefined,
+        });
+      }
       if (path === "/api/logout" && method === "POST") {
         run("DELETE FROM sessions WHERE token=?", session.token);
         res.setHeader("Set-Cookie", "sf_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
@@ -356,4 +369,21 @@ setInterval(async () => {
   } finally {
     backupBusy = false;
   }
+}, 60000).unref();
+
+// Full encrypted off-site backup (accounts, messages, relations, files) when BACKUP_TARGET is set.
+// It runs in a separate process so a large backup never slows requests; that process records its
+// own failures and alerts (docs/BACKUP.md).
+let offsiteBusy = false;
+setInterval(async () => {
+  if (offsiteBusy || !process.env.BACKUP_TARGET || new Date().getUTCHours() < 2) return;
+  const status = JSON.parse(await readFile(resolve(dataDir, "backup-status.json"), "utf8").catch(() => "{}"));
+  if (!backupDue(status)) return;
+  offsiteBusy = true;
+  const child = spawn(process.execPath, [fileURLToPath(new URL("../scripts/backup.mjs", import.meta.url))], { stdio: "inherit" });
+  child.once("exit", () => (offsiteBusy = false));
+  child.once("error", (e) => {
+    offsiteBusy = false;
+    serverError("backup.offsite_start_failed", e);
+  });
 }, 60000).unref();

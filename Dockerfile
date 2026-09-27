@@ -15,6 +15,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --chown=node:node src ./src
 COPY --from=client --chown=node:node /build/public ./public
 COPY --chown=node:node drizzle ./drizzle
+COPY --chown=node:node scripts/backup.mjs scripts/restore.mjs ./scripts/
 RUN mkdir -p /app/data && chown node:node /app/data
 USER node
 ENV NODE_ENV=production PORT=3000 DATA_DIR=/app/data
