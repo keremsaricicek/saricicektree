@@ -158,7 +158,10 @@ test("real server: invitations, permissions, moderation, persistence and scale",
     for (let n = 0; n < 40; n++) assert.equal((await attempt("203.0.113.7", n)).status, 401);
     assert.equal((await attempt("203.0.113.7", 40)).status, 429);
     assert.equal((await attempt("198.51.100.4", 41)).status, 401);
-    assert.equal((await call("/api/login", "POST", { email: "owner@example.test", password: "long-test-password-123" }, {}, { "x-forwarded-for": "198.51.100.9" })).status, 200);
+    assert.equal(
+      (await call("/api/login", "POST", { email: "owner@example.test", password: "long-test-password-123" }, {}, { "x-forwarded-for": "198.51.100.9" })).status,
+      200,
+    );
   });
   await t.test("the two-factor encryption key never leaves the server", async () => {
     await call("/api/archive/photos", "GET", null, owner); // creates the key on first archive use

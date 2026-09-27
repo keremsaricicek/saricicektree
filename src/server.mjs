@@ -83,7 +83,12 @@ function json(res, status, data) {
 // visitor's address is the last X-Forwarded-For entry, which Caddy itself writes. Without the
 // setting the header is ignored, so a visitor cannot choose their own address.
 function clientAddress(req) {
-  const forwarded = process.env.TRUST_PROXY === "1" && String(req.headers["x-forwarded-for"] || "").split(",").pop().trim();
+  const forwarded =
+    process.env.TRUST_PROXY === "1" &&
+    String(req.headers["x-forwarded-for"] || "")
+      .split(",")
+      .pop()
+      .trim();
   return forwarded || req.socket.remoteAddress;
 }
 function createSession(res, u) {
