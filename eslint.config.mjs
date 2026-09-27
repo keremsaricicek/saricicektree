@@ -26,6 +26,7 @@ export default [
       "ios/**",
       "native-www/**",
       "public/assets/**",
+      "public/min/**",
       "worker/assets.mjs",
       ".claude/**",
       "test-results/**",

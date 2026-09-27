@@ -66,3 +66,14 @@ await build({
   target: ["chrome100", "safari15", "firefox100"],
   logLevel: "warning",
 });
+
+// App scripts: minified copies in public/min/ (not committed), loaded by index.html. Each file is
+// minified on its own and stays a classic script, so shared top-level names and each file's strict
+// mode are unchanged. `npm run dev` serves the sources instead (DEV_SOURCES=1 in server.mjs).
+{
+  const { readdirSync } = await import("node:fs");
+  const { rm } = await import("node:fs/promises");
+  await rm("public/min", { recursive: true, force: true });
+  const scripts = [...readdirSync("public").filter((f) => f.endsWith(".js") && f !== "sw.js"), ...readdirSync("public/ui").map((f) => "ui/" + f)];
+  await build({ entryPoints: scripts.map((f) => "public/" + f), outdir: "public/min", outbase: "public", minify: true, target: "es2022", logLevel: "warning" });
+}

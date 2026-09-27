@@ -285,7 +285,9 @@ async function handler(req, res) {
       return res.end(Buffer.from(await r.arrayBuffer()));
     }
     assert(method === "GET" || method === "HEAD", 405, "Yöntem desteklenmiyor.");
-    const file = resolve(publicDir, "." + decodeURIComponent(path === "/" ? "/index.html" : path));
+    // `npm run dev` serves the editable sources in place of the minified copies in public/min/.
+    const asset = process.env.DEV_SOURCES === "1" && path.startsWith("/min/") ? path.slice(4) : path;
+    const file = resolve(publicDir, "." + decodeURIComponent(asset === "/" ? "/index.html" : asset));
     assert(file.startsWith(publicDir + "/"), 404, "Dosya bulunamadı.");
     const types = {
       ".html": "text/html; charset=utf-8",

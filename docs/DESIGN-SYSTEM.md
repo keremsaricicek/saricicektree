@@ -16,7 +16,7 @@ Arayüzün görünümü `public/app.css` üzerinden kurulur. Üretimde `npm run 
 | `tree.css`, `avlu.css` | Soy ağacı, Avlu galerisi, fotoğraf hikâyesi ekranı, yükleme adımları |
 | `pages.css`, `chat.css` | Diğer sayfalar, mesajlaşma |
 
-Davranış katmanı `public/ui/` klasöründedir ve en son, şu sırayla yüklenir: `core` (ortak yardımcılar, üst çubuk), `photos` (duyarlı fotoğraflar), `feed` (Hayat), `viewer` (tam ekran fotoğraf), `dialogs` (pencereler, menü, hesap), `tree` (Soy Ağacı), `avlu` (Avlu ve yükleme), `profile`, `messages`, `navigation` (geri hareketi ve pencere geçmişi). Dosyalar klasik betiktir ve aynı genel kapsamı paylaşır; sırası `index.html` içindedir. Veri akışı ve API çağrıları önceki modüllerde kalır.
+Davranış katmanı `public/ui/` klasöründedir ve en son, şu sırayla yüklenir: `core` (ortak yardımcılar, üst çubuk), `photos` (duyarlı fotoğraflar), `feed` (Hayat), `viewer` (tam ekran fotoğraf), `dialogs` (pencereler, menü, hesap), `tree` (Soy Ağacı), `avlu` (Avlu ve yükleme), `profile`, `messages`, `navigation` (geri hareketi ve pencere geçmişi). Dosyalar klasik betiktir ve aynı genel kapsamı paylaşır; sırası `index.html` içindedir. Veri akışı ve API çağrıları önceki modüllerde kalır. Tarayıcı bu dosyaların `public/min/` altındaki küçültülmüş kopyalarını yükler (`npm run build:client` üretir, depoya girmez); `npm run dev` kaynakları doğrudan sunar.
 
 Kurallar: yeni renk veya ölçü eklemeden önce `tokens.css` değişkenlerini kullanın; telefonda giriş alanları en az 16 px, dokunma hedefleri en az 44 px olmalıdır.
 

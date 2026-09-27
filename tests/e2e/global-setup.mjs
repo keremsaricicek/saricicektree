@@ -1,6 +1,7 @@
 // Creates the test family once per run: the owner plus two invited members, each with a saved session.
 import { request } from "@playwright/test";
 import { mkdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { BASE, USERS, authFile } from "./helpers.mjs";
 
 async function login(key) {
@@ -12,6 +13,8 @@ async function login(key) {
 }
 
 export default async function globalSetup() {
+  // The app loads the minified copies in public/min/; rebuild them so tests never run stale code.
+  execFileSync(process.execPath, ["src/build-client.mjs"], { stdio: "inherit" });
   mkdirSync("tests/e2e/.auth", { recursive: true });
   const owner = await login("owner");
   for (const key of ["ayse", "mehmet"]) {

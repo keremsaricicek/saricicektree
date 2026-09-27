@@ -27,3 +27,4 @@ public/app.bundle.css
 tests/e2e/.auth/
 test-results/
 playwright-report/
+public/min/
