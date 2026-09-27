@@ -3,6 +3,8 @@ import{readFile,writeFile,mkdir}from'node:fs/promises';
 let html=await readFile('public/index.html','utf8');const scripts=[];
 for(const match of html.matchAll(/<script\b[^>]*src="([^"]+)"[^>]*><\/script>/g))scripts.push(await readFile('public/'+match[1].split('?')[0],'utf8'));
 html=html.replace(/<script\b[^>]*src="[^"]+"[^>]*><\/script>/g,'');
+// The theme script must run before the first paint, so it stays in <head>.
+const themeAt=scripts.findIndex(x=>x.includes('sfTheme'));if(themeAt>=0){const theme=scripts.splice(themeAt,1)[0];html=html.replace('</head>',()=>'<script>'+theme+'</script></head>');}
 // Inline CSS: @import … layer(x) becomes an @layer block; asset URLs are rebased to public/ and fonts embedded.
 const {readdirSync}=await import('node:fs');
 async function inlineCss(file){const dir=file.includes('/')?file.slice(0,file.lastIndexOf('/')+1):'';let css=(await readFile('public/'+file,'utf8')).replace(/url\((["']?)\.\.\/assets\//g,(m,q)=>'url('+q+'assets/');const parts=[];let rest=css;for(const m of css.matchAll(/@import url\(["']?([^"')]+)["']?\)(?:\s+layer\(([\w-]+)\))?;/g)){const inner=await inlineCss(dir+m[1].split('?')[0]);parts.push(m[2]?'@layer '+m[2]+'{\n'+inner+'\n}':inner);rest=rest.split(m[0]).join('');}return parts.join('\n')+'\n'+rest;}

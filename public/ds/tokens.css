@@ -17,7 +17,7 @@
   /* Text */
   --ink: #1d2b22;
   --ink-2: #45513f;
-  --muted: #7a8171;
+  --muted: #646b5c;
   --faint: #a3a797;
   --on-dark: #f6f3ea;
 
@@ -94,6 +94,7 @@
   --glass-2: rgba(255, 253, 248, 0.9);
   --feature: #2d4a35;
   --feature-ink: #f6f3ea;
+  --on-forest-accent: var(--pistachio);
   --canvas: #f1eee3;
   --canvas-dots: rgba(120, 128, 100, 0.22);
   --canvas-glow: rgba(233, 241, 212, 0.9);
@@ -174,6 +175,12 @@
   --tone-6-bg: #313646; --tone-6-fg: #cfd6ef;
 
   --feature: #2a3b26;
+  --on-forest-accent: #2d4a35;
+  /* Variables of the older stylesheets follow the night palette too. */
+  --kn-pistachio: var(--pistachio-soft);
+  --kn-ink: var(--ink);
+  --kn-line: var(--line);
+  --kn-surface: var(--surface);
   --canvas: #181e18;
   --canvas-dots: rgba(190, 200, 170, 0.12);
   --canvas-glow: rgba(60, 80, 40, 0.35);

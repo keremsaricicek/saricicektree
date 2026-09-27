@@ -874,3 +874,7 @@ dialog.is-viewer .dialog-body {
   text-align: center;
   pointer-events: none;
 }
+
+.kn-upload-footer {
+  background: var(--surface);
+}

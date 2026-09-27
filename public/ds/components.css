@@ -976,6 +976,37 @@ body.kn-easy {
   --fs-md: 16px;
   --fs-base: 18px;
   --fs-lg: 20px;
+  /* Secondary text is darker, lines have more room. */
+  --muted: var(--ink-2);
+  --faint: var(--ink-2);
+  line-height: 1.6;
+}
+/* Bigger touch targets for every icon button, post action and reaction. */
+body.kn-easy .icon-btn,
+body.kn-easy .ds-act,
+body.kn-easy .ds-react,
+body.kn-easy .ds-voice-play,
+body.kn-easy .ds-dm-btn {
+  min-width: 48px;
+  min-height: 48px;
+}
+body.kn-easy .ds-reaction,
+body.kn-easy .ds-comment-meta button,
+body.kn-easy .ds-dm-retry {
+  min-height: 40px;
+  padding-inline: 12px;
+  font-size: var(--fs-sm);
+}
+body.kn-easy .dm-message p,
+body.kn-easy .ds-comment-main p {
+  font-size: var(--fs-base);
+}
+body.kn-easy .ds-node-text strong {
+  font-size: 17px;
+}
+body.kn-easy .ds-node-text small,
+body.kn-easy .ds-node-sur {
+  font-size: 14px;
 }
 
 /* ---------- Lists inside sheets (menu, account, settings) ---------- */

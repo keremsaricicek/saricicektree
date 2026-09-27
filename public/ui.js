@@ -98,9 +98,14 @@ addEventListener(
 
 /* On-screen keyboard: keep the bottom bar out of the way of text fields. */
 if (window.visualViewport) {
+  // Android (resizes-content) shrinks the whole page with the keyboard and iOS only the
+  // visual viewport, so compare with the tallest height seen at this width.
+  let full = { w: innerWidth, h: visualViewport.height };
   const check = () => {
+    if (innerWidth !== full.w) full = { w: innerWidth, h: visualViewport.height };
+    full.h = Math.max(full.h, visualViewport.height, document.activeElement === document.body ? innerHeight : 0);
     const typing = document.activeElement?.matches?.("input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, [contenteditable]");
-    document.body.classList.toggle("ds-keyboard", !!typing && visualViewport.height < innerHeight * 0.78);
+    document.body.classList.toggle("ds-keyboard", !!typing && visualViewport.height < full.h * 0.78);
   };
   visualViewport.addEventListener("resize", check);
   addEventListener("focusin", () => setTimeout(check, 250));
@@ -326,6 +331,17 @@ document.addEventListener("keydown", (e) => {
     $(".ds-react-menu").remove();
     b?.setAttribute("aria-expanded", "false");
     b?.focus();
+    return;
+  }
+  // Arrow keys move between the five reactions.
+  const menu = e.target.closest?.(".ds-react-menu");
+  if (menu && ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+    e.preventDefault();
+    const items = $$("button", menu),
+      i = items.indexOf(e.target),
+      n = items.length,
+      next = e.key === "Home" ? 0 : e.key === "End" ? n - 1 : (i + (e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1) + n) % n;
+    items[next].focus();
   }
 });
 async function uiReact(id, emoji) {
@@ -937,6 +953,13 @@ function uiViewer(items, start = 0, meta = {}) {
       uiReduced() ? 0 : 200,
     );
   };
+  // Closed from outside (back gesture, Escape): tidy up the same way.
+  lb.addEventListener("close", () => {
+    if (lb.classList.contains("is-closing")) return;
+    lb.remove();
+    document.documentElement.classList.remove("ds-lock");
+    back?.focus?.({ preventScroll: true });
+  });
 
   stage.addEventListener("pointerdown", (e) => {
     if (e.target.closest("button")) return;
@@ -2185,3 +2208,41 @@ function uiAfterRender() {
 }
 
 if (state) render();
+
+/* ---------- Back gesture closes the open window first ----------
+   Each dialog (story, photo, sheet, lightbox) adds one history entry. The phone's back
+   gesture then closes the top dialog instead of leaving the page; closing a dialog with
+   its own button removes that entry again unless the page moved on meanwhile. */
+const uiShowModal = HTMLDialogElement.prototype.showModal;
+HTMLDialogElement.prototype.showModal = function () {
+  uiShowModal.call(this);
+  if (this.dataset.histDepth) return;
+  const depth = (history.state?.dsOverlay || 0) + 1;
+  history.pushState({ ...(history.state || {}), dsOverlay: depth }, "");
+  this.dataset.histDepth = depth;
+};
+addEventListener("popstate", () => {
+  const depth = history.state?.dsOverlay || 0;
+  for (const d of $$("dialog[open]"))
+    if (Number(d.dataset.histDepth) > depth) {
+      d.dataset.histClosing = "1";
+      d.close();
+    }
+});
+document.addEventListener(
+  "close",
+  (e) => {
+    const d = e.target;
+    if (!(d instanceof HTMLDialogElement) || !d.dataset.histDepth) return;
+    const depth = Number(d.dataset.histDepth),
+      byBack = d.dataset.histClosing;
+    delete d.dataset.histDepth;
+    delete d.dataset.histClosing;
+    if (byBack) return;
+    const href = location.href;
+    setTimeout(() => {
+      if (location.href === href && (history.state?.dsOverlay || 0) >= depth) history.back();
+    }, 0);
+  },
+  true,
+);

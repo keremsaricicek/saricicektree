@@ -486,7 +486,7 @@
   color: var(--on-dark);
 }
 .day.today .day-label {
-  color: var(--pistachio);
+  color: var(--on-forest-accent);
 }
 .day.selected {
   border-color: var(--pistachio-2);
@@ -1041,4 +1041,16 @@ button.event-row:hover {
   .ar-filter {
     flex-shrink: 0;
   }
+}
+
+/* Surfaces from the older archive and map styles, on the shared tokens */
+.ar-year-people button {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.ar-year-people small {
+  color: var(--muted);
+}
+.world-map-card {
+  background: var(--surface);
 }
