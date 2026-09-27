@@ -15,7 +15,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { recordError } from "./ops.mjs";
 import http from "node:http";
-import { readFile, writeFile, mkdir, unlink } from "node:fs/promises";
+import { readFile, writeFile, mkdir, unlink, readdir, stat, statfs } from "node:fs/promises";
 import { resolve, extname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { all, one, run, transaction, audit, dataDir } from "./db.mjs";
@@ -94,6 +94,46 @@ function clientAddress(req) {
       .trim();
   return forwarded || req.socket.remoteAddress;
 }
+// Admin panel extras only Node can answer: stored bytes per kind of file (cached for 10 minutes),
+// database size and the off-site backup status.
+let storageCache = null;
+const opsInfo = {
+  async storage() {
+    if (storageCache && Date.now() - storageCache.at < 600_000) return storageCache.value;
+    const byKind = {};
+    let total = 0;
+    const walk = async (dir, kind) => {
+      for (const e of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+        const path = resolve(dir, e.name);
+        if (e.isDirectory()) await walk(path, kind || e.name);
+        else {
+          const size = (await stat(path).catch(() => ({ size: 0 }))).size;
+          byKind[kind || "diğer"] = (byKind[kind || "diğer"] || 0) + size;
+          total += size;
+        }
+      }
+    };
+    await walk(uploadDir, "");
+    const disk = await statfs(dataDir).catch(() => null);
+    storageCache = { at: Date.now(), value: { total, byKind, diskFree: disk ? disk.bavail * disk.bsize : null } };
+    return storageCache.value;
+  },
+  database: () => {
+    const page = one("PRAGMA page_size").page_size,
+      pages = one("PRAGMA page_count").page_count;
+    return { bytes: Number(page) * Number(pages) };
+  },
+  async backup() {
+    const status = JSON.parse(await readFile(resolve(dataDir, "backup-status.json"), "utf8").catch(() => "{}"));
+    return {
+      configured: !!process.env.BACKUP_TARGET,
+      lastSuccess: status.lastSuccess || null,
+      lastFailure: status.lastFailure || null,
+      lastError: status.lastError || null,
+      failures: status.failures || 0,
+    };
+  },
+};
 function createSession(res, u) {
   const raw = token(),
     csrf = token();
@@ -248,6 +288,7 @@ async function handler(req, res) {
           storage,
           limit,
           mediaJobs,
+          opsInfo,
           // Node keeps its own sign-in data; the shared code removes everything else.
           onAccountDeleted: (id) =>
             transaction(() => {

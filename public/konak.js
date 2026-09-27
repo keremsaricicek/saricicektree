@@ -1024,7 +1024,10 @@ render = function () {
     kn.openPost = null;
     ffHandle("notice-open", { dataset: { id } }).catch((e) => toast(e.message));
   }
-  if (route === "admin" && isStaff()) knReview();
+  if (route === "admin" && isStaff()) {
+    knReview();
+    uiAdminUsage();
+  }
   if (kn.lastRoute !== key) {
     kn.lastRoute = key;
     const saved = kn.positions.get(key);

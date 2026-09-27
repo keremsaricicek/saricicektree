@@ -1480,3 +1480,56 @@ dialog.is-search #server-results {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* Admin: usage and health (public/ui/admin.js). */
+.ds-usage {
+  margin: 0 0 22px;
+}
+.ds-usage .section-head small {
+  color: var(--muted);
+}
+.ds-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin: 8px 0 18px;
+}
+.ds-usage-tile {
+  display: grid;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--pistachio-wash);
+}
+.ds-usage-tile strong {
+  font: 600 28px/1.1 var(--font-serif);
+  color: var(--forest);
+}
+.ds-usage-tile span {
+  font-weight: 600;
+  color: var(--ink);
+}
+.ds-usage-tile small,
+.ds-usage-cols small {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.ds-usage-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 22px;
+}
+.ds-usage-cols h3 {
+  margin: 6px 0 8px;
+  font-size: var(--fs-md);
+}
+.ds-usage-alert {
+  color: var(--danger);
+  background: var(--danger-soft);
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+.ds-usage-errors {
+  margin: 0;
+  padding-left: 18px;
+}

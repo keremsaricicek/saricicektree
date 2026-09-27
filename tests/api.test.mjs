@@ -176,6 +176,13 @@ test("real server: invitations, permissions, moderation, persistence and scale",
       assert.ok(!text.includes(key) && !text.includes("localSecurityKey"), path + " leaks the security key");
     }
   });
+  await t.test("the admin usage panel reports storage, database size and backup state on Node", async () => {
+    const r = await call("/api/experience/ops/usage", "GET", null, owner);
+    assert.equal(r.status, 200);
+    assert.ok(r.body.storage.total > 0 && r.body.storage.byKind, JSON.stringify(r.body.storage));
+    assert.ok(r.body.database.bytes > 0);
+    assert.equal(r.body.backup.configured, false);
+  });
   await t.test("personal data export never includes the password hash", async () => {
     const r = await call("/api/account/export", "GET", null, owner);
     assert.equal(r.status, 200);

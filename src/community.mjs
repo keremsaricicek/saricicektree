@@ -24,9 +24,10 @@ export async function community({
   defer = null,
   mediaJobs = null,
   onAccountDeleted = null,
+  opsInfo = {},
 }) {
   if (path.startsWith("/api/experience/"))
-    return experience({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted, keyText, defer, mediaJobs });
+    return experience({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted, keyText, defer, mediaJobs, opsInfo });
   const reply = (data, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
   const staff = () => assert(u.role !== "member", 403, "Moderatör yetkisi gerekiyor.");

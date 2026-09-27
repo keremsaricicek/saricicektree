@@ -42,3 +42,25 @@ test("an unexpected server failure is answered generically and recorded without 
   assert.equal(item.message, "bucket unavailable");
   assert.ok(!JSON.stringify(item).includes("Özel aile notu"));
 });
+
+test("usage summary counts activity without exposing message text, and is staff-only", async () => {
+  const { call, member } = fixture();
+  const a = await member("aktif@test.invalid"),
+    b = await member("sessiz@test.invalid");
+  await call("/api/me", "GET", null, a.email);
+  await call("/api/experience/feed", "POST", { body: "Herkese merhaba", visibility: "family", clientId: crypto.randomUUID(), peopleIds: [] }, a.email);
+  await call("/api/experience/conversations/dm/" + b.id, "POST", { body: "Gizli mesaj metni", clientId: crypto.randomUUID() }, a.email);
+  await call("/api/invites", "POST", { email: "bekleyen@test.invalid", role: "member" });
+  assert.equal((await call("/api/experience/ops/usage", "GET", null, a.email)).status, 403);
+  const r = await call("/api/experience/ops/usage");
+  assert.equal(r.status, 200);
+  assert.equal(r.body.members.active, 3);
+  assert.equal(r.body.members.contributing7, 1, "only the member who posted and wrote counts as contributing");
+  assert.deepEqual(r.body.invites, { pending: 1, accepted: 2, expired: 0 });
+  assert.equal(r.body.content.posts.total, 1);
+  assert.equal(r.body.content.privateMessages.total, 1);
+  const text = JSON.stringify(r.body);
+  for (const secret of ["Gizli mesaj metni", "Herkese merhaba", "aktif@test.invalid", "bekleyen@test.invalid"])
+    assert.ok(!text.includes(secret), "usage exposes " + secret);
+  assert.equal(r.body.storage, null, "the Worker has no file storage figures");
+});
