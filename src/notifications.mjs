@@ -1,4 +1,5 @@
 import { assert } from "./domain.mjs";
+import { log } from "./log.mjs";
 import { crypt } from "./security.mjs";
 const enc = new TextEncoder(),
   b64 = (b) =>
@@ -82,9 +83,9 @@ export async function sendPush({ userId, one, all, run, keyText, origin, transpo
         signal: AbortSignal.timeout(6000),
       });
       if ([404, 410].includes(response.status)) await run("DELETE FROM push_subscriptions WHERE endpoint=?", endpoint);
-      else if (!response.ok) console.error("Push service rejected notification", response.status);
-    } catch {
-      console.error("Push notification could not be delivered");
+      else if (!response.ok) log("warn", "push.rejected", { status: response.status });
+    } catch (e) {
+      log("warn", "push.undelivered", { message: e?.message });
     }
   }
 }

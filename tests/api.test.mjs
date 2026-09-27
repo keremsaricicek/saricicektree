@@ -151,6 +151,19 @@ test("real server: invitations, permissions, moderation, persistence and scale",
     assert.equal(b.body.people.length, 1202);
     assert.ok(b.body.photos.some((p) => p.id === photoId));
   });
+  await t.test("the two-factor encryption key never leaves the server", async () => {
+    await call("/api/archive/photos", "GET", null, owner); // creates the key on first archive use
+    const db = new DatabaseSync(join(data, "family.sqlite"));
+    const key = db.prepare("SELECT value FROM settings WHERE key='localSecurityKey'").get()?.value;
+    db.close();
+    assert.ok(key, "key should exist after an archive call");
+    for (const path of ["/api/bootstrap", "/api/export"]) {
+      const r = await call(path, "GET", null, owner);
+      assert.equal(r.status, 200, path);
+      const text = JSON.stringify(r.body);
+      assert.ok(!text.includes(key) && !text.includes("localSecurityKey"), path + " leaks the security key");
+    }
+  });
   await t.test("role changes revoke sessions; resets are single-use", async () => {
     const userId = member.body.user.id;
     assert.equal((await call("/api/users/" + userId, "PATCH", { role: "member", active: 0 }, owner)).status, 200);

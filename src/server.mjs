@@ -1,5 +1,3 @@
-import { memories } from "./memories.mjs";
-import { pickVariant } from "./variants.mjs";
 import { startMediaJobs } from "./media-jobs.mjs";
 import { eventStream } from "./realtime.mjs";
 import { notifications } from "./notifications.mjs";
@@ -8,15 +6,18 @@ import { hiddenPeople, filterFamilyPayload } from "./privacy.mjs";
 import { photoEnhance } from "./photo-enhance.mjs";
 import { security, securityGate } from "./security.mjs";
 import { backups, makeBackup } from "./backups.mjs";
-import { archive, archivePath, photoVisibleSQL, visiblePhoto } from "./archive.mjs";
+import { archive, archivePath } from "./archive.mjs";
 import { community, communityPath } from "./community.mjs";
+import { coreApi } from "./core-api.mjs";
+import { log } from "./log.mjs";
+import { recordError } from "./ops.mjs";
 import http from "node:http";
 import { readFile, writeFile, mkdir, unlink } from "node:fs/promises";
 import { resolve, extname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { all, one, run, transaction, audit, dataDir } from "./db.mjs";
 import { token, hash, passwordHash, passwordVerify, cookie } from "./auth.mjs";
-import { assert, clean, validDate, personInput, validateRelation } from "./domain.mjs";
+import { assert, clean } from "./domain.mjs";
 const argPort = process.argv.indexOf("--port");
 const port = Number(process.env.PORT || (argPort >= 0 ? process.argv[argPort + 1] : 3000)),
   origin = process.env.APP_ORIGIN || `http://localhost:${port}`,
@@ -46,13 +47,17 @@ const localStorageAdapter = {
 const mediaJobs = process.env.MEDIA_JOBS === "off" ? null : startMediaJobs({ all, one, run, storage: localStorageAdapter });
 const now = () => new Date().toISOString(),
   publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: u.active });
-const staff = (u) => assert(u.role === "owner" || u.role === "moderator", 403, "Bu işlem için moderatör yetkisi gerekiyor.");
+// Logged as a JSON line and kept in error_log for the admin panel; never with request bodies.
+function serverError(event, e, fields = {}) {
+  log("error", event, { ...fields, message: e?.message });
+  recordError(run, "server", event, e?.message).catch(() => {}); // the log line above is the fallback record
+}
 const owner = (u) => assert(u.role === "owner", 403, "Bu işlem yalnızca aile yöneticisine açık.");
 function limit(key, max = 10, ms = 900000) {
   const item = one("SELECT * FROM throttle WHERE key=?", key);
-  if (!item || item.expires < Date.now()) run("INSERT OR REPLACE INTO throttle VALUES(?,?,?)", key, 1, Date.now() + ms);
+  if (!item || Number(item.expires) < Date.now()) run("INSERT OR REPLACE INTO throttle VALUES(?,?,?)", key, 1, Date.now() + ms);
   else {
-    assert(item.count < max, 429, "Çok fazla deneme. Lütfen daha sonra tekrar deneyin.");
+    assert(Number(item.count) < max, 429, "Çok fazla deneme. Lütfen daha sonra tekrar deneyin.");
     run("UPDATE throttle SET count=count+1 WHERE key=?", key);
   }
 }
@@ -80,9 +85,6 @@ function createSession(res, u) {
   run("INSERT INTO sessions VALUES(?,?,?,?)", hash(raw), u.id, csrf, Date.now() + 7 * 86400000);
   res.setHeader("Set-Cookie", `sf_session=${raw}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800${production ? "; Secure" : ""}`);
   return { user: publicUser(u), csrf };
-}
-function settings() {
-  return Object.fromEntries(all("SELECT * FROM settings WHERE key!='localSecurityKey'").map((x) => [x.key, x.value]));
 }
 function authorize(req) {
   const sid = cookie(req.headers.cookie).sf_session;
@@ -199,20 +201,21 @@ async function handler(req, res) {
           run("INSERT OR IGNORE INTO settings VALUES(?,?)", "localSecurityKey", keyText);
           keyText = one("SELECT value FROM settings WHERE key='localSecurityKey'").value;
         }
-        const r = await (
-          path.startsWith("/api/notifications/")
-            ? notifications
-            : path === "/api/archive/photo-enhance"
-              ? photoEnhance
-              : path.startsWith("/api/security/")
-                ? security
-                : path.startsWith("/api/archive/backups")
-                  ? backups
-                  : archivePath(path)
-                    ? archive
-                    : community
-        )({
-          defer: (task) => task.catch((e) => console.error("Notification failed")),
+        // Each handler reads only the fields it needs from one shared context.
+        /** @type {(ctx: Record<string, any>) => Promise<Response>} */
+        const handle = path.startsWith("/api/notifications/")
+          ? notifications
+          : path === "/api/archive/photo-enhance"
+            ? photoEnhance
+            : path.startsWith("/api/security/")
+              ? security
+              : path.startsWith("/api/archive/backups")
+                ? backups
+                : archivePath(path)
+                  ? archive
+                  : community;
+        const r = await handle({
+          defer: (task) => task.catch((e) => serverError("notification.failed", e)),
           apiKey: process.env.OPENAI_API_KEY,
           model: process.env.IMAGE_MODEL || "gpt-image-1.5",
           keyText,
@@ -240,279 +243,8 @@ async function handler(req, res) {
       }
       res.hidden = await hiddenPeople(all, u);
       if (path === "/api/bootstrap" && method === "GET" && u.role === "owner")
-        await makeBackup({ all, run, storage: localStorageAdapter }, true).catch((e) => console.error("Archive backup failed", e.message));
-      if (path === "/api/bootstrap" && method === "GET")
-        return json(res, 200, {
-          user: publicUser(u),
-          settings: settings(),
-          people: all("SELECT * FROM people WHERE deletedAt IS NULL ORDER BY name"),
-          relations: all(
-            "SELECT r.* FROM relations r JOIN people a ON a.id=r.personA JOIN people b ON b.id=r.personB WHERE a.deletedAt IS NULL AND b.deletedAt IS NULL",
-          ),
-          photos: all(
-            `SELECT id,title,date,place,description,createdBy,status,createdAt,COALESCE((SELECT visibility FROM photo_privacy WHERE photoId=photos.id),'family') visibility FROM photos WHERE deletedAt IS NULL AND (status='approved' OR createdBy=? OR ?!='member') AND ${photoVisibleSQL} ORDER BY createdAt DESC,id DESC LIMIT 200`,
-            u.id,
-            u.role,
-            u.id,
-            u.id,
-            u.id,
-          ).map((p) => ({ ...p, url: "/media/" + p.id, peopleIds: all("SELECT personId FROM photo_people WHERE photoId=?", p.id).map((x) => x.personId) })),
-          events: all(
-            `SELECT * FROM events WHERE deletedAt IS NULL AND (status='approved' OR createdBy=? OR ?!='member') ORDER BY date DESC LIMIT 1000`,
-            u.id,
-            u.role,
-          ),
-          photoCount: one(`SELECT COUNT(*) n FROM photos WHERE deletedAt IS NULL AND status='approved' AND ${photoVisibleSQL}`, u.id, u.id, u.id).n,
-        });
-      if (path === "/api/people" && method === "POST") {
-        staff(u);
-        const b = personInput(await body(req, 16000)),
-          id = randomUUID(),
-          date = now();
-        run(
-          "INSERT INTO people(id,name,birthDate,deathDate,place,country,biography,source,createdBy,createdAt,updatedAt,deletedAt,nickname,birthPlace) VALUES(?,?,?,?,?,?,?,?,?,?,?,NULL,?,?)",
-          id,
-          b.name,
-          b.birthDate,
-          b.deathDate,
-          b.place,
-          b.country,
-          b.biography,
-          b.source,
-          u.id,
-          date,
-          date,
-          b.nickname,
-          b.birthPlace,
-        );
-        audit(u.id, "Kişi eklendi", id);
-        return json(res, 201, { id });
-      }
-      const personMatch = path.match(/^\/api\/people\/([\w-]+)$/);
-      if (personMatch) {
-        staff(u);
-        const id = personMatch[1];
-        assert(!res.hidden.has(id), 404, "Kişi bulunamadı.");
-        assert(one("SELECT id FROM people WHERE id=? AND deletedAt IS NULL", id), 404, "Kişi bulunamadı.");
-        if (method === "PATCH") {
-          const b = personInput(await body(req, 16000));
-          run(
-            "UPDATE people SET name=?,birthDate=?,deathDate=?,place=?,country=?,biography=?,source=?,updatedAt=?,nickname=?,birthPlace=? WHERE id=?",
-            b.name,
-            b.birthDate,
-            b.deathDate,
-            b.place,
-            b.country,
-            b.biography,
-            b.source,
-            now(),
-            b.nickname,
-            b.birthPlace,
-            id,
-          );
-          audit(u.id, "Kişi güncellendi", id);
-          return json(res, 200, { ok: true });
-        }
-        if (method === "DELETE") {
-          run("UPDATE people SET deletedAt=? WHERE id=?", now(), id);
-          audit(u.id, "Kişi arşivden kaldırıldı", id);
-          return json(res, 200, { ok: true });
-        }
-      }
-      if (path === "/api/relations" && method === "POST") {
-        staff(u);
-        const b = await body(req, 4096);
-        assert(!res.hidden.has(b.personA) && !res.hidden.has(b.personB), 404, "Kişi bulunamadı.");
-        assert(
-          one("SELECT id FROM people WHERE id=? AND deletedAt IS NULL", b.personA) && one("SELECT id FROM people WHERE id=? AND deletedAt IS NULL", b.personB),
-          400,
-          "Her iki kişiyi de seçin.",
-        );
-        validateRelation(all("SELECT * FROM relations"), b.personA, b.personB, b.type);
-        const id = randomUUID();
-        run("INSERT INTO relations VALUES(?,?,?,?,?)", id, b.personA, b.personB, b.type, validDate(b.date));
-        audit(u.id, "Aile bağı eklendi", id);
-        return json(res, 201, { id });
-      }
-      if (path.match(/^\/api\/relations\/[\w-]+$/) && method === "DELETE") {
-        staff(u);
-        const id = path.split("/").pop(),
-          relation = await one("SELECT * FROM relations WHERE id=?", id);
-        assert(relation && !res.hidden.has(relation.personA) && !res.hidden.has(relation.personB), 404, "Aile bağı bulunamadı.");
-        run("DELETE FROM relations WHERE id=?", id);
-        audit(u.id, "Aile bağı kaldırıldı", id);
-        return json(res, 200, { ok: true });
-      }
-      if (path === "/api/photos" && method === "GET") {
-        const offset = Math.max(0, Math.min(100000, Number(url.searchParams.get("offset")) || 0));
-        const items = all(
-          `SELECT id,title,date,place,description,createdBy,status,createdAt,COALESCE((SELECT visibility FROM photo_privacy WHERE photoId=photos.id),'family') visibility FROM photos WHERE deletedAt IS NULL AND (status='approved' OR createdBy=? OR ?!='member') AND ${photoVisibleSQL} ORDER BY createdAt DESC,id DESC LIMIT 101 OFFSET ?`,
-          u.id,
-          u.role,
-          u.id,
-          u.id,
-          u.id,
-          offset,
-        );
-        return json(res, 200, {
-          items: items
-            .slice(0, 100)
-            .map((p) => ({ ...p, url: "/media/" + p.id, peopleIds: all("SELECT personId FROM photo_people WHERE photoId=?", p.id).map((x) => x.personId) })),
-          hasMore: items.length > 100,
-        });
-      }
-      if (path === "/api/photos" && method === "POST") {
-        const r = await memories({
-          path: "/api/experience/memories",
-          method,
-          url,
-          u,
-          read: (max) => body(req, max),
-          all,
-          one,
-          run,
-          batch: async (items) => transaction(() => items.map(([sql, ...args]) => run(sql, ...args))),
-          storage: localStorageAdapter,
-          limit,
-          mediaJobs,
-        });
-        return json(res, r.status, await r.json());
-      }
-      if (path === "/api/events" && method === "POST") {
-        const b = await body(req, 16000),
-          title = clean(b.title, 160);
-        assert(title, 400, "Başlık girin.");
-        assert(["gathering", "birthday", "marriage", "memorial", "funeral", "migration", "story"].includes(b.type), 400, "Olay türünü seçin.");
-        const date = validDate(b.date, false),
-          personId = b.personId || null;
-        assert(!res.hidden.has(personId), 404, "Kişi bulunamadı.");
-        assert(!personId || one("SELECT id FROM people WHERE id=? AND deletedAt IS NULL", personId), 400, "Kişi bulunamadı.");
-        const id = randomUUID();
-        run(
-          "INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?,?,NULL)",
-          id,
-          title,
-          b.type,
-          date,
-          clean(b.place),
-          clean(b.description, 5000),
-          personId,
-          u.id,
-          u.role === "member" ? "pending" : "approved",
-          now(),
-        );
-        audit(u.id, "Aile olayı eklendi", id);
-        return json(res, 201, { id });
-      }
-      const content = path.match(/^\/api\/(photos|events)\/([\w-]+)$/);
-      if (content && method === "PATCH") {
-        const [, table, id] = content,
-          b = await body(req, 16000),
-          item = one(`SELECT * FROM ${table} WHERE id=? AND deletedAt IS NULL`, id);
-        assert(item && !res.hidden.has(item.personId), 404, "Kayıt bulunamadı.");
-        if (table === "photos") assert(await visiblePhoto(one, u, id), 404, "Fotoğraf bulunamadı.");
-        assert(u.role !== "member" || item.createdBy === u.id, 403, "Bu kaydı düzenleyemezsiniz.");
-        if (b.status) {
-          staff(u);
-          assert(["approved", "rejected"].includes(b.status), 400, "Durum geçersiz.");
-          run(`UPDATE ${table} SET status=? WHERE id=?`, b.status, id);
-          audit(u.id, "İçerik " + b.status, id);
-        } else if (table === "photos") {
-          const r = await memories({
-            path: "/api/experience/memories/" + id,
-            method,
-            url,
-            u,
-            read: async () => b,
-            all,
-            one,
-            run,
-            batch: async (items) => transaction(() => items.map(([sql, ...args]) => run(sql, ...args))),
-            storage: localStorageAdapter,
-            limit,
-            mediaJobs,
-          });
-          return json(res, r.status, await r.json());
-        } else {
-          const title = clean(b.title, 160);
-          assert(title, 400, "Başlık girin.");
-          run(
-            `UPDATE ${table} SET title=?,description=?,place=?,date=?,status=? WHERE id=?`,
-            title,
-            clean(b.description, 5000),
-            clean(b.place),
-            validDate(b.date, table === "photos"),
-            u.role === "member" ? "pending" : item.status,
-            id,
-          );
-          audit(u.id, "İçerik düzenlendi", id);
-        }
-        return json(res, 200, { ok: true });
-      }
-      if (content && method === "DELETE") {
-        const [, table, id] = content,
-          item = one(`SELECT * FROM ${table} WHERE id=? AND deletedAt IS NULL`, id);
-        assert(item, 404, "Kayıt bulunamadı.");
-        if (table === "photos") assert(await visiblePhoto(one, u, id), 404, "Fotoğraf bulunamadı.");
-        assert(u.role !== "member" || item.createdBy === u.id, 403, "Bu kaydı kaldıramazsınız.");
-        run(`UPDATE ${table} SET deletedAt=? WHERE id=?`, now(), id);
-        audit(u.id, "İçerik kaldırıldı", id);
-        return json(res, 200, { ok: true });
-      }
-      if (path.startsWith("/media/") && method === "GET") {
-        const p = await visiblePhoto(one, u, path.slice(7));
-        assert(p && (p.status === "approved" || p.createdBy === u.id || u.role !== "member"), 404, "Fotoğraf bulunamadı.");
-        const variant = await pickVariant(one, p.id, url.searchParams.get("w"));
-        const file = await localStorageAdapter.get(variant?.filename || p.filename);
-        assert(file, 404, "Fotoğraf bulunamadı.");
-        const bytes = file.body;
-        res.writeHead(200, { "Content-Type": variant?.mime || p.mime, "Cache-Control": "private, no-store" });
-        return res.end(bytes);
-      }
-      if (path === "/api/admin" && method === "GET") {
-        staff(u);
-        return json(res, 200, {
-          users: u.role === "owner" ? all("SELECT id,name,email,role,active,createdAt FROM users") : [],
-          invites: u.role === "owner" ? all("SELECT id,email,role,expires,used FROM invites ORDER BY expires DESC") : [],
-          audit: all("SELECT a.*,u.name FROM audit a LEFT JOIN users u ON u.id=a.userId ORDER BY a.id DESC LIMIT 100"),
-          trash: {
-            people: all("SELECT id,name,deletedAt FROM people WHERE deletedAt IS NOT NULL"),
-            photos: all("SELECT id,title,deletedAt FROM photos WHERE deletedAt IS NOT NULL"),
-            events: all("SELECT id,title,personId,deletedAt FROM events WHERE deletedAt IS NOT NULL"),
-          },
-        });
-      }
-      if (path === "/api/invites" && method === "POST") {
-        owner(u);
-        const b = await body(req, 4096),
-          email = clean(b.email).toLowerCase();
-        assert(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 400, "Geçerli e-posta girin.");
-        assert(["member", "moderator"].includes(b.role), 400, "Rol geçersiz.");
-        assert(!one("SELECT id FROM users WHERE email=?", email), 409, "Üye zaten kayıtlı.");
-        const raw = token(),
-          id = randomUUID();
-        run("INSERT INTO invites VALUES(?,?,?,?,?,?,?)", id, email, b.role, hash(raw), Date.now() + 7 * 86400000, 0, u.id);
-        audit(u.id, "Davet oluşturuldu", id);
-        return json(res, 201, { url: origin + "/#invite=" + raw, email });
-      }
-      if (path.match(/^\/api\/invites\/[\w-]+$/) && method === "DELETE") {
-        owner(u);
-        run("DELETE FROM invites WHERE id=?", path.split("/").pop());
-        return json(res, 200, { ok: true });
-      }
-      const userMatch = path.match(/^\/api\/users\/([\w-]+)$/);
-      if (userMatch && method === "PATCH") {
-        owner(u);
-        const id = userMatch[1],
-          target = one("SELECT * FROM users WHERE id=?", id);
-        assert(target && target.role !== "owner", 400, "Kurucu hesabı bu ekrandan değiştirilemez.");
-        const b = await body(req, 4096);
-        assert(["member", "moderator"].includes(b.role) && [0, 1].includes(b.active), 400, "Rol veya durum geçersiz.");
-        run("UPDATE users SET role=?,active=? WHERE id=?", b.role, b.active, id);
-        run("DELETE FROM sessions WHERE userId=?", id);
-        audit(u.id, "Üye yetkisi değiştirildi", id);
-        return json(res, 200, { ok: true });
-      }
+        await makeBackup({ all, run, storage: localStorageAdapter }, true).catch((e) => serverError("backup.first_failed", e));
+      // Password reset links exist only with Node's own sign-in.
       if (path === "/api/reset-link" && method === "POST") {
         owner(u);
         const b = await body(req, 4096),
@@ -521,45 +253,36 @@ async function handler(req, res) {
         const raw = token();
         run("UPDATE resets SET used=1 WHERE userId=?", target.id);
         run("INSERT INTO resets VALUES(?,?,?,0)", hash(raw), target.id, Date.now() + 3600000);
-        audit(u.id, "Şifre yenileme bağlantısı oluşturuldu", target.id);
+        audit(u.id, "Şifre yenileme bağlantısı oluşturuldu", String(target.id));
         return json(res, 201, { url: origin + "/#reset=" + raw });
       }
-      if (path === "/api/restore" && method === "POST") {
-        staff(u);
-        const b = await body(req, 4096);
-        assert(["people", "photos", "events"].includes(b.table), 400, "Kayıt türü geçersiz.");
-        assert(b.table !== "people" || !res.hidden.has(b.id), 404, "Kayıt bulunamadı.");
-        run(`UPDATE ${b.table} SET deletedAt=NULL WHERE id=?`, b.id);
-        audit(u.id, "Kayıt geri yüklendi", b.id);
-        return json(res, 200, { ok: true });
-      }
-      if (path === "/api/settings" && method === "PATCH") {
-        owner(u);
-        const b = await body(req, 16000);
-        for (const key of ["familyTitle", "familyStory", "mailDomain"])
-          if (key in b) {
-            const value = clean(b[key], key === "familyStory" ? 10000 : 200);
-            if (key === "mailDomain")
-              assert(!value || /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(value), 400, "Alan adını https:// olmadan yazın.");
-            run("INSERT OR REPLACE INTO settings VALUES(?,?)", key, value);
-          }
-        audit(u.id, "Aile ayarları güncellendi");
-        return json(res, 200, { ok: true });
-      }
-      if (path === "/api/export" && method === "GET") {
-        owner(u);
-        return json(res, 200, {
-          version: 1,
-          exportedAt: now(),
-          settings: settings(),
-          people: all("SELECT * FROM people"),
-          relations: all("SELECT * FROM relations"),
-          photos: all("SELECT * FROM photos"),
-          photoPeople: all("SELECT * FROM photo_people"),
-          events: all("SELECT * FROM events"),
-        });
-      }
-      return json(res, 404, { error: "İşlem bulunamadı." });
+      // Everything else is shared with the Cloudflare runtime.
+      const r = await coreApi({
+        path,
+        method,
+        url,
+        u,
+        res,
+        read: (max) => body(req, max),
+        json: (status, data) =>
+          new Response(JSON.stringify(filterFamilyPayload(data, res.hidden)), {
+            status,
+            headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
+          }),
+        all,
+        one,
+        run,
+        batch: async (items) => transaction(() => items.map(([sql, ...args]) => run(sql, ...args))),
+        storage: localStorageAdapter,
+        limit,
+        origin,
+        token,
+        hash,
+        mediaJobs,
+        onUserDeactivated: (id) => run("DELETE FROM sessions WHERE userId=?", id),
+      });
+      res.writeHead(r.status, Object.fromEntries(r.headers));
+      return res.end(Buffer.from(await r.arrayBuffer()));
     }
     assert(method === "GET" || method === "HEAD", 405, "Yöntem desteklenmiyor.");
     const file = resolve(publicDir, "." + decodeURIComponent(path === "/" ? "/index.html" : path));
@@ -587,7 +310,7 @@ async function handler(req, res) {
         error: e.status ? e.message : e.code === "ENOENT" ? "Dosya bulunamadı." : "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
       });
     else res.end();
-    if (!e.status && e.code !== "ENOENT") console.error(e.message);
+    if (!e.status && e.code !== "ENOENT") serverError("request.failed", e, { path: new URL(req.url, origin).pathname, method: req.method });
   }
 }
 const server = http.createServer(handler);
@@ -608,7 +331,7 @@ setInterval(async () => {
     await warmSearchIndex({ all, batch: (items) => transaction(() => items.map(([sql, ...args]) => run(sql, ...args))) });
     await makeBackup({ all, run, storage: localStorageAdapter }, true);
   } catch (e) {
-    console.error("Scheduled backup failed", e.message);
+    serverError("backup.scheduled_failed", e);
   } finally {
     backupBusy = false;
   }

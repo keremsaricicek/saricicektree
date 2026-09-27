@@ -7,7 +7,23 @@ const now = () => new Date().toISOString(),
   uuid = () => crypto.randomUUID();
 export const communityPath = (path) =>
   /^\/api\/(experience|community|chat|locations|residences|attendance|documents|account)(\/|$)/.test(path) || path.startsWith("/document/");
-export async function community({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted = false, keyText, defer, mediaJobs }) {
+export async function community({
+  path,
+  method,
+  url,
+  u,
+  read,
+  all,
+  one,
+  run,
+  batch,
+  storage,
+  limit,
+  hosted = false,
+  keyText = null,
+  defer = null,
+  mediaJobs = null,
+}) {
   if (path.startsWith("/api/experience/"))
     return experience({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted, keyText, defer, mediaJobs });
   const reply = (data, status = 200) =>
