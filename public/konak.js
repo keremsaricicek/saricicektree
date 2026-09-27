@@ -620,7 +620,7 @@ hmUpload = function (share = false) {
         throw Error("Bağlantı yok. Taslağı saklayıp bağlanınca Kaydet’e dokun.");
       }
       const share = $("#hm-share").checked;
-      await hmApi("", "POST", {
+      const saved = await hmApi("", "POST", {
         clientId: hm.clientId,
         photos: hm.uploads,
         share,
@@ -639,7 +639,10 @@ hmUpload = function (share = false) {
       }
       closeModal();
       await refresh();
-      toast(share ? "Hayat’ta paylaşıldı. Fotoğraflar Avlu’da da saklanıyor." : isStaff() ? "Avlu’ya eklendi." : "Fotoğrafların Avlu için onaya gönderildi.");
+      toast(
+        (share ? "Hayat’ta paylaşıldı. Fotoğraflar Avlu’da da saklanıyor." : isStaff() ? "Avlu’ya eklendi." : "Fotoğrafların Avlu için onaya gönderildi.") +
+          (saved?.copiesNote ? " " + saved.copiesNote : ""),
+      );
     });
   };
 };

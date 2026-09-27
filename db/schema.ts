@@ -588,6 +588,12 @@ export const photo_media = sqliteTable("photo_media", {
   focusX: integer("focusX").notNull().default(50),
   focusY: integer("focusY").notNull().default(40),
   updatedAt: text("updatedAt").notNull(),
+  // Optimisation of the smaller copies, tracked apart from saving the original.
+  // pending → ready, or failed with a retry time; lastError holds no personal data.
+  status: text("status").notNull().default("pending"),
+  attempts: integer("attempts").notNull().default(0),
+  nextAttemptAt: text("nextAttemptAt"),
+  lastError: text("lastError"),
 });
 export const photo_variants = sqliteTable(
   "photo_variants",
@@ -636,3 +642,18 @@ export const feed_activity = sqliteTable("feed_activity", {
   kind: text("kind").notNull(),
   createdAt: text("createdAt").notNull(),
 });
+
+// Operational errors from the server jobs and from browsers, for the admin panel.
+// Holds only an event name, a short message and the page area; no content or personal data.
+export const error_log = sqliteTable(
+  "error_log",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    source: text("source").notNull(),
+    event: text("event").notNull(),
+    message: text("message").notNull(),
+    area: text("area"),
+    createdAt: text("createdAt").notNull(),
+  },
+  (t) => [index("error_log_created").on(t.createdAt)],
+);

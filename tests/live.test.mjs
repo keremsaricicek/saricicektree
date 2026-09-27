@@ -4,88 +4,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync, readdirSync } from "node:fs";
 import worker from "../worker/index.mjs";
-function fixture() {
-  const db = new DatabaseSync(":memory:");
-  db.exec("PRAGMA foreign_keys=ON");
-  for (const f of readdirSync("drizzle")
-    .filter((x) => x.endsWith(".sql"))
-    .sort())
-    db.exec(readFileSync("drizzle/" + f, "utf8"));
-  const files = new Map(),
-    env = {
-      OWNER_EMAIL: "owner@test.invalid",
-      CSRF_SECRET: "fixture-encryption-key",
-      DB: {
-        prepare(sql) {
-          const s = {
-            args: [],
-            bind(...args) {
-              s.args = args;
-              return s;
-            },
-            async first() {
-              return db.prepare(sql).get(...s.args) || null;
-            },
-            async all() {
-              return { results: db.prepare(sql).all(...s.args) };
-            },
-            async run() {
-              return { meta: { changes: db.prepare(sql).run(...s.args).changes } };
-            },
-          };
-          return s;
-        },
-        async batch(ss) {
-          db.exec("BEGIN");
-          try {
-            const out = [];
-            for (const s of ss) out.push(await s.run());
-            db.exec("COMMIT");
-            return out;
-          } catch (e) {
-            db.exec("ROLLBACK");
-            throw e;
-          }
-        },
-      },
-      BUCKET: {
-        async put(k, b) {
-          files.set(k, new Uint8Array(b));
-        },
-        async get(k) {
-          return files.has(k) ? { body: files.get(k) } : null;
-        },
-        async delete(k) {
-          files.delete(k);
-        },
-      },
-    };
-  const csrf = new Map();
-  async function call(path, method = "GET", data, email = "owner@test.invalid", factor = "") {
-    if (path === "/api/photos" && method === "POST")
-      data = { date: "2000-01-02", place: "Test location", description: "Test family memory", outsiders: "Test guest", ...data };
-    const headers = {
-      "Content-Type": "application/json",
-      Origin: "https://family.test",
-      "oai-authenticated-user-id": email,
-      "oai-authenticated-user-email": email,
-      "X-CSRF-Token": csrf.get(email) || "",
-      "X-Family-Factor": factor,
-    };
-    const res = await worker.fetch(new Request("https://family.test" + path, { method, headers, ...(data ? { body: JSON.stringify(data) } : {}) }), env);
-    const type = res.headers.get("Content-Type"),
-      body = type?.includes("json") ? await res.json() : await res.arrayBuffer();
-    if (body.csrf) csrf.set(email, body.csrf);
-    return { status: res.status, body };
-  }
-  async function member(email) {
-    await call("/api/me");
-    const inv = await call("/api/invites", "POST", { email, role: "member" });
-    await call("/api/me", "GET", null, email);
-    return (await call("/api/accept-invite", "POST", { name: email, token: inv.body.url.split("#invite=")[1] }, email)).body.user;
-  }
-  return { db, files, env, call, member };
-}
+import { fixture } from "./support/worker-fixture.mjs";
 const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5L8AAAAASUVORK5CYII=";
 const meta = { date: "1985-06-19", place: "Gaziantep", description: "Aile buluşması", outsiders: "Aile dostumuz", peopleIds: [] };
 const webp = (n = 64) => {
@@ -167,44 +86,42 @@ test("photo copies: never larger than the source, JPEG/WebP only, served with th
   const { call, member } = fixture();
   const a = await member("a@test.invalid"),
     b = await member("b@test.invalid");
+  const real = (name) => "data:image/*;base64," + readFileSync("tests/fixtures/" + name).toString("base64");
   const up = await call("/api/experience/memories", "POST", {
     clientId: crypto.randomUUID(),
-    photos: [{ ...meta, data: png }],
+    photos: [{ ...meta, data: real("photo-1100.jpg") }],
     visibility: "selected",
     userIds: [a.id],
   });
   assert.ok([200, 201].includes(up.status));
   const id = up.body.id || up.body.ids[0];
-  const put = (body) => call("/api/experience/memories/" + id + "/variants", "PUT", body);
-  assert.equal((await put({ width: 1000, height: 800, variants: [{ width: 1080, data: webp() }] })).status, 400, "no upscaling");
-  assert.equal((await put({ width: 1000, height: 800, variants: [{ width: 500, data: webp() }] })).status, 400, "only the fixed widths");
-  assert.equal((await put({ width: 1000, height: 800, variants: [{ width: 320, data: "data:image/png;base64," + png }] })).status, 400, "PNG copies refused");
+  const put = (variants) => call("/api/experience/memories/" + id + "/variants", "PUT", { variants });
+  assert.equal((await put([{ width: 1600, data: real("copy-640.webp") }])).status, 400, "no upscaling beyond the 1100 px source");
+  assert.equal((await put([{ width: 500, data: real("copy-640.webp") }])).status, 400, "only the fixed widths");
+  assert.equal((await put([{ width: 320, data: "data:image/png;base64," + png }])).status, 400, "PNG copies refused");
   assert.equal(
     (
-      await put({
-        width: 1000,
-        height: 800,
-        variants: [
-          { width: 320, data: webp() },
-          { width: 640, data: webp(80) },
-        ],
-      })
+      await put([
+        { width: 320, data: real("copy-320.webp") },
+        { width: 640, data: real("copy-640.webp") },
+      ])
     ).status,
     200,
   );
+  const size = (name) => readFileSync("tests/fixtures/" + name).length;
   const small = await call("/media/" + id + "?w=300");
   assert.equal(small.status, 200);
-  assert.equal(small.body.byteLength, 64);
-  assert.equal((await call("/media/" + id + "?w=600")).body.byteLength, 80);
-  assert.ok((await call("/media/" + id)).body.byteLength > 64, "original kept");
+  assert.equal(small.body.byteLength, size("copy-320.webp"));
+  assert.equal((await call("/media/" + id + "?w=600")).body.byteLength, size("copy-640.webp"));
+  assert.equal((await call("/media/" + id)).body.byteLength, size("photo-1100.jpg"), "original kept");
   assert.equal((await call("/media/" + id + "?w=300", "GET", null, a.email)).status, 200, "selected member sees the copy");
   assert.equal((await call("/media/" + id + "?w=300", "GET", null, b.email)).status, 404, "copy hidden like the original");
-  assert.equal((await call("/api/experience/memories/" + id + "/variants", "PUT", { width: 1000, height: 800, variants: [] }, b.email)).status, 404);
+  assert.equal((await call("/api/experience/memories/" + id + "/variants", "PUT", { variants: [] }, b.email)).status, 404);
   assert.equal((await call("/api/experience/memories/" + id + "/focus", "PATCH", { x: 30, y: 20 }, a.email)).status, 403, "viewer cannot move the crop focus");
   assert.equal((await call("/api/experience/memories/" + id + "/focus", "PATCH", { x: 130, y: 20 })).status, 400);
   assert.equal((await call("/api/experience/memories/" + id + "/focus", "PATCH", { x: 30, y: 20 })).status, 200);
   const item = (await call("/api/experience/memories/" + id)).body;
-  assert.deepEqual([item.media.width, item.media.focusX, item.media.focusY, item.media.variants], [1000, 30, 20, [320, 640]]);
+  assert.deepEqual([item.media.width, item.media.focusX, item.media.focusY, item.media.variants], [1100, 30, 20, [320, 640]]);
   assert.equal((await call("/api/experience/memories/variants/missing", "GET", null, a.email)).status, 403);
 });
 

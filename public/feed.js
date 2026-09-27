@@ -555,13 +555,11 @@ async function ffApi(suffix = "", method = "GET", body) {
           (!q.get("before") || p.id < Number(q.get("before"))),
       );
       return {
-        items: arr
-          .slice(0, 20)
-          .map((p) => ({
-            ...p,
-            commentPreview: ffDemo.comments.filter((c) => c.postId === p.id && !c.deletedAt).slice(-3),
-            wallComments: wall ? ffDemo.comments.filter((c) => c.postId === p.id && related(c)) : [],
-          })),
+        items: arr.slice(0, 20).map((p) => ({
+          ...p,
+          commentPreview: ffDemo.comments.filter((c) => c.postId === p.id && !c.deletedAt).slice(-3),
+          wallComments: wall ? ffDemo.comments.filter((c) => c.postId === p.id && related(c)) : [],
+        })),
         pinned: arr.filter((p) => p.pinned).slice(0, 3),
         head: arr[0]?.id || 0,
         before: arr[19]?.id,

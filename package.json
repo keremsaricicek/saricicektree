@@ -27,7 +27,13 @@
     "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@capacitor-community/background-geolocation": "^1.2.26",
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/app": "^7.1.2",
     "@capacitor/cli": "^7.6.9",
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/ios": "^7.6.9",
+    "@capacitor/local-notifications": "^7.0.7",
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.56.1",
     "drizzle-kit": "^0.31.10",
@@ -35,17 +41,12 @@
     "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "globals": "^16.5.0",
-    "prettier": "^3.9.9"
-  },
-  "dependencies": {
-    "@capacitor-community/background-geolocation": "^1.2.26",
-    "@capacitor/android": "^7.6.9",
-    "@capacitor/app": "^7.1.2",
-    "@capacitor/core": "^7.6.9",
-    "@capacitor/ios": "^7.6.9",
-    "@capacitor/local-notifications": "^7.0.7",
     "leaflet": "^1.9.4",
+    "prettier": "^3.9.9",
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2"
+  },
+  "dependencies": {
+    "sharp": "^0.34.5"
   }
 }

@@ -853,6 +853,14 @@ dialog.is-viewer .dialog-body {
 .ds-progress[data-stage="error"] span {
   color: var(--danger);
 }
+/* Saved, but the smaller copies still need doing: a note, not an error. */
+.ds-progress.is-warning .ds-progress-track i {
+  width: 100%;
+  background: var(--gold);
+}
+.ds-progress.is-warning span {
+  color: var(--gold-ink);
+}
 @keyframes ds-indeterminate {
   from {
     transform: translateX(-100%);

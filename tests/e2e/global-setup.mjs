@@ -31,4 +31,12 @@ export default async function globalSetup() {
   ];
   for (const p of people) await owner.ctx.post("/api/people", { data: p, headers: { "x-csrf-token": owner.csrf } });
   await owner.ctx.dispose();
+
+  // Second server (browser-made photo copies): the owner and one person to tag.
+  const other = await request.newContext({ baseURL: "http://localhost:3997", extraHTTPHeaders: { origin: "http://localhost:3997" } });
+  const res = await other.post("/api/login", { data: { email: USERS.owner.email, password: USERS.owner.password } });
+  if (!res.ok()) throw Error(`Login on the second server: ${res.status()}`);
+  await other.post("/api/people", { data: people[0], headers: { "x-csrf-token": (await res.json()).csrf } });
+  await other.storageState({ path: "tests/e2e/.auth/owner-client-copies.json" });
+  await other.dispose();
 }

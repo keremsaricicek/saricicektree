@@ -1,6 +1,8 @@
 import { mediaInfo } from "./variants.mjs";
+import { decodeUpload, inspectAttachment } from "./media-check.mjs";
 import { memories } from "./memories.mjs";
 import { konak } from "./konak.mjs";
+import { ops } from "./ops.mjs";
 import { feed } from "./feed.mjs";
 import { assert, clean } from "./domain.mjs";
 import { hiddenPeople } from "./privacy.mjs";
@@ -13,6 +15,10 @@ export async function experience(ctx) {
   if (["/api/experience/preferences", "/api/experience/message-search", "/api/experience/review"].includes(ctx.path)) return konak(ctx);
   if (ctx.path.startsWith("/api/experience/memories")) return memories(ctx);
   if (ctx.path.startsWith("/api/experience/feed")) return feed(ctx);
+  if (ctx.path.startsWith("/api/experience/ops/")) {
+    const r = await ops(ctx);
+    if (r) return r;
+  }
   const { path, method, url, u, read, one, all, run, batch, storage, limit, keyText, defer } = ctx;
   const reply = (x, status = 200) => new Response(JSON.stringify(x), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
   async function thread(kind, id) {
@@ -144,32 +150,8 @@ export async function experience(ctx) {
     const b = await read(12 * 1024 * 1024);
     const t = await thread(b.kind, b.targetId);
     assert(!t.blocked, 403, "Bu konuşma engellenmiş.");
-    let bytes;
-    try {
-      bytes = Uint8Array.from(atob(String(b.data).split(",").pop()), (c) => c.charCodeAt(0));
-    } catch {
-      assert(false, 400, "Dosya okunamadı.");
-    }
-    const h = new TextDecoder().decode(bytes.slice(0, 12));
-    const mime =
-      bytes[0] === 255 && bytes[1] === 216
-        ? "image/jpeg"
-        : bytes[0] === 137 && h.slice(1, 4) === "PNG"
-          ? "image/png"
-          : h.startsWith("RIFF") && h.slice(8, 12) === "WEBP"
-            ? "image/webp"
-            : h.startsWith("OggS")
-              ? "audio/ogg"
-              : h.startsWith("RIFF") && h.slice(8, 12) === "WAVE"
-                ? "audio/wav"
-                : h.startsWith("ID3")
-                  ? "audio/mpeg"
-                  : h.slice(4, 8) === "ftyp" && b.mime?.startsWith("audio/mp4")
-                    ? "audio/mp4"
-                    : bytes[0] === 26 && bytes[1] === 69 && b.mime?.startsWith("audio/webm")
-                      ? "audio/webm"
-                      : null;
-    assert(mime && bytes.length > 12 && bytes.length <= 8 * 1024 * 1024, 400, "8 MB’tan küçük fotoğraf veya ses dosyası seç.");
+    const bytes = decodeUpload(b.data, 8 * 1024 * 1024, "Dosya"),
+      mime = inspectAttachment(bytes, b.mime);
     const id = crypto.randomUUID(),
       filename = "chat/" + id;
     await storage.put(filename, bytes, { httpMetadata: { contentType: mime } });

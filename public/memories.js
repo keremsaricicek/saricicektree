@@ -303,7 +303,7 @@ function hmUpload(share = false) {
       }
       const fd = new FormData(f),
         share = $("#hm-share").checked;
-      await hmApi("", "POST", {
+      const saved = await hmApi("", "POST", {
         clientId: hm.clientId,
         photos: hm.uploads,
         share,
@@ -318,7 +318,10 @@ function hmUpload(share = false) {
       if (share) ff.draft = { kind: "post", body: "", visibility: "family", peopleIds: [], userIds: [] };
       closeModal();
       await refresh();
-      toast(share ? "Hayat’ta paylaşıldı; fotoğraflar Avlu’da da saklanıyor." : isStaff() ? "Avlu’ya eklendi." : "Avlu için moderatör onayına gönderildi.");
+      toast(
+        (share ? "Hayat’ta paylaşıldı; fotoğraflar Avlu’da da saklanıyor." : isStaff() ? "Avlu’ya eklendi." : "Avlu için moderatör onayına gönderildi.") +
+          (saved?.copiesNote ? " " + saved.copiesNote : ""),
+      );
     });
   };
 }

@@ -224,13 +224,32 @@ async function uiBackfillVariants(report) {
         } finally {
           URL.revokeObjectURL(url);
         }
-      } catch {
+      } catch (e) {
         failed++;
+        uiReportError("photo.variants_failed", e);
       }
     }
   }
   return { done, failed };
 }
+/* Reports a failure the person may not see to the admin panel. Sends only an event name, a short
+   message and the page area; never message text, names or file contents. Never throws. */
+function uiReportError(event, err) {
+  try {
+    if (demoMode || !state?.user) return;
+    const message = String(err?.message || err || "").slice(0, 200);
+    fetch("/api/experience/ops/client-error", {
+      method: "POST",
+      credentials: "same-origin",
+      keepalive: true,
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf || "" },
+      body: JSON.stringify({ event, message, area: route }),
+    }).catch(() => {}); // reporting must never add a second failure
+  } catch {
+    /* the reporter itself failed; nothing more to do */
+  }
+}
+const uiServerCopies = () => window.sfConfig?.mediaOptimizer === "server";
 const uiPerson = (id) => state.people.find((x) => x.id === id);
 const uiIcon = (name, cls = "") => icon(name).replace("<i ", `<i class="${cls}" `);
 
@@ -907,6 +926,13 @@ async function uiAction(action, el) {
       const text = $("#ds-perf-text"),
         r = await uiBackfillVariants((t) => (text.textContent = t));
       text.textContent = `${r.done} fotoğraf hazırlandı${r.failed ? `, ${r.failed} fotoğraf açılamadı` : ""}.`;
+      el.hidden = true;
+      return;
+    }
+    case "copies-retry": {
+      el.disabled = true;
+      const r = await hmApi("/variants/retry", "POST", {});
+      $("#ds-perf-text").textContent = `${r.retried} fotoğraf yeniden sıraya alındı.`;
       el.hidden = true;
       return;
     }
@@ -1774,11 +1800,11 @@ photoDetail = async function (id) {
       "beforeend",
       `<button type="button" class="btn" data-ui="focus" data-id="${esc(id)}">${icon("scan-face")} Kırpma odağı</button>`,
     );
-  if (cur.canEdit && !demoMode && !media?.variants?.length && !ui.variantBusy?.has(id)) {
+  if (cur.canEdit && !demoMode && !uiServerCopies() && media?.status !== "ready" && !ui.variantBusy?.has(id)) {
     (ui.variantBusy ||= new Set()).add(id);
     uiStoreVariants(id, cur.url)
       .then((m) => m && (cur.media = m))
-      .catch(() => {})
+      .catch((e) => uiReportError("photo.variants_failed", e)) // the photo still shows; copies stay listed
       .finally(() => ui.variantBusy.delete(id));
   }
   hydrate();
@@ -1849,6 +1875,7 @@ function uiUploadStatus(stage, value, text) {
   const bar = $("i", box);
   bar.style.width = value == null ? "" : Math.round(value * 100) + "%";
   box.classList.toggle("is-indeterminate", value == null);
+  box.classList.toggle("is-warning", stage === "warning");
   $("span", box).textContent = text;
 }
 const uiMB = (n) => (n / 1048576).toLocaleString("tr-TR", { maximumFractionDigits: 1 }) + " MB";
@@ -1904,12 +1931,29 @@ hmApi = async function (suffix = "", method = "GET", b) {
     throw e;
   }
   const ids = r.ids || (r.id ? [r.id] : []);
-  if (!demoMode && ids.length === b.photos.length)
+  if (demoMode || r.optimization === "server" || uiServerCopies()) {
+    // The server makes the smaller copies in the background; the page can be closed.
+    uiUploadStatus("done", 1, demoMode ? "Kaydedildi." : "Kaydedildi. Telefonlar için küçük kopyalar sunucuda hazırlanıyor.");
+    return r;
+  }
+  let failed = 0;
+  if (ids.length === b.photos.length)
     for (let i = 0; i < ids.length; i++) {
       uiUploadStatus("variants", i / ids.length, `Telefonlar için küçük kopyalar hazırlanıyor · ${i + 1} / ${ids.length}`);
-      await uiStoreVariants(ids[i], b.photos[i].data).catch(() => {});
+      try {
+        await uiStoreVariants(ids[i], b.photos[i].data);
+      } catch (e) {
+        failed++;
+        uiReportError("photo.variants_failed", e);
+      }
     }
-  uiUploadStatus("done", 1, "Kaydedildi.");
+  if (failed) {
+    // The photo itself is saved; the copies are listed for completion in the admin panel.
+    const note = "Fotoğraf kaydedildi; küçük kopyalar daha sonra tamamlanacak.";
+    uiUploadStatus("warning", 1, note);
+    r.copiesNote = note; // the caller's success message carries this note, so it is not lost
+    toast(note);
+  } else uiUploadStatus("done", 1, "Kaydedildi.");
   return r;
 };
 
@@ -2355,14 +2399,22 @@ async function uiPhotoPerfCard() {
   if (demoMode || !isStaff() || !["admin", "settings"].includes(route) || $("#ds-photo-perf")) return;
   const host = route === "settings" ? $(".admin-grid") : $(".footer");
   if (!host) return;
-  const card = `<section class="card" id="ds-photo-perf"><h2>Fotoğraf hızı</h2><p class="muted" id="ds-perf-text">Küçük kopyası olmayan fotoğraflar sayılıyor…</p><div class="row" style="margin-top:14px">${'<button type="button" class="btn soft" data-ui="backfill" hidden>Küçük kopyaları hazırla</button>'}</div></section>`;
+  const card = `<section class="card" id="ds-photo-perf"><h2>Fotoğraf hızı</h2><p class="muted" id="ds-perf-text">Küçük kopyası olmayan fotoğraflar sayılıyor…</p><div class="row" style="margin-top:14px">${'<button type="button" class="btn soft" data-ui="backfill" hidden>Küçük kopyaları hazırla</button><button type="button" class="btn soft" data-ui="copies-retry" hidden>Hatalıları yeniden dene</button>'}</div></section>`;
   if (route === "settings") host.insertAdjacentHTML("beforeend", card);
   else host.insertAdjacentHTML("beforebegin", card);
   try {
     const r = await hmApi("/variants/missing");
     if (!$("#ds-perf-text")) return;
+    if (r.optimizer === "server") {
+      // The server works through the list on its own; failed photos can be sent back to it.
+      $("#ds-perf-text").textContent = !r.total
+        ? "Bütün fotoğrafların küçük kopyaları hazır."
+        : `${r.total} fotoğrafın küçük kopyaları sunucuda sırada${r.failed ? `; ${r.failed} fotoğrafta hata oluştu` : ""}. Sayfayı açık tutman gerekmez; orijinaller değişmez.`;
+      $('[data-ui="copies-retry"]').hidden = !r.failed;
+      return;
+    }
     $("#ds-perf-text").textContent = r.total
-      ? `${r.total} fotoğrafın telefon için küçük kopyası yok. Hazırlama bu tarayıcıda yapılır; orijinaller değişmez.`
+      ? `${r.total} fotoğrafın telefon için küçük kopyası eksik. Hazırlama bu tarayıcıda yapılır; orijinaller değişmez.`
       : "Bütün fotoğrafların küçük kopyaları hazır.";
     $('[data-ui="backfill"]').hidden = !r.total;
   } catch (e) {

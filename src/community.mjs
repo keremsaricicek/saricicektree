@@ -7,8 +7,9 @@ const now = () => new Date().toISOString(),
   uuid = () => crypto.randomUUID();
 export const communityPath = (path) =>
   /^\/api\/(experience|community|chat|locations|residences|attendance|documents|account)(\/|$)/.test(path) || path.startsWith("/document/");
-export async function community({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted = false, keyText, defer }) {
-  if (path.startsWith("/api/experience/")) return experience({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted, keyText, defer });
+export async function community({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted = false, keyText, defer, mediaJobs }) {
+  if (path.startsWith("/api/experience/"))
+    return experience({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted, keyText, defer, mediaJobs });
   const reply = (data, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
   const staff = () => assert(u.role !== "member", 403, "Moderatör yetkisi gerekiyor.");

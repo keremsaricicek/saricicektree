@@ -85,6 +85,20 @@
       "when": 1790444479657,
       "tag": "0011_ui_live_media",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790474667376,
+      "tag": "0012_photo_optimisation_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1790475007977,
+      "tag": "0013_error_log",
+      "breakpoints": true
     }
   ]
 }

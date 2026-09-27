@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { readFileSync, mkdirSync } from "node:fs";
+import { readFileSync, readdirSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 export const dataDir = resolve(process.env.DATA_DIR || "data");
 mkdirSync(dataDir, { recursive: true });
@@ -44,67 +44,17 @@ export const transaction = (fn) => {
 export const audit = (user, action, id = "") =>
   run("INSERT INTO audit(userId,action,entityId,createdAt) VALUES(?,?,?,?)", user, action, id, new Date().toISOString());
 
-// Shared community schema uses the same generated migration in both runtimes.
+// Generated migrations (drizzle/NNNN_name.sql) are shared with the Cloudflare runtime and run in
+// file order, each once, inside a transaction. 0000 is the base schema created above.
 db.exec("CREATE TABLE IF NOT EXISTS local_migrations(name TEXT PRIMARY KEY)");
-if (!one("SELECT name FROM local_migrations WHERE name=?", "0001_stormy_husk"))
+const migrationDir = new URL("../drizzle/", import.meta.url);
+for (const file of readdirSync(migrationDir)
+  .filter((f) => /^\d{4}_.+\.sql$/.test(f) && !f.startsWith("0000_"))
+  .sort()) {
+  const name = file.slice(0, -4);
+  if (one("SELECT name FROM local_migrations WHERE name=?", name)) continue;
   transaction(() => {
-    db.exec(readFileSync(new URL("../drizzle/0001_stormy_husk.sql", import.meta.url), "utf8"));
-    run("INSERT INTO local_migrations VALUES(?)", "0001_stormy_husk");
+    db.exec(readFileSync(new URL(file, migrationDir), "utf8"));
+    run("INSERT INTO local_migrations VALUES(?)", name);
   });
-
-if (!one("SELECT name FROM local_migrations WHERE name=?", "0002_tan_sheva_callister"))
-  transaction(() => {
-    db.exec(readFileSync(new URL("../drizzle/0002_tan_sheva_callister.sql", import.meta.url), "utf8"));
-    run("INSERT INTO local_migrations VALUES(?)", "0002_tan_sheva_callister");
-  });
-
-if (!one("SELECT name FROM local_migrations WHERE name=?", "0003_heavy_betty_ross"))
-  transaction(() => {
-    db.exec(readFileSync(new URL("../drizzle/0003_heavy_betty_ross.sql", import.meta.url), "utf8"));
-    run("INSERT INTO local_migrations VALUES(?)", "0003_heavy_betty_ross");
-  });
-
-if (!one("SELECT name FROM local_migrations WHERE name=?", "0004_broad_karma"))
-  transaction(() => {
-    db.exec(readFileSync(new URL("../drizzle/0004_broad_karma.sql", import.meta.url), "utf8"));
-    run("INSERT INTO local_migrations VALUES(?)", "0004_broad_karma");
-  });
-
-if (!one("SELECT name FROM local_migrations WHERE name=?", "0005_curly_omega_red"))
-  transaction(() => {
-    db.exec(readFileSync(new URL("../drizzle/0005_curly_omega_red.sql", import.meta.url), "utf8"));
-    run("INSERT INTO local_migrations VALUES(?)", "0005_curly_omega_red");
-  });
-
-if (!one("SELECT name FROM local_migrations WHERE name=?", "0006_search_index"))
-  transaction(() => {
-    db.exec(readFileSync(new URL("../drizzle/0006_search_index.sql", import.meta.url), "utf8"));
-    run("INSERT INTO local_migrations VALUES(?)", "0006_search_index");
-  });
-if (!one("SELECT name FROM local_migrations WHERE name=?", "0007_greedy_kinsey_walden"))
-  transaction(() => {
-    db.exec(readFileSync(new URL("../drizzle/0007_greedy_kinsey_walden.sql", import.meta.url), "utf8"));
-    run("INSERT INTO local_migrations VALUES(?)", "0007_greedy_kinsey_walden");
-  });
-
-if (!one("SELECT name FROM local_migrations WHERE name=?", "0008_aberrant_genesis"))
-  transaction(() => {
-    db.exec(readFileSync(new URL("../drizzle/0008_aberrant_genesis.sql", import.meta.url), "utf8"));
-    run("INSERT INTO local_migrations VALUES(?)", "0008_aberrant_genesis");
-  });
-
-if (!one("SELECT name FROM local_migrations WHERE name=?", "0009_fearless_iron_fist"))
-  transaction(() => {
-    db.exec(readFileSync(new URL("../drizzle/0009_fearless_iron_fist.sql", import.meta.url), "utf8"));
-    run("INSERT INTO local_migrations VALUES(?)", "0009_fearless_iron_fist");
-  });
-if (!one("SELECT name FROM local_migrations WHERE name=?", "0010_happy_kronos"))
-  transaction(() => {
-    db.exec(readFileSync(new URL("../drizzle/0010_happy_kronos.sql", import.meta.url), "utf8"));
-    run("INSERT INTO local_migrations VALUES(?)", "0010_happy_kronos");
-  });
-if (!one("SELECT name FROM local_migrations WHERE name=?", "0011_ui_live_media"))
-  transaction(() => {
-    db.exec(readFileSync(new URL("../drizzle/0011_ui_live_media.sql", import.meta.url), "utf8"));
-    run("INSERT INTO local_migrations VALUES(?)", "0011_ui_live_media");
-  });
+}

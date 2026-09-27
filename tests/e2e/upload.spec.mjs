@@ -1,26 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { authFile, openApp, apiAs } from "./helpers.mjs";
+import { authFile, apiAs, fillUpload } from "./helpers.mjs";
 
 test.use({ storageState: authFile("owner") });
-
-async function fillUpload(page, file, title) {
-  await openApp(page, "gallery");
-  await page.evaluate(() => hmUpload(true));
-  await page.setInputFiles("#hm-files", file);
-  await expect(page.locator("#hm-upload-form [name=title]")).toBeVisible();
-  await page.evaluate((title) => {
-    const f = document.querySelector("#hm-upload-form");
-    f.querySelector("[name=title]").value = title;
-    f.querySelector("[name=date]").value = "1985-06-19";
-    f.querySelector("[name=place]").value = "Halfeti";
-    f.querySelector("[name=description]").value = "Test hatırası";
-    f.querySelector("[name=peopleIds]").checked = true;
-    f.dispatchEvent(new Event("input", { bubbles: true }));
-  }, title);
-  await page.evaluate(() => knAction("upload-next"));
-  await page.evaluate(() => knAction("upload-next"));
-  await expect(page.locator("#kn-upload-submit")).toBeVisible();
-}
 
 const byTitle = async (title) => {
   const { call } = await apiAs("owner");
@@ -61,18 +42,12 @@ test("an upload cut off mid-way keeps the form and a retry stores exactly one ph
   await expect.poll(async () => (await byTitle(title)).length).toBe(1);
 });
 
-test("when the smaller copies cannot be saved the person is told and the photo is marked for completion", async ({ page }) => {
-  test.fail(true, "known bug: copy failures are swallowed");
-  const title = `Kopya hatası ${Date.now()}`;
+test("copies are finished by the server even when the page is closed right after the upload", async ({ page }) => {
+  const title = `Sayfa kapandı ${Date.now()}`;
   await fillUpload(page, "public/assets/archive.webp", title);
-  await page.route("**/variants", (route) => route.fulfill({ status: 500, body: '{"error":"test"}', contentType: "application/json" }));
   await page.click("#kn-upload-submit");
-  // The original is saved; the failure to optimise is visible, not silent.
-  await expect(page.locator("#ds-upload-progress")).toContainText("Fotoğraf kaydedildi; küçük kopyalar daha sonra tamamlanacak", { timeout: 30_000 });
-  await expect(page.locator("#ds-upload-progress")).toHaveClass(/is-warning/);
-  await expect.poll(async () => (await byTitle(title)).length).toBe(1);
-  const { call } = await apiAs("owner");
-  const missing = (await call("/api/experience/memories/variants/missing")).body.items.map((x) => x.id);
-  const [photo] = await byTitle(title);
-  expect(missing).toContain(photo.id);
+  await expect(page.locator("dialog[open] #hm-upload-form")).toHaveCount(0, { timeout: 30_000 });
+  await page.close(); // nothing in the browser is left to make the copies
+  await expect.poll(async () => (await byTitle(title))[0]?.media?.status, { timeout: 30_000 }).toBe("ready");
+  expect((await byTitle(title))[0].media.variants).toEqual([320, 640, 1080]);
 });

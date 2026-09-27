@@ -9,7 +9,9 @@ RUN node src/build-client.mjs
 
 FROM node:24-bookworm-slim
 WORKDIR /app
-COPY --chown=node:node package.json ./
+# Runtime dependencies only (sharp makes the smaller photo copies).
+COPY --chown=node:node package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
 COPY --chown=node:node src ./src
 COPY --from=client --chown=node:node /build/public ./public
 COPY --chown=node:node drizzle ./drizzle

@@ -224,28 +224,9 @@ export async function feed(ctx) {
     const prior = await one("SELECT id FROM feed_posts WHERE createdBy=? AND clientId=?", u.id, clientId);
     if (prior) return reply({ id: prior.id });
     assert(p.body || p.photoId || b.image || p.eventId, 400, "Bir şey yaz veya fotoğraf ekle.");
-    let filename = null,
+    // Photo posts return above through the archive upload; text posts carry no file.
+    const filename = null,
       mime = null;
-    if (b.image) {
-      let bytes;
-      try {
-        bytes = Uint8Array.from(atob(String(b.image).split(",").pop()), (c) => c.charCodeAt(0));
-      } catch {
-        assert(false, 400, "Fotoğraf okunamadı.");
-      }
-      const h = new TextDecoder().decode(bytes.slice(0, 12));
-      mime =
-        bytes[0] === 255 && bytes[1] === 216
-          ? "image/jpeg"
-          : bytes[0] === 137 && h.slice(1, 4) === "PNG"
-            ? "image/png"
-            : h.startsWith("RIFF") && h.slice(8, 12) === "WEBP"
-              ? "image/webp"
-              : null;
-      assert(mime && bytes.length > 12 && bytes.length <= 8 * 1024 * 1024, 400, "8 MB’tan küçük JPEG, PNG veya WebP seç.");
-      filename = "feed/" + crypto.randomUUID();
-      await storage.put(filename, bytes, { httpMetadata: { contentType: mime } });
-    }
     const time = now();
     try {
       await run(

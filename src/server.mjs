@@ -1,5 +1,6 @@
 import { memories } from "./memories.mjs";
 import { pickVariant } from "./variants.mjs";
+import { startMediaJobs } from "./media-jobs.mjs";
 import { eventStream } from "./realtime.mjs";
 import { notifications } from "./notifications.mjs";
 import { search, warmSearchIndex } from "./search.mjs";
@@ -41,6 +42,8 @@ const localStorageAdapter = {
     await unlink(resolve(uploadDir, key)).catch(() => {});
   },
 };
+// Smaller photo copies are made here in the background (MEDIA_JOBS=off disables it, e.g. for tools).
+const mediaJobs = process.env.MEDIA_JOBS === "off" ? null : startMediaJobs({ all, one, run, storage: localStorageAdapter });
 const now = () => new Date().toISOString(),
   publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: u.active });
 const staff = (u) => assert(u.role === "owner" || u.role === "moderator", 403, "Bu işlem için moderatör yetkisi gerekiyor.");
@@ -89,12 +92,6 @@ function authorize(req) {
   assert(u, 401, "Hesap kullanılamıyor.");
   if (!["GET", "HEAD"].includes(req.method)) assert(req.headers["x-csrf-token"] === session.csrf, 403, "Oturum doğrulaması başarısız. Sayfayı yenileyin.");
   return { u, session };
-}
-function imageType(b) {
-  if (b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return ["png", "image/png"];
-  if (b[0] === 255 && b[1] === 216 && b[2] === 255) return ["jpg", "image/jpeg"];
-  if (b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP") return ["webp", "image/webp"];
-  return null;
 }
 async function handler(req, res) {
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -159,7 +156,11 @@ async function handler(req, res) {
       return json(res, 200, { ok: true });
     }
     if (path === "/api/config" && method === "GET")
-      return json(res, 200, { demo: process.env.DEMO_MODE === "1", configured: !!one("SELECT id FROM users LIMIT 1") });
+      return json(res, 200, {
+        demo: process.env.DEMO_MODE === "1",
+        configured: !!one("SELECT id FROM users LIMIT 1"),
+        mediaOptimizer: mediaJobs ? "server" : "client",
+      });
     if (path.startsWith("/api/") || path.startsWith("/media/") || path.startsWith("/document/") || path.startsWith("/archive-media/")) {
       const { u, session } = authorize(req);
       await securityGate({ u, path, token: req.headers["x-family-factor"] || cookie(req.headers.cookie).sf_factor, one });
@@ -227,6 +228,7 @@ async function handler(req, res) {
           batch: (items) => transaction(() => items.map(([sql, ...args]) => run(sql, ...args))),
           storage,
           limit,
+          mediaJobs,
         });
         res.writeHead(r.status, Object.fromEntries(r.headers));
         return res.end(Buffer.from(await r.arrayBuffer()));
@@ -373,6 +375,7 @@ async function handler(req, res) {
           batch: async (items) => transaction(() => items.map(([sql, ...args]) => run(sql, ...args))),
           storage: localStorageAdapter,
           limit,
+          mediaJobs,
         });
         return json(res, r.status, await r.json());
       }
@@ -428,6 +431,7 @@ async function handler(req, res) {
             batch: async (items) => transaction(() => items.map(([sql, ...args]) => run(sql, ...args))),
             storage: localStorageAdapter,
             limit,
+            mediaJobs,
           });
           return json(res, r.status, await r.json());
         } else {

@@ -69,12 +69,6 @@ function json(_res, status, data) {
     headers: { ...headers, "Content-Type": "application/json; charset=utf-8" },
   });
 }
-function imageType(b) {
-  if ([137, 80, 78, 71, 13, 10, 26, 10].every((v, i) => b[i] === v)) return ["png", "image/png"];
-  if (b[0] === 255 && b[1] === 216 && b[2] === 255) return ["jpg", "image/jpeg"];
-  if (new TextDecoder().decode(b.subarray(0, 4)) === "RIFF" && new TextDecoder().decode(b.subarray(8, 12)) === "WEBP") return ["webp", "image/webp"];
-  return null;
-}
 export default {
   async fetch(req, env, ctx) {
     const res = {},
@@ -84,7 +78,7 @@ export default {
       method = req.method;
     try {
       if (path === "/health") return json(res, 200, { ok: true, storage: "D1/R2" });
-      if (path === "/api/config") return json(res, 200, { demo: false, configured: true, auth: "chatgpt" });
+      if (path === "/api/config") return json(res, 200, { demo: false, configured: true, auth: "chatgpt", mediaOptimizer: "client" });
       if (!path.startsWith("/api/") && !path.startsWith("/media/") && !path.startsWith("/document/") && !path.startsWith("/archive-media/")) {
         assert(["GET", "HEAD"].includes(method), 405, "Yöntem desteklenmiyor.");
         const asset = assets[path === "/" ? "/index.html" : path];

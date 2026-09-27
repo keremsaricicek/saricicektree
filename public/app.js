@@ -1328,6 +1328,7 @@ async function boot() {
   }
   try {
     const config = await api("/api/config");
+    window.sfConfig = config;
     hostedAuth = config.auth === "chatgpt";
     if (config.demo) {
       demoMode = true;

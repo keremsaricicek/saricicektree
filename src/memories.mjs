@@ -2,6 +2,7 @@ import { assert, clean, validDate } from "./domain.mjs";
 import { photoVisibleSQL, visiblePhoto } from "./archive.mjs";
 import { hiddenPeople } from "./privacy.mjs";
 import { variantRoutes, mediaInfo } from "./variants.mjs";
+import { decodeUpload, inspectImage } from "./media-check.mjs";
 const now = () => new Date().toISOString(),
   uuid = () => crypto.randomUUID();
 export async function memoryInput(b, all, one, u) {
@@ -171,33 +172,12 @@ export async function memories(ctx) {
     for (let i = 0; i < input.length; i++) {
       const v = input[i],
         m = await memoryInput(v, all, one, u);
-      let bytes;
-      try {
-        bytes = Uint8Array.from(
-          atob(
-            String(v.data || v.image || "")
-              .split(",")
-              .pop(),
-          ),
-          (c) => c.charCodeAt(0),
-        );
-      } catch {
-        assert(false, 400, "Fotoğraf okunamadı.");
-      }
-      const head = new TextDecoder().decode(bytes.slice(0, 12)),
-        mime =
-          bytes[0] === 255 && bytes[1] === 216
-            ? "image/jpeg"
-            : bytes[0] === 137 && head.slice(1, 4) === "PNG"
-              ? "image/png"
-              : head.startsWith("RIFF") && head.slice(8, 12) === "WEBP"
-                ? "image/webp"
-                : null;
-      assert(mime && bytes.length > 12 && bytes.length <= 8 * 1024 * 1024, 400, "8 MB’tan küçük JPEG, PNG veya WebP seçin.");
+      const bytes = decodeUpload(v.data || v.image, 8 * 1024 * 1024, "Fotoğraf"),
+        { mime, width, height } = inspectImage(bytes);
       const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)))
         .map((x) => x.toString(16).padStart(2, "0"))
         .join("");
-      items.push({ ...m, id: uuid(), filename: "memories/" + uuid(), mime, bytes, digest });
+      items.push({ ...m, id: uuid(), filename: "memories/" + uuid(), mime, width, height, bytes, digest });
     }
     const statements = [],
       time = now(),
@@ -220,6 +200,8 @@ export async function memories(ctx) {
           u.id,
         ],
         ["INSERT INTO photo_privacy VALUES(?,?)", p.id, mode === "private" ? "private" : "family"],
+        // Real size from the file; smaller copies are made afterwards and tracked by status.
+        ["INSERT INTO photo_media(photoId,width,height,updatedAt,status) VALUES(?,?,?,?,'pending')", p.id, p.width, p.height, time],
         ["INSERT INTO content_audience VALUES(?,?,?,?,?)", "photo", p.id, mode, JSON.stringify(users), mode === "group" ? b.groupId : null],
         ...p.peopleIds.map((id) => ["INSERT INTO photo_people VALUES(?,?)", p.id, id]),
       );
@@ -267,7 +249,8 @@ export async function memories(ctx) {
       if (retry) return reply({ id: retry.photoId, albumId: retry.albumId });
       throw e;
     }
-    return reply({ id: items[0].id, ids: items.map((p) => p.id), albumId, status }, 201);
+    ctx.mediaJobs?.kick();
+    return reply({ id: items[0].id, ids: items.map((p) => p.id), albumId, status, optimization: ctx.mediaJobs ? "server" : "client" }, 201);
   }
   const m = path.match(/^\/api\/experience\/memories\/([\w-]+)(?:\/(suggestions|audio|related))?$/);
   if (m) {
