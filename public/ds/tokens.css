@@ -90,6 +90,26 @@
   --tone-5-bg: #ecdfe3; --tone-5-fg: #6e4455;
   --tone-6-bg: #e1e4ec; --tone-6-fg: #3f4a69;
 
+  /* Named surfaces that used to be literal colours. */
+  --glass-2: rgba(255, 253, 248, 0.9);
+  --feature: #2d4a35;
+  --feature-ink: #f6f3ea;
+  --canvas: #f1eee3;
+  --canvas-dots: rgba(120, 128, 100, 0.22);
+  --canvas-glow: rgba(233, 241, 212, 0.9);
+  --edge-parent: #8fa965;
+  --edge-spouse: #c9b27f;
+  --memorial-bg: #fbf8f1;
+  --info-soft: #e4eef2;
+  --info-ink: #36607a;
+  --nav-track: rgba(231, 225, 210, 0.55);
+  --nav-hover: rgba(231, 225, 210, 0.7);
+  --nav-active: rgba(255, 255, 255, 0.6);
+  --soft-btn: #e0ebc3;
+  --danger-line: #ecc8c0;
+  --wave-idle: #cfc7b3;
+  --hero-grad: radial-gradient(60% 120% at 85% 0%, rgba(255, 255, 255, 0.45), transparent 60%), radial-gradient(50% 80% at 10% 100%, rgba(75, 104, 39, 0.25), transparent 70%), linear-gradient(120deg, #b9d08a, #dfe9c3 55%, #efe6cf);
+
   /* Legacy variables now resolve to the same palette. */
   --paper: var(--bg);
   --white: var(--surface);
@@ -101,6 +121,76 @@
   --pistachio-deep: var(--pistachio-ink);
 
   color-scheme: light;
+}
+
+/* Night: the same warm paper-and-pistachio family, lowered to evening light.
+   theme.js sets data-theme from the saved choice (Açık / Koyu / Sistem). */
+:root[data-theme="dark"] {
+  --bg: #141914;
+  --bg-sunken: #0f130f;
+  --surface: #1c221c;
+  --surface-2: #212821;
+  --surface-3: #283028;
+  --overlay: rgba(6, 9, 7, 0.62);
+  --glass: rgba(22, 28, 23, 0.84);
+  --glass-2: rgba(30, 37, 31, 0.92);
+
+  --line: #323b32;
+  --line-soft: #2a322a;
+  --line-strong: #414b40;
+
+  --ink: #ece7da;
+  --ink-2: #cdc8b8;
+  --muted: #a3a794;
+  --faint: #7f8574;
+  --on-dark: #142014;
+
+  --forest: #b7d18b;
+  --forest-2: #c8dea2;
+  --forest-3: #a2bf74;
+  --pistachio: #cfe39b;
+  --pistachio-2: #7f9a55;
+  --pistachio-soft: #2d3a25;
+  --pistachio-wash: #232c1f;
+  --pistachio-ink: #c1da8c;
+  --gold: #cfab70;
+  --gold-soft: #3a3123;
+  --gold-ink: #e0c592;
+  --heart: #ea7a68;
+  --danger: #ec8a7d;
+  --danger-soft: #3e2723;
+  --success: #8cc596;
+
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --sh-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px -12px rgba(0, 0, 0, 0.55);
+  --sh-3: 0 30px 80px -20px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --ring: 0 0 0 3px rgba(183, 209, 139, 0.45);
+
+  --tone-1-bg: #34422a; --tone-1-fg: #d4e5ab;
+  --tone-2-bg: #43382a; --tone-2-fg: #ecd3a6;
+  --tone-3-bg: #45372f; --tone-3-fg: #ecd0bf;
+  --tone-4-bg: #2a3f39; --tone-4-fg: #b9e0d2;
+  --tone-5-bg: #45313a; --tone-5-fg: #efcad7;
+  --tone-6-bg: #313646; --tone-6-fg: #cfd6ef;
+
+  --feature: #2a3b26;
+  --canvas: #181e18;
+  --canvas-dots: rgba(190, 200, 170, 0.12);
+  --canvas-glow: rgba(60, 80, 40, 0.35);
+  --edge-parent: #7f9a55;
+  --edge-spouse: #a88f5c;
+  --memorial-bg: #22241e;
+  --info-soft: #1f3038;
+  --info-ink: #a9cde2;
+  --nav-track: rgba(255, 255, 255, 0.05);
+  --nav-hover: rgba(255, 255, 255, 0.08);
+  --nav-active: rgba(255, 255, 255, 0.1);
+  --soft-btn: #33422a;
+  --danger-line: #6b3a33;
+  --wave-idle: #4b5448;
+  --hero-grad: radial-gradient(60% 120% at 85% 0%, rgba(207, 227, 155, 0.12), transparent 60%), radial-gradient(50% 80% at 10% 100%, rgba(75, 104, 39, 0.35), transparent 70%), linear-gradient(120deg, #26331f, #1f281c 55%, #2a261c);
+
+  color-scheme: dark;
 }
 
 @media (max-width: 700px) {

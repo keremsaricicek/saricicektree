@@ -125,8 +125,106 @@ function uiNameHtml(n) {
   return `${esc(x.name)}${x.note ? `<span class="ds-name-note">${esc(x.note)}</span>` : ""}`;
 }
 function uiImages(p) {
-  if (p.images?.length) return p.images.map((x) => ({ url: x.url, id: x.id, title: x.title || "" }));
-  return p.image ? [{ url: p.image, id: p.photoId || null, title: "" }] : [];
+  if (p.images?.length) return p.images.map((x) => ({ url: x.url, id: x.id, title: x.title || "", media: x.media || uiPhotoMedia(x.id) }));
+  return p.image ? [{ url: p.image, id: p.photoId || null, title: "", media: uiPhotoMedia(p.photoId) }] : [];
+}
+
+/* ---------- Responsive photos ----------
+   The server keeps the original and up to four smaller copies (320–1600 px) made in the
+   browser. srcset lets the phone pick the smallest copy that is sharp enough; width/height
+   reserve the space before the image arrives; focus keeps faces in cropped tiles. */
+const UI_VARIANT_WIDTHS = [320, 640, 1080, 1600];
+function uiPhotoMedia(id) {
+  return (id && state.photos.find((x) => x.id === id)?.media) || null;
+}
+function uiPic(url, media, { sizes = "100vw", fallback = 640, fixed } = {}) {
+  const v = media?.variants || [],
+    dims = media?.width ? ` width="${media.width}" height="${media.height}"` : "";
+  if (!url || !v.length || /^(data|blob):/.test(url)) return `src="${esc(url)}"${dims}`;
+  if (fixed) return `src="${esc(url)}?w=${v.find((w) => w >= fixed) || v.at(-1)}"${dims}`;
+  const set = v.map((w) => `${url}?w=${w} ${w}w`);
+  if (media.width) set.push(`${url} ${media.width}w`);
+  return `src="${esc(url)}?w=${v.find((w) => w >= fallback) || v.at(-1)}" srcset="${esc(set.join(", "))}" sizes="${sizes}"${dims}`;
+}
+const uiFocus = (media) => (media ? `object-position:${media.focusX ?? 50}% ${media.focusY ?? 40}%` : "");
+const uiMediaRatio = (media) => (media?.width && media?.height ? media.width / media.height : null);
+const uiBigUrl = (url, media) => (media?.variants?.includes(1600) && !(media.width && media.width < 1800) ? url + "?w=1600" : url);
+
+function uiLoadImage(src) {
+  return new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(Error("Fotoğraf açılamadı."));
+    im.src = src;
+  });
+}
+/* Downscale in halving steps so small copies stay crisp; never enlarge. */
+async function uiMakeVariants(src) {
+  const im = await uiLoadImage(src),
+    W = im.naturalWidth,
+    H = im.naturalHeight,
+    out = [];
+  for (const w of UI_VARIANT_WIDTHS) {
+    if (w >= W) continue;
+    let cur = im,
+      cw = W,
+      ch = H;
+    while (cw / 2 >= w) {
+      const c = document.createElement("canvas");
+      c.width = Math.round(cw / 2);
+      c.height = Math.round(ch / 2);
+      c.getContext("2d").drawImage(cur, 0, 0, c.width, c.height);
+      cur = c;
+      cw = c.width;
+      ch = c.height;
+    }
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = Math.round((H * w) / W);
+    const ctx = c.getContext("2d");
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(cur, 0, 0, c.width, c.height);
+    let data = c.toDataURL("image/webp", 0.8);
+    if (!data.startsWith("data:image/webp")) data = c.toDataURL("image/jpeg", 0.82);
+    out.push({ width: w, data });
+  }
+  return { width: W, height: H, variants: out };
+}
+async function uiStoreVariants(id, src) {
+  if (demoMode || !id) return null;
+  const v = await uiMakeVariants(src),
+    r = await hmApi("/" + id + "/variants", "PUT", v),
+    media = { ...(uiPhotoMedia(id) || { focusX: 50, focusY: 40 }), width: v.width, height: v.height, variants: r.variants || [] };
+  const ph = state.photos.find((x) => x.id === id);
+  if (ph) ph.media = media;
+  return media;
+}
+async function uiBackfillVariants(report) {
+  let done = 0,
+    failed = 0;
+  const seen = new Set();
+  for (;;) {
+    const r = await hmApi("/variants/missing");
+    const batch = r.items.filter((x) => !seen.has(x.id));
+    if (!batch.length) break;
+    for (const x of batch) {
+      seen.add(x.id);
+      report(`${done + failed + 1}. fotoğraf hazırlanıyor… (${r.total} eksik)`);
+      try {
+        const blob = await (await fetch(x.url, { credentials: "same-origin", headers: { "X-Family-Factor": sessionStorage.getItem("sf-factor") || "" } })).blob(),
+          url = URL.createObjectURL(blob);
+        try {
+          await uiStoreVariants(x.id, url);
+          done++;
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      } catch {
+        failed++;
+      }
+    }
+  }
+  return { done, failed };
 }
 const uiPerson = (id) => state.people.find((x) => x.id === id);
 const uiIcon = (name, cls = "") => icon(name).replace("<i ", `<i class="${cls}" `);
@@ -143,6 +241,19 @@ document.addEventListener(
     const box = img.closest(".ds-media-1");
     if (box) box.style.setProperty("--ar", Math.min(1.91, Math.max(0.8, r)).toFixed(4));
     img.closest(".ds-loading")?.classList.remove("ds-loading");
+  },
+  true,
+);
+
+/* A portrait that cannot be loaded falls back to the person's initials. */
+document.addEventListener(
+  "error",
+  (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement) || !img.dataset.initials) return;
+    const box = img.parentElement;
+    box.classList.remove("ds-node-photo");
+    box.textContent = img.dataset.initials;
   },
   true,
 );
@@ -183,6 +294,213 @@ document.addEventListener("input", (e) => {
     uiAutosize(e.target, 140);
   }
 });
+
+/* ---------- Hayat: reactions ---------- */
+const UI_EMOJI = ["🌿", "😂", "🥹", "🙏", "👏"];
+const UI_EMOJI_LABEL = { "🌿": "Sevgiyle", "😂": "Güldüm", "🥹": "Duygulandım", "🙏": "Minnettarım", "👏": "Tebrikler" };
+function uiReactionRow(p) {
+  const r = Object.entries(p.reactions || {}).filter(([e, n]) => UI_EMOJI.includes(e) && n > 0);
+  if (!r.length) return "";
+  return `<div class="ds-reactions" role="group" aria-label="Tepkiler">${r
+    .sort((a, b) => UI_EMOJI.indexOf(a[0]) - UI_EMOJI.indexOf(b[0]))
+    .map(([e, n]) => `<button type="button" class="ds-reaction ${p.myReaction === e ? "is-on" : ""}" data-ui="react" data-id="${p.id}" data-emoji="${e}" aria-pressed="${p.myReaction === e}" aria-label="${UI_EMOJI_LABEL[e]}: ${n}"><span aria-hidden="true">${e}</span>${n}</button>`)
+    .join("")}</div>`;
+}
+function uiReactMenu(btn) {
+  $(".ds-react-menu")?.remove();
+  if (btn.getAttribute("aria-expanded") === "true") return btn.setAttribute("aria-expanded", "false");
+  const p = ffFind(Number(btn.dataset.id));
+  btn.setAttribute("aria-expanded", "true");
+  btn.insertAdjacentHTML("afterend", `<div class="ds-react-menu" role="menu" aria-label="Tepki seç">${UI_EMOJI.map((e) => `<button type="button" role="menuitemradio" aria-checked="${p?.myReaction === e}" data-ui="react" data-id="${btn.dataset.id}" data-emoji="${e}" title="${UI_EMOJI_LABEL[e]}" aria-label="${UI_EMOJI_LABEL[e]}">${e}</button>`).join("")}</div>`);
+  $(".ds-react-menu button")?.focus();
+}
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".ds-react-menu, .ds-react")) {
+    $(".ds-react-menu")?.remove();
+    $$('.ds-react[aria-expanded="true"]').forEach((b) => b.setAttribute("aria-expanded", "false"));
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $(".ds-react-menu")) {
+    const b = $('.ds-react[aria-expanded="true"]');
+    $(".ds-react-menu").remove();
+    b?.setAttribute("aria-expanded", "false");
+    b?.focus();
+  }
+});
+async function uiReact(id, emoji) {
+  const p = ffFind(id);
+  if (!p) return;
+  const same = p.myReaction === emoji;
+  await ffApi("/" + id + "/reaction", same ? "DELETE" : "PUT", same ? {} : { emoji });
+  await ffUpdateCard(id);
+  $(`[data-feed-card="${id}"] .ds-react`)?.focus();
+}
+async function uiCommentLike(post, cid, on) {
+  await ffApi("/comments/" + cid + "/like", on ? "DELETE" : "PUT", {});
+  if (ui.expanded.has(post)) await uiLoadThread(post);
+  await ffUpdateCard(post);
+}
+
+/* ---------- Hayat: live updates ----------
+   One event stream per tab (shared with Mesajlar) carries a feed cursor; only posts that
+   changed and are on screen are fetched again. Typing, open threads and scroll stay put. */
+ui.feedCursor = 0;
+ui.pendingRefresh = new Set();
+async function uiRefreshPost(id) {
+  const el = $(`[data-feed-card="${id}"]`);
+  if (!el) return;
+  const active = document.activeElement;
+  if (el.contains(active) && active.matches("textarea, input") || el.querySelector(".ds-react-menu")) return ui.pendingRefresh.add(id);
+  let p;
+  try {
+    p = await ffApi("/" + id);
+  } catch {
+    return;
+  }
+  for (const arr of [ff.items, ff.pinned, ff.profileItems || []]) {
+    const i = arr.findIndex((x) => x.id === id);
+    if (i >= 0) arr[i] = p;
+  }
+  if (ui.expanded.has(id)) await uiLoadThread(id).catch(() => {});
+  const cards = $$("[data-feed-card]"),
+    top = (document.querySelector(".topbar")?.getBoundingClientRect().bottom || 0) + 8,
+    anchor = cards.find((c) => c.getBoundingClientRect().bottom > top),
+    key = anchor?.dataset.feedCard,
+    before = anchor?.getBoundingClientRect().top;
+  for (const c of $$(`[data-feed-card="${id}"]`)) {
+    if (c.contains(document.activeElement)) continue;
+    c.outerHTML = ffCard(p);
+  }
+  hydrate();
+  const after = key && $(`[data-feed-card="${key}"]`)?.getBoundingClientRect().top;
+  if (key && after !== undefined && before !== undefined && Math.abs(after - before) > 1) scrollBy(0, after - before);
+}
+document.addEventListener("focusout", () =>
+  setTimeout(() => {
+    for (const id of [...ui.pendingRefresh]) {
+      const el = $(`[data-feed-card="${id}"]`);
+      if (el && el.contains(document.activeElement)) continue;
+      ui.pendingRefresh.delete(id);
+      uiRefreshPost(id);
+    }
+  }, 400),
+);
+async function uiFeedChanges() {
+  if (ui.feedBusy || !state || !["home", "profile"].includes(route)) return;
+  ui.feedBusy = true;
+  try {
+    const r = await ffApi("/changes?after=" + ui.feedCursor);
+    if (!ui.feedCursor) return void (ui.feedCursor = r.cursor);
+    ui.feedCursor = r.cursor;
+    const ids = r.reset ? [...new Set($$("[data-feed-card]").map((c) => Number(c.dataset.feedCard)))] : r.posts;
+    for (const id of ids) await uiRefreshPost(id);
+    if (r.fresh && route === "home" && $("#ff-new")) $("#ff-new").hidden = false;
+  } catch {
+  } finally {
+    ui.feedBusy = false;
+  }
+}
+/* Shared stream: replaces the chat-only stream so Hayat and Mesajlar use one connection. */
+ui.stream = null;
+const uiWantsStream = () => state && (dm.windows.size || dm.inbox || route === "chat" || route === "home" || route === "profile");
+dmStream = async function () {
+  if (demoMode || window.FamilyNative?.available || ui.stream) return;
+  const controller = new AbortController();
+  ui.stream = controller;
+  let chatRev = "";
+  try {
+    while (!controller.signal.aborted && uiWantsStream()) {
+      try {
+        const r = await fetch("/api/chat/stream", { credentials: "same-origin", headers: { "X-Family-Factor": sessionStorage.getItem("sf-factor") || "" }, signal: controller.signal });
+        if (!r.ok) throw Error("Bağlantı yenileniyor.");
+        const reader = r.body.getReader(),
+          decoder = new TextDecoder();
+        let buffer = "";
+        while (!controller.signal.aborted) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let end;
+          while ((end = buffer.indexOf("\n\n")) >= 0) {
+            const event = buffer.slice(0, end);
+            buffer = buffer.slice(end + 2);
+            if (!event.startsWith("event: change") || document.hidden) continue;
+            let rev = {};
+            try {
+              rev = JSON.parse(event.split("\ndata: ")[1] || "{}");
+            } catch {}
+            const chat = JSON.stringify([rev.lastId, rev.unread, rev.receipts, rev.groupId]);
+            if (chat !== chatRev) {
+              chatRev = chat;
+              await Promise.all([...dm.windows.values()].map((w) => dmLoad(w)));
+              await dmThreads().catch(() => {});
+            }
+            if (rev.feed !== undefined && rev.feed !== ui.feedCursor) await uiFeedChanges();
+          }
+        }
+      } catch {
+        if (controller.signal.aborted) break;
+      }
+      await new Promise((resolve) => {
+        const t = setTimeout(resolve, 2000);
+        controller.signal.addEventListener("abort", () => (clearTimeout(t), resolve()), { once: true });
+      });
+    }
+  } finally {
+    if (ui.stream === controller) ui.stream = null;
+  }
+};
+/* Where no stream is possible (preview, native shell) a quiet poll does the same job. */
+setInterval(() => {
+  if ((demoMode || window.FamilyNative?.available) && !document.hidden && !dialog.open) uiFeedChanges();
+}, 12000);
+addEventListener("online", () => uiFeedChanges());
+
+/* Preview data: reactions, comment likes and change cursor behave like the server. */
+const uiDemoFeedApi = ffApi;
+ffApi = async function (suffix = "", method = "GET", body) {
+  if (!demoMode) return uiDemoFeedApi(suffix, method, body);
+  await uiDemoFeedApi();
+  const D = ffDemo;
+  D.activity ||= 0;
+  const touch = () => ((D.activity += 1), ffDemoSave());
+  const likeInfo = (c) => ({ ...c, likes: (c.likedBy || []).length, liked: (c.likedBy || []).includes(state.user.id) });
+  if (suffix.startsWith("/changes")) {
+    const after = Number(new URLSearchParams(suffix.split("?")[1]).get("after")) || 0;
+    return { cursor: D.activity, posts: after && after < D.activity ? D.posts.map((p) => p.id) : [], fresh: false };
+  }
+  let m = suffix.match(/^\/(\d+)\/reaction$/);
+  if (m) {
+    const p = D.posts.find((x) => x.id === Number(m[1]));
+    p.reactionsBy ||= {};
+    if (method === "PUT") p.reactionsBy[state.user.id] = body.emoji;
+    else delete p.reactionsBy[state.user.id];
+    touch();
+    return { ok: true };
+  }
+  m = suffix.match(/^\/comments\/(\d+)\/like$/);
+  if (m) {
+    const c = D.comments.find((x) => x.id === Number(m[1]));
+    c.likedBy = (c.likedBy || []).filter((u) => u !== state.user.id);
+    if (method === "PUT") c.likedBy.push(state.user.id);
+    touch();
+    return { ok: true };
+  }
+  const r = await uiDemoFeedApi(suffix, method, body);
+  if (method !== "GET") touch();
+  const decorate = (p) => {
+    if (!p || typeof p !== "object" || p.id === undefined) return p;
+    const src = D.posts.find((x) => x.id === p.id),
+      by = src?.reactionsBy || {},
+      counts = {};
+    for (const e of Object.values(by)) counts[e] = (counts[e] || 0) + 1;
+    return { ...p, reactions: counts, myReaction: by[state.user.id] || null, commentPreview: (p.commentPreview || []).map(likeInfo) };
+  };
+  if (Array.isArray(r?.items) && /\/comments/.test(suffix)) return { ...r, items: r.items.map(likeInfo) };
+  if (Array.isArray(r?.items)) return { ...r, items: r.items.map(decorate), pinned: (r.pinned || []).map(decorate) };
+  return decorate(r);
+};
 
 /* ---------- Hayat: page ---------- */
 function uiSkeletonPosts(n = 2) {
@@ -240,15 +558,15 @@ function uiMedia(p) {
     alt = (x) => esc(x.title || p.body?.slice(0, 100) || "Aile fotoğrafı");
   if (imgs.length === 1) {
     const x = imgs[0],
-      r = uiRatios.get(x.url);
-    return `<div class="ds-media ds-media-1 ${r ? "" : "ds-loading"}" style="--ar:${r ? Math.min(1.91, Math.max(0.8, r)).toFixed(4) : "1.3333"}"><button type="button" data-ui="view" data-post="${p.id}" data-index="0" aria-label="Fotoğrafı tam ekran aç"><img class="ds-media-fill" src="${esc(x.url)}" alt="" aria-hidden="true" loading="lazy"><img class="ds-media-img" src="${esc(x.url)}" alt="${alt(x)}" loading="lazy" data-ar="${esc(x.url)}"></button>${stamp}</div>`;
+      r = uiRatios.get(x.url) || uiMediaRatio(x.media);
+    return `<div class="ds-media ds-media-1 ${r ? "" : "ds-loading"}" style="--ar:${r ? Math.min(1.91, Math.max(0.8, r)).toFixed(4) : "1.3333"}"><button type="button" data-ui="view" data-post="${p.id}" data-index="0" aria-label="Fotoğrafı tam ekran aç"><img class="ds-media-fill" ${uiPic(x.url, x.media, { fixed: 320 })} alt="" aria-hidden="true" loading="lazy"><img class="ds-media-img" ${uiPic(x.url, x.media, { sizes: "(max-width: 700px) 100vw, 640px" })} alt="${alt(x)}" loading="lazy" decoding="async" data-ar="${esc(x.url)}"></button>${stamp}</div>`;
   }
   const shown = imgs.slice(0, 4),
     rest = imgs.length - shown.length;
   return `<div class="ds-media ds-media-n ds-count-${shown.length}">${shown
     .map(
       (x, i) =>
-        `<button type="button" class="ds-tile" data-ui="view" data-post="${p.id}" data-index="${i}" aria-label="Fotoğraf ${i + 1} / ${imgs.length}"><img src="${esc(x.url)}" alt="${alt(x)}" loading="lazy">${i === shown.length - 1 && rest > 0 ? `<span class="ds-more-count">+${rest}</span>` : ""}</button>`,
+        `<button type="button" class="ds-tile" data-ui="view" data-post="${p.id}" data-index="${i}" aria-label="Fotoğraf ${i + 1} / ${imgs.length}"><img ${uiPic(x.url, x.media, { sizes: i === 0 && shown.length !== 2 ? "(max-width: 700px) 100vw, 640px" : "(max-width: 700px) 50vw, 320px" })} alt="${alt(x)}" loading="lazy" decoding="async" style="${uiFocus(x.media)}">${i === shown.length - 1 && rest > 0 ? `<span class="ds-more-count">+${rest}</span>` : ""}</button>`,
     )
     .join("")}${stamp}</div>`;
 }
@@ -279,7 +597,7 @@ ffCard = function (p) {
           : p.kind === "event"
             ? `<div class="ds-kind is-event">${icon("calendar-heart")}<span>Birlikte buluşuyoruz</span></div>`
             : "";
-  return `<article class="ff-post ds-post ${q ? "is-question" : ""} ${p.kind === "memory" ? "is-memory" : ""}" data-feed-card="${p.id}">${p.pinned ? `<div class="ds-pin">${icon("pin")}Sabitlenen duyuru</div>` : ""}<header class="ds-post-head">${ffAction(avatar(p.author), "person", `data-person="${esc(person?.id || "")}" data-user="${esc(p.createdBy)}" aria-label="${esc(uiName(p.author).name)} profilini aç" tabindex="-1"`, "ds-author-avatar")}<div class="ds-post-who">${ffAction(uiNameHtml(p.author), "person", `data-person="${esc(person?.id || "")}" data-user="${esc(p.createdBy)}"`, "ds-author")}<div class="ds-post-sub"><time datetime="${esc(p.createdAt || "")}" title="${esc(uiFullDate(p.createdAt))}">${uiWhen(p.createdAt)}</time><span aria-hidden="true">·</span><span class="ds-aud" title="${aud[1]}">${icon(aud[0])}<span class="sr-only">${aud[1]}</span></span></div></div>${ffAction(icon("ellipsis"), "options", `data-id="${p.id}" aria-label="Paylaşım seçenekleri"`, "icon-btn ds-post-menu")}</header>${kindRow}${uiBody(p, !!media)}${media}${event ? `<button class="ds-event" data-action="event-detail" data-id="${esc(event.id)}">${uiDayTile(event.date)}<span><strong>${esc(event.title)}</strong><small>${esc(event.place || dateText(event.date))}</small></span>${icon("chevron-right")}</button>` : ""}${uiWith(p)}<footer class="ds-actions">${ffAction(icon("heart") + `<span>${p.likes || ""}</span>`, "like", `data-id="${p.id}" aria-pressed="${!!p.liked}" aria-label="${p.liked ? "Beğeniyi geri al" : "Beğen"}"`, "ds-act ds-like" + (p.liked ? " is-on" : ""))}<button type="button" class="ds-act" data-ui="thread-focus" data-id="${p.id}" aria-label="${q ? "Cevapla" : "Yorum yaz"}">${icon("message-circle")}<span>${p.comments || ""}</span></button><span class="ds-act-gap"></span>${ffAction(icon("bookmark"), "save", `data-id="${p.id}" aria-pressed="${!!p.saved}" aria-label="${p.saved ? "Kaydedilenlerden çıkar" : "Kaydet"}"`, "ds-act ds-save" + (p.saved ? " is-on" : ""))}</footer>${uiThread(p)}</article>`;
+  return `<article class="ff-post ds-post ${q ? "is-question" : ""} ${p.kind === "memory" ? "is-memory" : ""}" data-feed-card="${p.id}">${p.pinned ? `<div class="ds-pin">${icon("pin")}Sabitlenen duyuru</div>` : ""}<header class="ds-post-head">${ffAction(avatar(p.author), "person", `data-person="${esc(person?.id || "")}" data-user="${esc(p.createdBy)}" aria-label="${esc(uiName(p.author).name)} profilini aç" tabindex="-1"`, "ds-author-avatar")}<div class="ds-post-who">${ffAction(uiNameHtml(p.author), "person", `data-person="${esc(person?.id || "")}" data-user="${esc(p.createdBy)}"`, "ds-author")}<div class="ds-post-sub"><time datetime="${esc(p.createdAt || "")}" title="${esc(uiFullDate(p.createdAt))}">${uiWhen(p.createdAt)}</time><span aria-hidden="true">·</span><span class="ds-aud" title="${aud[1]}">${icon(aud[0])}<span class="sr-only">${aud[1]}</span></span></div></div>${ffAction(icon("ellipsis"), "options", `data-id="${p.id}" aria-label="Paylaşım seçenekleri"`, "icon-btn ds-post-menu")}</header>${kindRow}${uiBody(p, !!media)}${media}${event ? `<button class="ds-event" data-action="event-detail" data-id="${esc(event.id)}">${uiDayTile(event.date)}<span><strong>${esc(event.title)}</strong><small>${esc(event.place || dateText(event.date))}</small></span>${icon("chevron-right")}</button>` : ""}${uiWith(p)}${uiReactionRow(p)}<footer class="ds-actions">${ffAction(icon("heart") + `<span>${p.likes || ""}</span>`, "like", `data-id="${p.id}" aria-pressed="${!!p.liked}" aria-label="${p.liked ? "Beğeniyi geri al" : "Beğen"}"`, "ds-act ds-like" + (p.liked ? " is-on" : ""))}<button type="button" class="ds-act" data-ui="thread-focus" data-id="${p.id}" aria-label="${q ? "Cevapla" : "Yorum yaz"}">${icon("message-circle")}<span>${p.comments || ""}</span></button><button type="button" class="ds-act ds-react ${p.myReaction ? "is-on" : ""}" data-ui="react-menu" data-id="${p.id}" aria-haspopup="true" aria-expanded="false" aria-label="${p.myReaction ? "Tepkin: " + p.myReaction + ". Değiştir" : "Tepki ver"}">${p.myReaction ? `<span class="ds-emoji" aria-hidden="true">${p.myReaction}</span>` : icon("smile-plus")}</button><span class="ds-act-gap"></span>${ffAction(icon("bookmark"), "save", `data-id="${p.id}" aria-pressed="${!!p.saved}" aria-label="${p.saved ? "Kaydedilenlerden çıkar" : "Kaydet"}"`, "ds-act ds-save" + (p.saved ? " is-on" : ""))}</footer>${uiThread(p)}</article>`;
 };
 
 /* ---------- Hayat: conversation under each post ---------- */
@@ -290,7 +608,7 @@ function uiCommentPeople(c) {
 }
 function uiComment(c, postId, replyTo) {
   const mine = c.createdBy === state.user.id;
-  return `<article class="ds-comment ${replyTo !== undefined ? "is-reply" : ""}" data-comment="${c.id}">${avatar(c.author)}<div class="ds-comment-main"><div class="ds-bubble"><strong>${uiNameHtml(c.author)}</strong><p>${replyTo ? `<span class="ds-reply-to">@${esc(uiName(replyTo).name)}</span> ` : ""}${esc(c.body)}</p></div>${uiCommentPeople(c)}<div class="ds-comment-meta"><time datetime="${esc(c.createdAt || "")}" title="${esc(uiFullDate(c.createdAt))}">${uiWhen(c.createdAt)}</time><button type="button" data-ui="reply" data-post="${postId}" data-id="${c.id}">Cevap ver</button>${mine || isStaff() ? `<button type="button" data-ui="comment-delete" data-post="${postId}" data-id="${c.id}">Kaldır</button>` : ""}</div></div></article>`;
+  return `<article class="ds-comment ${replyTo !== undefined ? "is-reply" : ""}" data-comment="${c.id}">${avatar(c.author)}<div class="ds-comment-main"><div class="ds-bubble">${c.likes ? `<span class="ds-comment-likes" aria-label="${c.likes} beğeni">${icon("heart")}${c.likes}</span>` : ""}<strong>${uiNameHtml(c.author)}</strong><p>${replyTo ? `<span class="ds-reply-to">@${esc(uiName(replyTo).name)}</span> ` : ""}${esc(c.body)}</p></div>${uiCommentPeople(c)}<div class="ds-comment-meta"><time datetime="${esc(c.createdAt || "")}" title="${esc(uiFullDate(c.createdAt))}">${uiWhen(c.createdAt)}</time><button type="button" data-ui="comment-like" data-post="${postId}" data-id="${c.id}" aria-pressed="${!!c.liked}" class="${c.liked ? "is-on" : ""}">${c.liked ? "Beğendin" : "Beğen"}</button><button type="button" data-ui="reply" data-post="${postId}" data-id="${c.id}">Cevap ver</button>${mine || isStaff() ? `<button type="button" data-ui="comment-delete" data-post="${postId}" data-id="${c.id}">Kaldır</button>` : ""}</div></div></article>`;
 }
 function uiThreadList(items, postId) {
   const byId = new Map(items.map((c) => [c.id, c])),
@@ -494,6 +812,36 @@ async function uiAction(action, el) {
     }
     case "compose-close":
       return uiComposerOpen(false);
+    case "theme":
+      window.sfTheme?.set(el.dataset.theme);
+      for (const b of $$('[data-ui="theme"]')) {
+        const on = b.dataset.theme === el.dataset.theme;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", on);
+      }
+      return;
+    case "dm-retry": {
+      const w = dm.windows.get(el.dataset.key);
+      if (w) return dmSend(w);
+      return;
+    }
+    case "react-menu":
+      return uiReactMenu(el);
+    case "react":
+      $(".ds-react-menu")?.remove();
+      return uiReact(Number(el.dataset.id), el.dataset.emoji);
+    case "comment-like":
+      return uiCommentLike(Number(el.dataset.post), el.dataset.id, el.getAttribute("aria-pressed") === "true");
+    case "focus":
+      return uiChooseFocus(el.dataset.id);
+    case "backfill": {
+      el.disabled = true;
+      const text = $("#ds-perf-text"),
+        r = await uiBackfillVariants((t) => (text.textContent = t));
+      text.textContent = `${r.done} fotoğraf hazırlandı${r.failed ? `, ${r.failed} fotoğraf açılamadı` : ""}.`;
+      el.hidden = true;
+      return;
+    }
     case "easy": {
       await knAction("easy", document.createElement("button"));
       el.setAttribute("aria-pressed", String(kn.easy));
@@ -720,7 +1068,7 @@ function uiLightbox(postId, index = 0) {
   if (!p) return;
   const imgs = uiImages(p);
   uiViewer(
-    imgs.map((x) => ({ url: x.url, id: x.id, alt: x.title || p.body?.slice(0, 100) || "Aile fotoğrafı" })),
+    imgs.map((x) => ({ url: uiBigUrl(x.url, x.media), id: x.id, alt: x.title || p.body?.slice(0, 100) || "Aile fotoğrafı" })),
     index,
     {
       story: true,
@@ -736,8 +1084,78 @@ modal = function (title, content, wide = false) {
   const t = String(title);
   dialog.classList.remove("is-post", "is-search", "is-viewer", "is-menu");
   if (/\bara$|Ara$/.test(t) || $(".kn-search-field, #server-search, #search-input", dialog)) dialog.classList.add("is-search");
-  if ($(".hm-viewer", dialog)) dialog.classList.add("is-viewer");
+  if ($(".hm-viewer", dialog)) {
+    dialog.classList.add("is-viewer");
+    uiGrowOpen();
+  }
 };
+
+/* Card → viewer: the tapped tile's image grows into the viewer photo.
+   Start and end are measured rectangles; without animation support or with reduced
+   motion the viewer simply opens. */
+const uiReduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+document.addEventListener(
+  "click",
+  (e) => {
+    const tile = e.target.closest?.('[data-hm="open"][data-id]'),
+      img = tile && $("img", tile);
+    ui.growFrom = img && img.complete && img.naturalWidth ? { id: tile.dataset.id, src: img.currentSrc || img.src, rect: img.getBoundingClientRect(), at: Date.now(), fit: getComputedStyle(img).objectPosition } : null;
+  },
+  true,
+);
+function uiGrowOpen() {
+  const from = ui.growFrom;
+  ui.growFrom = null;
+  const photo = $(".hm-view-photo .hm-marker-image > img", dialog);
+  if (!from || !photo || Date.now() - from.at > 4000 || from.id !== hm.current?.id || uiReduceMotion()) return;
+  const media = hm.current?.media || uiPhotoMedia(from.id);
+  if (media?.width) {
+    photo.setAttribute("width", media.width);
+    photo.setAttribute("height", media.height);
+  }
+  dialog.classList.add("ds-grow");
+  const run = () => {
+    const to = photo.getBoundingClientRect();
+    if (!to.width || !to.height || !dialog.open) return dialog.classList.remove("ds-grow");
+    const ghost = document.createElement("img");
+    ghost.src = from.src;
+    ghost.alt = "";
+    ghost.className = "ds-grow-ghost";
+    ghost.style.cssText = `object-position:${from.fit};left:${from.rect.left}px;top:${from.rect.top}px;width:${from.rect.width}px;height:${from.rect.height}px;border-radius:14px`;
+    dialog.append(ghost);
+    // The viewer can still settle while its story loads, so each frame aims at the photo's current box.
+    const start = performance.now(),
+      ease = (t) => 1 - Math.pow(1 - t, 3),
+      lerp = (a, b, t) => a + (b - a) * t;
+    const step = (now) => {
+      if (!dialog.open || !ghost.isConnected || !photo.isConnected) return done();
+      const t = Math.min(1, (now - start) / 320),
+        k = ease(t),
+        to = photo.getBoundingClientRect();
+      Object.assign(ghost.style, {
+        left: lerp(from.rect.left, to.left, k) + "px",
+        top: lerp(from.rect.top, to.top, k) + "px",
+        width: lerp(from.rect.width, to.width, k) + "px",
+        height: lerp(from.rect.height, to.height, k) + "px",
+        borderRadius: lerp(14, 0, k) + "px",
+      });
+      if (t < 1) requestAnimationFrame(step);
+      else done();
+    };
+    const done = () => {
+      dialog.classList.remove("ds-grow");
+      ghost.remove();
+    };
+    requestAnimationFrame(step);
+  };
+  // The size must be known before measuring: from stored dimensions or the loaded image.
+  if (photo.complete && photo.naturalWidth) requestAnimationFrame(run);
+  else if (media?.width) requestAnimationFrame(run);
+  else {
+    const t = setTimeout(() => dialog.classList.remove("ds-grow"), 700);
+    photo.addEventListener("load", () => (clearTimeout(t), dialog.classList.contains("ds-grow") && requestAnimationFrame(run)), { once: true });
+  }
+}
 
 /* Notifications: upcoming days read like the side column. */
 const uiBaseNotifications = knNotifications;
@@ -776,14 +1194,30 @@ function uiMenu() {
       .join("")}</nav>${isStaff() ? `<div class="ds-list">${uiRow("Yönetim paneli", "Onaylar, üyeler, kayıtlar", "shield-check", 'data-action="nav" data-page="admin"')}${isOwner() ? uiRow("Aile ayarları", "Aile kimliği, yedekler", "settings-2", 'data-action="nav" data-page="settings"') : ""}</div>` : ""}`,
   );
 }
+/* Appearance: light, dark or follow the device. */
+function uiThemeRow() {
+  const cur = window.sfTheme?.get() || "system";
+  return `<div class="ds-row ds-theme-row"><span class="ds-row-icon">${icon("sun-moon")}</span><span class="ds-row-text"><strong id="ds-theme-label">Görünüm</strong><small>Gece için koyu renkler</small></span><span class="ds-segmented" role="group" aria-labelledby="ds-theme-label">${[
+    ["light", "Açık"],
+    ["dark", "Koyu"],
+    ["system", "Sistem"],
+  ]
+    .map(([v, l]) => `<button type="button" class="tab ${cur === v ? "active" : ""}" data-ui="theme" data-theme="${v}" aria-pressed="${cur === v}">${l}</button>`)
+    .join("")}</span></div>`;
+}
 function uiAccount() {
   modal(
     "Hesabım",
-    `<div class="ds-account-head">${avatar(state.user, "large")}<div><h3>${esc(state.user.name)}</h3><p>${esc(state.user.email || "")}</p><span class="pill">${esc(roleName[state.user.role] || "")}</span></div></div><div class="ds-list"><button type="button" class="ds-row" data-ui="easy" aria-pressed="${kn.easy}"><span class="ds-row-icon">${icon("type")}</span><span class="ds-row-text"><strong>Kolay görünüm</strong><small>Daha büyük yazı ve düğmeler</small></span><span class="ds-switch" aria-hidden="true"></span></button>${uiRow("Bildirim tercihleri", "Bildirim merkezinde neler görünsün", "bell", 'data-konak="notice-prefs"')}${uiRow("Telefon bildirimleri", "Bu cihazda mesaj bildirimleri", "smartphone", 'data-action="push-settings"')}${uiRow("İki aşamalı doğrulama", "Hesabını koru", "shield-check", 'data-action="ar-security"')}</div><div class="ds-list">${uiRow("Resimli kullanım kılavuzu", "Adım adım anlatım", "book-open", 'data-hm="guide-full"')}${uiRow("Konağa ilk adımlar", "Profil, ağaç, fotoğraf, selam", "sparkles", 'data-konak="onboarding"')}</div><div class="ds-list">${uiRow("Oturumu kapat", "", "log-out", 'data-action="logout"')}${!isOwner() ? uiRow("Hesabımı sil", "", "trash-2", 'data-action="delete-account"', "is-danger") : ""}</div>${demoMode ? `<div class="ds-demo-roles"><span class="eyebrow">Önizlemede yetki dene</span><div class="ds-segmented">${["owner", "moderator", "member"].map((r) => `<button type="button" class="tab ${state.user.role === r ? "active" : ""}" data-action="demo-role" data-role="${r}">${roleName[r]}</button>`).join("")}</div></div>` : ""}`,
+    `<div class="ds-account-head">${avatar(state.user, "large")}<div><h3>${esc(state.user.name)}</h3><p>${esc(state.user.email || "")}</p><span class="pill">${esc(roleName[state.user.role] || "")}</span></div></div><div class="ds-list"><button type="button" class="ds-row" data-ui="easy" aria-pressed="${kn.easy}"><span class="ds-row-icon">${icon("type")}</span><span class="ds-row-text"><strong>Kolay görünüm</strong><small>Daha büyük yazı ve düğmeler</small></span><span class="ds-switch" aria-hidden="true"></span></button>${uiThemeRow()}${uiRow("Bildirim tercihleri", "Bildirim merkezinde neler görünsün", "bell", 'data-konak="notice-prefs"')}${uiRow("Telefon bildirimleri", "Bu cihazda mesaj bildirimleri", "smartphone", 'data-action="push-settings"')}${uiRow("İki aşamalı doğrulama", "Hesabını koru", "shield-check", 'data-action="ar-security"')}</div><div class="ds-list">${uiRow("Resimli kullanım kılavuzu", "Adım adım anlatım", "book-open", 'data-hm="guide-full"')}${uiRow("Konağa ilk adımlar", "Profil, ağaç, fotoğraf, selam", "sparkles", 'data-konak="onboarding"')}</div><div class="ds-list">${uiRow("Oturumu kapat", "", "log-out", 'data-action="logout"')}${!isOwner() ? uiRow("Hesabımı sil", "", "trash-2", 'data-action="delete-account"', "is-danger") : ""}</div>${demoMode ? `<div class="ds-demo-roles"><span class="eyebrow">Önizlemede yetki dene</span><div class="ds-segmented">${["owner", "moderator", "member"].map((r) => `<button type="button" class="tab ${state.user.role === r ? "active" : ""}" data-action="demo-role" data-role="${r}">${roleName[r]}</button>`).join("")}</div></div>` : ""}`,
   );
 }
 const uiBaseHandle = handle;
 handle = async function (action, el) {
+  if (action === "zoom-in" || action === "zoom-out" || action === "zoom-fit") {
+    const r = await uiBaseHandle(action, el);
+    ui.drawMinimap?.();
+    return r;
+  }
   if (action === "menu") return uiMenu();
   if (action === "account") return uiAccount();
   return uiBaseHandle(action, el);
@@ -861,6 +1295,12 @@ function uiTreeLayout(list) {
     }
   });
   // Centre parents over their children where the row leaves room.
+  const childrenOf = new Map();
+  for (const [child, rs] of parentsOf)
+    for (const r of rs) {
+      if (!childrenOf.has(r.personA)) childrenOf.set(r.personA, []);
+      childrenOf.get(r.personA).push(child);
+    }
   for (let pass = 0; pass < 2; pass++)
     for (let ri = sorted.length - 2; ri >= 0; ri--) {
       const row = sorted[ri][1]
@@ -873,9 +1313,9 @@ function uiTreeLayout(list) {
         else groups.push([id]);
       }
       groups.forEach((g, gi) => {
-        const kids = list.filter((c) => (parentsOf.get(c.id) || []).some((r) => g.includes(r.personA)));
+        const kids = [...new Set(g.flatMap((id) => childrenOf.get(id) || []))];
         if (!kids.length) return;
-        const kc = kids.reduce((s, c) => s + center(c.id), 0) / kids.length,
+        const kc = kids.reduce((s, c) => s + center(c), 0) / kids.length,
           gl = pos.get(g[0]).x,
           gw = pos.get(g.at(-1)).x + UI_TREE.w - gl,
           target = kc - gw / 2,
@@ -900,7 +1340,13 @@ function uiTreeLayout(list) {
   for (const rr of rel.filter((x) => x.type === "spouse")) {
     const a = pos.get(rr.personA),
       b = pos.get(rr.personB);
-    if (!a || !b || a.row !== b.row) continue;
+    if (!a || !b) continue;
+    if (a.row !== b.row) {
+      // Rare: partners placed on different generations still get a visible link.
+      const [t, btm] = a.y < b.y ? [a, b] : [b, a];
+      paths.push(`<path class="ds-edge-spouse" d="M${t.x + UI_TREE.w / 2} ${t.y + UI_TREE.h}L${btm.x + UI_TREE.w / 2} ${btm.y}"/>`);
+      continue;
+    }
     const [l, rgt] = a.x < b.x ? [a, b] : [b, a],
       y = l.y + UI_TREE.h / 2;
     paths.push(`<path class="ds-edge-spouse" d="M${l.x + UI_TREE.w} ${y}H${rgt.x}"/>`);
@@ -941,11 +1387,38 @@ function uiTreeLayout(list) {
   }
   return { pos, rows: sorted, width, height, svg: paths.join("") + marks.join("") };
 }
+/* Profile portraits the viewer is allowed to see, loaded once per visit to the tree. */
+async function uiTreePortraits() {
+  if (ui.portraitsBusy) return;
+  ui.portraitsBusy = true;
+  try {
+    const r = demoMode ? { items: [] } : await exApi("/portraits");
+    const next = new Map(r.items.map((x) => [x.personId, x])),
+      changed = !ui.portraits || next.size !== ui.portraits.size || [...next].some(([id, x]) => ui.portraits.get(id)?.url !== x.url);
+    ui.portraits = next;
+    if (changed && route === "tree") {
+      const vp = $(".tree-viewport"),
+        at = vp && [vp.scrollLeft, vp.scrollTop];
+      render();
+      const nv = $(".tree-viewport");
+      if (nv && at) [nv.scrollLeft, nv.scrollTop] = at;
+    }
+  } catch {
+    /* Initials stay in place. */
+  } finally {
+    ui.portraitsBusy = false;
+  }
+}
+function uiTreeAvatar(p) {
+  const face = ui.portraits?.get(p.id);
+  if (!face) return avatar(p);
+  return `<span class="avatar ds-node-photo" data-tone="${avatarTone(p.name)}" aria-hidden="true"><img ${uiPic(face.url, face.media, { fixed: 320 })} alt="" loading="lazy" decoding="async" data-initials="${esc(initials(p.name))}" style="${uiFocus(face.media)}"></span>`;
+}
 function uiTreeNode(p, c) {
   const [first, ...rest] = String(p.name).split(" "),
     memorial = !!p.deathDate,
     years = `${p.birthDate ? p.birthDate.slice(0, 4) : "?"}${memorial ? " – " + p.deathDate.slice(0, 4) : ""}`;
-  return `<button class="tree-node ds-node ${memorial ? "is-memorial" : ""} ${p.id === treeFocus ? "selected" : ""} ${p.id === ui.mePerson ? "is-me" : ""}" style="left:${c.x}px;top:${c.y}px" data-konak="tree-person" data-id="${esc(p.id)}" aria-label="${esc(p.name)}, ${years}">${avatar(p)}<span class="ds-node-text"><strong>${esc(rest.length ? first : p.name)}</strong>${rest.length ? `<span class="ds-node-sur">${esc(rest.join(" "))}</span>` : ""}${p.nickname ? `<em>“${esc(p.nickname)}”</em>` : ""}<small>${memorial ? icon("flower-2") : ""}${years}</small></span>${p.id === ui.mePerson ? '<b class="ds-node-me">Sen</b>' : ""}</button>`;
+  return `<button class="tree-node ds-node ${memorial ? "is-memorial" : ""} ${p.id === treeFocus ? "selected" : ""} ${p.id === ui.mePerson ? "is-me" : ""}" style="left:${c.x}px;top:${c.y}px" data-konak="tree-person" data-id="${esc(p.id)}" aria-label="${esc(p.name)}, ${years}">${uiTreeAvatar(p)}<span class="ds-node-text"><strong>${esc(rest.length ? first : p.name)}</strong>${rest.length ? `<span class="ds-node-sur">${esc(rest.join(" "))}</span>` : ""}${p.nickname ? `<em>“${esc(p.nickname)}”</em>` : ""}<small>${memorial ? icon("flower-2") : ""}${years}</small></span>${p.id === ui.mePerson ? '<b class="ds-node-me">Sen</b>' : ""}</button>`;
 }
 tree = function () {
   let list = state.people;
@@ -961,13 +1434,13 @@ tree = function () {
     }
     list = list.filter((p) => keep.has(p.id));
   }
-  const total = list.length;
-  list = list.slice(0, 160);
-  const L = list.length ? uiTreeLayout(list) : null,
+  const L = list.length ? uiTreeLayout(list) : null;
+  ui.treeLayout = L;
+  const
     focusName = treeFocus ? state.people.find((p) => p.id === treeFocus)?.name : "";
   const head = `<section class="page-head ds-tree-head"><div><span class="eyebrow">Köklerimiz</span><h1>Soy Ağacı</h1><p>${state.people.length} kişi · ${L ? L.rows.length : 0} kuşak${treeFocus ? " · " + esc(focusName) + " ve yakınları" : ""}</p></div><div class="row">${isStaff() ? button("Kişi ekle", "add-person", "user-plus", "primary") + button("Bağ ekle", "add-relation", "link-2") : ""}${knButton(icon("circle-help"), "tree-help", 'aria-label="Soy ağacı kullanım bilgisi" title="Nasıl kullanılır?"', "icon-btn")}</div></section>`;
   if (!L) return head + empty("Köklerimizi birlikte çizelim.", "İlk aile üyesini ekleyerek başlayın.", isStaff() ? "add-person" : "");
-  return `${head}<div class="ds-tree-bar"><button type="button" class="search ds-tree-find" data-action="search-tree">${icon("search")}<span>İsim veya lakapla birini bul</span></button>${treeFocus ? `<div class="ds-focus-chip">${avatar(state.people.find((p) => p.id === treeFocus) || focusName)}<span>${esc(focusName)} ve yakınları</span>${button("", "tree-reset", "x", "icon-btn", 'aria-label="Tüm ağacı göster"')}</div>` : ""}</div><section class="tree-board kn-tree-board ds-tree-board"><div class="tree-viewport" tabindex="0" aria-label="Soy ağacı. Kaydırarak gezin; bir kişiye dokunarak profilini açın."><div class="tree-canvas" style="width:${L.width}px;height:${L.height}px;transform:scale(${zoom})"><svg width="${L.width}" height="${L.height}" fill="none" aria-hidden="true">${L.svg}</svg>${L.rows.map(([level], i) => `<span class="ds-gen" style="top:${UI_TREE.top + i * UI_TREE.row - 30}px">${Number(level) + 1}. kuşak</span>`).join("")}${list.map((p) => uiTreeNode(p, L.pos.get(p.id))).join("")}</div></div><div class="tree-tools ds-tree-tools"><button data-action="zoom-in" aria-label="Yakınlaştır">${icon("plus")}</button><span id="zoom-label">${Math.round(zoom * 100)}%</span><button data-action="zoom-out" aria-label="Uzaklaştır">${icon("minus")}</button><button data-action="zoom-fit" aria-label="Ekrana sığdır">${icon("scan")}</button></div><div class="ds-tree-legend"><span><i class="is-parent"></i>Ebeveyn – çocuk</span><span><i class="is-spouse"></i>Eş</span><span><i class="is-adoptive"></i>Evlat edinme</span><span>${icon("flower-2")}Anısına</span></div></section><p class="ds-tree-note">${total > 160 ? "Bu görünümde ilk 160 kişi var. Aramayla bir aile dalına odaklanabilirsin." : "Bir kişiye dokun: profilini aç ya da yalnızca yakınlarını gör. Ağacı sürükleyerek gezebilirsin."}</p>${isStaff() ? `<div class="ds-tree-foot">${button("Yazdır / PDF", "print-tree", "printer", "text-btn")}</div>` : ""}`;
+  return `${head}<div class="ds-tree-bar"><button type="button" class="search ds-tree-find" data-action="search-tree">${icon("search")}<span>İsim veya lakapla birini bul</span></button>${treeFocus ? `<div class="ds-focus-chip">${avatar(state.people.find((p) => p.id === treeFocus) || focusName)}<span>${esc(focusName)} ve yakınları</span>${button("", "tree-reset", "x", "icon-btn", 'aria-label="Tüm ağacı göster"')}</div>` : ""}</div><section class="tree-board kn-tree-board ds-tree-board"><div class="tree-viewport" tabindex="0" aria-label="Soy ağacı. Kaydırarak gezin; bir kişiye dokunarak profilini açın."><div class="tree-canvas" style="width:${L.width}px;height:${L.height}px;transform:scale(${zoom})"><svg width="${L.width}" height="${L.height}" fill="none" aria-hidden="true">${L.svg}</svg>${L.rows.map(([level], i) => `<span class="ds-gen" style="top:${UI_TREE.top + i * UI_TREE.row - 30}px">${Number(level) + 1}. kuşak</span>`).join("")}${list.map((p) => uiTreeNode(p, L.pos.get(p.id))).join("")}</div></div><canvas class="ds-minimap" aria-hidden="true" hidden></canvas><div class="tree-tools ds-tree-tools"><button data-action="zoom-in" aria-label="Yakınlaştır">${icon("plus")}</button><span id="zoom-label">${Math.round(zoom * 100)}%</span><button data-action="zoom-out" aria-label="Uzaklaştır">${icon("minus")}</button><button data-action="zoom-fit" aria-label="Ekrana sığdır">${icon("scan")}</button></div><div class="ds-tree-legend"><span><i class="is-parent"></i>Ebeveyn – çocuk</span><span><i class="is-spouse"></i>Eş</span><span><i class="is-adoptive"></i>Evlat edinme</span><span>${icon("flower-2")}Anısına</span></div></section><p class="ds-tree-note">${"Bir kişiye dokun: profilini aç ya da yalnızca yakınlarını gör. Ağacı sürükleyerek gezebilirsin."}</p>${isStaff() ? `<div class="ds-tree-foot">${button("Yazdır / PDF", "print-tree", "printer", "text-btn")}</div>` : ""}`;
 };
 /* Opening a person from the tree: a rich card with the next steps. */
 function uiTreeFit() {
@@ -999,6 +1472,63 @@ function uiTreeCentre(force = false) {
   }
   ui.treeCentred = true;
 }
+/* Desktop minimap: every person as a dot, the visible area as a frame; click or drag to move. */
+function uiTreeMinimap() {
+  const vp = $(".ds-tree-board .tree-viewport"),
+    map = $(".ds-minimap"),
+    L = ui.treeLayout;
+  if (!vp || !map || !L) return;
+  const draw = () => {
+    const big = L.width * zoom > vp.clientWidth * 1.15 || L.height * zoom > vp.clientHeight * 1.15;
+    map.hidden = !big || !matchMedia("(min-width: 1024px)").matches;
+    if (map.hidden) return;
+    const W = 200,
+      scale = W / L.width,
+      H = Math.max(40, Math.min(150, L.height * scale)),
+      sy = H / L.height,
+      dpr = devicePixelRatio || 1,
+      css = getComputedStyle(map);
+    if (map.width !== W * dpr || map.height !== Math.round(H * dpr)) {
+      map.width = W * dpr;
+      map.height = Math.round(H * dpr);
+      map.style.width = W + "px";
+      map.style.height = Math.round(H) + "px";
+    }
+    const g = map.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = css.getPropertyValue("--map-node").trim() || "#8fa965";
+    for (const [id, p] of L.pos) {
+      g.fillStyle = id === treeFocus || id === ui.mePerson ? css.getPropertyValue("--map-me").trim() || "#2f4a35" : css.getPropertyValue("--map-node").trim() || "#8fa965";
+      g.fillRect(p.x * scale, p.y * sy, Math.max(2, UI_TREE.w * scale), Math.max(2, UI_TREE.h * sy));
+    }
+    g.strokeStyle = css.getPropertyValue("--map-frame").trim() || "#2f4a35";
+    g.lineWidth = 1.5;
+    g.strokeRect((vp.scrollLeft / zoom) * scale + 0.75, (vp.scrollTop / zoom) * sy + 0.75, Math.min(W, (vp.clientWidth / zoom) * scale) - 1.5, Math.min(H, (vp.clientHeight / zoom) * sy) - 1.5);
+  };
+  ui.drawMinimap = draw;
+  if (!map.dataset.ready) {
+    map.dataset.ready = "1";
+    let frame = 0;
+    vp.addEventListener("scroll", () => frame || (frame = requestAnimationFrame(() => ((frame = 0), draw()))), { passive: true });
+    const go = (e) => {
+      const r = map.getBoundingClientRect(),
+        x = ((e.clientX - r.left) / r.width) * L.width * zoom,
+        y = ((e.clientY - r.top) / r.height) * L.height * zoom;
+      vp.scrollTo({ left: x - vp.clientWidth / 2, top: y - vp.clientHeight / 2, behavior: "instant" });
+    };
+    map.addEventListener("pointerdown", (e) => {
+      map.setPointerCapture(e.pointerId);
+      go(e);
+      const move = (ev) => go(ev),
+        up = () => (map.removeEventListener("pointermove", move), map.removeEventListener("pointerup", up));
+      map.addEventListener("pointermove", move);
+      map.addEventListener("pointerup", up);
+    });
+  }
+  draw();
+}
+addEventListener("resize", () => route === "tree" && ui.drawMinimap?.());
 function uiTreePinch() {
   const vp = $(".tree-viewport"),
     canvas = $(".tree-canvas");
@@ -1063,8 +1593,9 @@ document.addEventListener("click", (e) => {
 /* ---------- Avlu ---------- */
 const uiTileRatio = (url) => Math.min(2.2, Math.max(0.62, uiRatios.get(url) || 1.3333));
 hmTile = function (p) {
-  const r = uiTileRatio(p.url);
-  return `<button class="photo-card hm-tile ds-ptile" data-hm="open" data-id="${esc(p.id)}" style="--r:${r.toFixed(4)}"><span class="ds-ptile-img"><img src="${esc(p.url)}" alt="${esc(p.title || "Aile fotoğrafı")}" loading="lazy" data-ar="${esc(p.url)}"></span>${p.status === "pending" ? '<span class="ds-badge-soft is-pending">Onay bekliyor</span>' : ""}${p.albumId ? `<span class="ds-ptile-album" title="Albüm">${icon("layers")}</span>` : ""}<span class="ds-ptile-meta"><strong>${esc(p.title || "Adsız hatıra")}</strong><small>${esc(hmDate(p))}${p.place ? " · " + esc(p.place) : ""}</small>${p.description ? `<span class="ds-ptile-desc">${esc(p.description.slice(0, 180))}${p.description.length > 180 ? "…" : ""}</span>` : ""}</span></button>`;
+  const known = uiMediaRatio(p.media),
+    r = known ? Math.min(2.2, Math.max(0.62, known)) : uiTileRatio(p.url);
+  return `<button class="photo-card hm-tile ds-ptile" data-hm="open" data-id="${esc(p.id)}" style="--r:${r.toFixed(4)}"><span class="ds-ptile-img"><img ${uiPic(p.url, p.media, { sizes: "(max-width: 700px) 50vw, 360px", fallback: 320 })} alt="${esc(p.title || "Aile fotoğrafı")}" loading="lazy" decoding="async" data-ar="${esc(p.url)}" style="${uiFocus(p.media)}"></span>${p.status === "pending" ? '<span class="ds-badge-soft is-pending">Onay bekliyor</span>' : ""}${p.albumId ? `<span class="ds-ptile-album" title="Albüm">${icon("layers")}</span>` : ""}<span class="ds-ptile-meta"><strong>${esc(p.title || "Adsız hatıra")}</strong><small>${esc(hmDate(p))}${p.place ? " · " + esc(p.place) : ""}</small>${p.description ? `<span class="ds-ptile-desc">${esc(p.description.slice(0, 180))}${p.description.length > 180 ? "…" : ""}</span>` : ""}</span></button>`;
 };
 hmGalleryMarkup = function () {
   const q = query.toLocaleLowerCase("tr"),
@@ -1108,15 +1639,150 @@ photoDetail = async function (id) {
     photo.setAttribute("title", "Tam ekran aç");
   }
   $(".hm-view-photo", dialog)?.classList.add("ds-stage");
+  const cur = hm.current;
+  if (!cur || cur.id !== id) return;
+  const media = cur.media || uiPhotoMedia(id);
+  if (photo && media?.variants?.length) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = `<img ${uiPic(cur.url, media, { sizes: "(max-width: 900px) 100vw, 62vw", fallback: 1080 })}>`;
+    for (const a of ["srcset", "sizes", "width", "height"]) if (tmp.firstChild.hasAttribute(a)) photo.setAttribute(a, tmp.firstChild.getAttribute(a));
+    photo.src = tmp.firstChild.getAttribute("src");
+  }
+  for (const b of $$("#hm-album-strip button[data-id]", dialog)) {
+    const m = uiPhotoMedia(b.dataset.id),
+      img = $("img", b);
+    if (img && m?.variants?.length) img.src = img.src.split("?")[0] + "?w=" + m.variants[0];
+  }
+  if (cur.canEdit && !$('[data-ui="focus"]', dialog))
+    $(".hm-view-actions", dialog)?.insertAdjacentHTML("beforeend", `<button type="button" class="btn" data-ui="focus" data-id="${esc(id)}">${icon("scan-face")} Kırpma odağı</button>`);
+  if (cur.canEdit && !demoMode && !media?.variants?.length && !ui.variantBusy?.has(id)) {
+    (ui.variantBusy ||= new Set()).add(id);
+    uiStoreVariants(id, cur.url)
+      .then((m) => m && (cur.media = m))
+      .catch(() => {})
+      .finally(() => ui.variantBusy.delete(id));
+  }
+  hydrate();
 };
+/* Crop focus: tap the part of the photo that must stay visible in tiles and covers. */
+async function uiChooseFocus(id) {
+  const stage = $(".hm-view-photo .hm-marker-image", dialog),
+    img = $("img", stage);
+  if (!img) return;
+  stage.classList.add("ds-focus-mode");
+  stage.insertAdjacentHTML("beforeend", `<span class="ds-focus-hint" role="status">Kırpılan görünümlerde kalması gereken yere (ör. yüzlere) dokun.</span>`);
+  const pick = await new Promise((resolve) => {
+    const h = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const r = img.getBoundingClientRect();
+      resolve({ x: Math.round((100 * (e.clientX - r.left)) / r.width), y: Math.round((100 * (e.clientY - r.top)) / r.height) });
+    };
+    img.addEventListener("click", h, { once: true, capture: true });
+  });
+  stage.classList.remove("ds-focus-mode");
+  $(".ds-focus-hint", stage)?.remove();
+  const x = Math.max(0, Math.min(100, pick.x)),
+    y = Math.max(0, Math.min(100, pick.y));
+  if (demoMode) {
+    hmDemo[id] = { ...(hmDemo[id] || state.photos.find((p) => p.id === id)), media: { ...(uiPhotoMedia(id) || {}), focusX: x, focusY: y } };
+    hmRemember();
+  } else await hmApi("/" + id + "/focus", "PATCH", { x, y });
+  for (const arr of [state.photos, hm.items]) {
+    const ph = arr.find((p) => p.id === id);
+    if (ph) ph.media = { ...(ph.media || {}), focusX: x, focusY: y };
+  }
+  if (hm.current?.id === id) hm.current.media = { ...(hm.current.media || {}), focusX: x, focusY: y };
+  toast("Kırpma odağı kaydedildi.");
+}
 document.addEventListener("click", (e) => {
   const img = e.target.closest?.(".hm-view-photo .hm-marker-image > img");
   if (!img) return;
   const strip = $$("#hm-album-strip img", dialog),
-    items = strip.length ? strip.map((x) => ({ url: x.src, alt: x.alt })) : [{ url: img.src, alt: img.alt }],
+    big = (x, id) => uiBigUrl(x.getAttribute("src").split("?")[0], uiPhotoMedia(id)),
+    items = strip.length ? strip.map((x) => ({ url: big(x, x.closest("button")?.dataset.id), alt: x.alt })) : [{ url: uiBigUrl(img.getAttribute("src").split("?")[0], hm.current?.media), alt: img.alt }],
     start = Math.max(0, strip.findIndex((x) => x.closest("button")?.classList.contains("active")));
   uiViewer(items, strip.length ? start : 0);
 });
+
+/* ---------- Upload: real progress, then server, then small copies ---------- */
+function uiUploadStatus(stage, value, text) {
+  const form = $("#hm-upload-form");
+  if (!form) return;
+  let box = $("#ds-upload-progress", form);
+  if (!box) {
+    form.querySelector(".kn-upload-footer, .form-actions")?.insertAdjacentHTML("beforebegin", `<div id="ds-upload-progress" class="ds-progress" role="status" aria-live="polite"><div class="ds-progress-track"><i></i></div><span></span></div>`);
+    box = $("#ds-upload-progress", form);
+  }
+  if (!box) return;
+  box.hidden = stage === "idle";
+  box.dataset.stage = stage;
+  const bar = $("i", box);
+  bar.style.width = value == null ? "" : Math.round(value * 100) + "%";
+  box.classList.toggle("is-indeterminate", value == null);
+  $("span", box).textContent = text;
+}
+const uiMB = (n) => (n / 1048576).toLocaleString("tr-TR", { maximumFractionDigits: 1 }) + " MB";
+function uiUploadWithProgress(path, body) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest(),
+      payload = JSON.stringify(body);
+    x.open("POST", path);
+    x.withCredentials = true;
+    x.setRequestHeader("Content-Type", "application/json");
+    if (csrf) x.setRequestHeader("X-CSRF-Token", csrf);
+    const factor = sessionStorage.getItem("sf-factor");
+    if (factor) x.setRequestHeader("X-Family-Factor", factor);
+    x.upload.onprogress = (e) => {
+      if (e.lengthComputable) uiUploadStatus("upload", e.loaded / e.total, `Yükleniyor · ${uiMB(e.loaded)} / ${uiMB(e.total)}`);
+    };
+    x.upload.onload = () => uiUploadStatus("server", null, "Yüklendi · sunucuda kaydediliyor…");
+    x.onerror = () => reject(Error("Bağlantı kesildi. Girdiğin bilgiler korunuyor; bağlantı gelince yeniden dene."));
+    x.ontimeout = x.onerror;
+    x.onload = async () => {
+      let r = {};
+      try {
+        r = JSON.parse(x.responseText || "{}");
+      } catch {}
+      if (x.status === 428) {
+        try {
+          await archiveFactorPrompt();
+          resolve(await uiUploadWithProgress(path, body));
+        } catch (e) {
+          reject(e);
+        }
+        return;
+      }
+      if (x.status < 200 || x.status >= 300) return reject(Error((r.error || "Yükleme tamamlanamadı.") + " Bilgilerin korunuyor; yeniden deneyebilirsin."));
+      resolve(r);
+    };
+    uiUploadStatus("upload", 0, `Yükleniyor · 0 / ${uiMB(payload.length)}`);
+    x.send(payload);
+  });
+}
+const uiBaseHmApi = hmApi;
+hmApi = async function (suffix = "", method = "GET", b) {
+  const upload = suffix === "" && method === "POST" && Array.isArray(b?.photos);
+  if (!upload) return uiBaseHmApi(suffix, method, b);
+  let r;
+  try {
+    r = demoMode || window.FamilyNative?.available ? await uiBaseHmApi(suffix, method, b) : await uiUploadWithProgress("/api/experience/memories", b);
+  } catch (e) {
+    // The form shows the full reason; the bar only marks where the upload stopped.
+    uiUploadStatus("error", null, "Yükleme durdu.");
+    const retry = $("#kn-upload-submit");
+    if (retry) retry.textContent = "Yeniden dene";
+    throw e;
+  }
+  const ids = r.ids || (r.id ? [r.id] : []);
+  if (!demoMode && ids.length === b.photos.length)
+    for (let i = 0; i < ids.length; i++) {
+      uiUploadStatus("variants", i / ids.length, `Telefonlar için küçük kopyalar hazırlanıyor · ${i + 1} / ${ids.length}`);
+      await uiStoreVariants(ids[i], b.photos[i].data).catch(() => {});
+    }
+  uiUploadStatus("done", 1, "Kaydedildi.");
+  return r;
+};
 
 /* ---------- Profile ---------- */
 async function uiProfileHero() {
@@ -1194,9 +1860,237 @@ function uiDmMessages(w) {
       report = $('[data-ex="report"]', m);
     if (reply) reply.innerHTML = icon("reply");
     if (report) report.innerHTML = icon("flag");
+    const audio = $("audio", m);
+    if (audio) uiVoicePlayer(audio);
   }
+  uiDmPendingBubble(w);
   hydrate();
 }
+
+/* ---------- Messages: send state, retry, attachments, voice ---------- */
+const uiClock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+function uiDmPendingBubble(w) {
+  const log = $(".dm-log", w.el);
+  if (!log) return;
+  $(".ds-dm-pending", log)?.remove();
+  const p = w.pending;
+  if (!p) return;
+  log.querySelector(".dm-empty")?.remove();
+  const failed = p.state === "failed";
+  log.insertAdjacentHTML(
+    "beforeend",
+    `<article class="dm-message mine ds-dm-pending ${failed ? "is-failed" : ""}" aria-live="polite">${p.preview ? `<img src="${esc(p.preview)}" alt="Gönderilen fotoğraf">` : ""}${p.voice ? `<p class="ds-dm-voice-note">${icon("mic")} Sesli mesaj${p.voice ? " · " + uiClock(p.voice) : ""}</p>` : ""}${p.body ? `<p>${esc(p.body)}</p>` : ""}<footer>${failed ? `<span class="ds-dm-status is-failed">${icon("circle-alert")} Gönderilemedi</span><button type="button" class="ds-dm-retry" data-ui="dm-retry" data-key="${esc(w.key)}">Yeniden dene</button>` : `<span class="ds-dm-status is-sending">${icon("clock-3")}<span class="sr-only">Gönderiliyor</span></span><time>Gönderiliyor…</time>`}</footer></article>`,
+  );
+  hydrate();
+  log.scrollTop = log.scrollHeight;
+}
+const uiBaseDmSend = dmSend;
+dmSend = async function (w) {
+  if (w.sending || w.recording) return;
+  const field = w.el.querySelector("textarea"),
+    body = field.value.trim();
+  if (!body && !w.file) return;
+  if (w.pending?.preview && w.pending.previewFile !== w.file) URL.revokeObjectURL(w.pending.preview);
+  const preview = w.pending && w.file && w.pending.previewFile === w.file ? w.pending.preview : w.file?.type.startsWith("image/") ? URL.createObjectURL(w.file) : null;
+  w.pending = { state: "sending", body, preview, previewFile: w.file, voice: w.file?.type.startsWith("audio") ? w.voiceSeconds || 0 : 0 };
+  uiDmPendingBubble(w);
+  // Marks the attempt so a failure before the base sender signs it still counts as failed.
+  if (!w.retrySignature) w.retrySignature = "attempt";
+  await uiBaseDmSend(w);
+  // The base sender clears the field only after the server accepted the message.
+  const sent = !w.retrySignature;
+  if (sent) {
+    if (w.pending?.preview) URL.revokeObjectURL(w.pending.preview);
+    w.pending = null;
+    w.voiceSeconds = 0;
+    $(".ds-dm-pending", w.el)?.remove();
+  } else {
+    w.pending.state = "failed";
+    const status = $(".dm-status", w.el);
+    if (status && !navigator.onLine) status.textContent = "Bağlantı yok. Mesajın korunuyor; bağlantı gelince yeniden dene.";
+    else if (status && /fetch|network/i.test(status.textContent)) status.textContent = "Sunucuya ulaşılamadı. Mesajın korunuyor; yeniden dene.";
+    uiDmPendingBubble(w);
+  }
+};
+/* Attachment preview before sending */
+const uiBaseDmContext = dmContext;
+dmContext = function (w) {
+  uiBaseDmContext(w);
+  const box = $(".dm-context", w.el);
+  if (!box || !w.file) return;
+  const row = [...box.children].find((d) => d.querySelector('[data-ex="cancel-file"]'));
+  if (!row) return;
+  if (w.file.type.startsWith("image/")) {
+    const url = URL.createObjectURL(w.file);
+    row.classList.add("ds-attach");
+    row.insertAdjacentHTML("afterbegin", `<img src="${url}" alt="Eklenecek fotoğraf">`);
+    row.querySelector("img").onload = () => setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } else if (w.file.type.startsWith("audio")) {
+    row.classList.add("ds-attach", "is-voice");
+    const url = URL.createObjectURL(w.file);
+    row.insertAdjacentHTML("afterbegin", `<audio src="${url}" preload="metadata"></audio>`);
+    uiVoicePlayer(row.querySelector("audio"));
+  }
+};
+/* Voice player: play/pause, elapsed/total time and bars drawn from the real audio. */
+const uiWaveCache = new Map();
+async function uiWavePeaks(src, bars = 36) {
+  if (uiWaveCache.has(src)) return uiWaveCache.get(src);
+  const job = (async () => {
+    const buf = await (await fetch(src, { credentials: "same-origin" })).arrayBuffer(),
+      Ctx = window.AudioContext || window.webkitAudioContext,
+      ctx = new Ctx(),
+      audio = await ctx.decodeAudioData(buf);
+    ctx.close?.();
+    const data = audio.getChannelData(0),
+      step = Math.max(1, Math.floor(data.length / bars)),
+      peaks = [];
+    for (let i = 0; i < bars; i++) {
+      let sum = 0;
+      for (let j = i * step; j < Math.min(data.length, (i + 1) * step); j++) sum += data[j] * data[j];
+      peaks.push(Math.sqrt(sum / step));
+    }
+    const max = Math.max(...peaks, 0.001);
+    return { peaks: peaks.map((x) => x / max), duration: audio.duration };
+  })();
+  uiWaveCache.set(src, job);
+  job.catch(() => uiWaveCache.delete(src));
+  return job;
+}
+function uiDrawWave(canvas, peaks, progress) {
+  const dpr = devicePixelRatio || 1,
+    w = canvas.clientWidth || 150,
+    h = canvas.clientHeight || 28;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  const ctx = canvas.getContext("2d"),
+    styles = getComputedStyle(canvas),
+    // Resolve token colours (including color-mix) to plain rgb for the canvas.
+    resolve = (v, fb) => {
+      if (!v) return fb;
+      const keep = canvas.style.color;
+      canvas.style.color = v;
+      const c = getComputedStyle(canvas).color;
+      canvas.style.color = keep;
+      return c || fb;
+    },
+    on = resolve(styles.getPropertyValue("--wave-on").trim(), "#2d4a35"),
+    off = resolve(styles.getPropertyValue("--wave-off").trim(), "#c9c2b0"),
+    n = peaks.length,
+    bw = (w / n) * 0.6;
+  ctx.scale(dpr, dpr);
+  peaks.forEach((v, i) => {
+    const bh = Math.max(3, v * (h - 4)),
+      x = (i + 0.2) * (w / n);
+    ctx.fillStyle = i / n < progress ? on : off;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x, (h - bh) / 2, bw, bh, bw / 2) : ctx.rect(x, (h - bh) / 2, bw, bh);
+    ctx.fill();
+  });
+}
+function uiVoicePlayer(audio) {
+  if (!audio || audio.dataset.ds) return;
+  audio.dataset.ds = "1";
+  audio.removeAttribute("controls");
+  audio.preload = "metadata";
+  audio.insertAdjacentHTML("afterend", `<div class="ds-voice"><button type="button" class="ds-voice-play" aria-label="Sesli mesajı oynat">${icon("play")}</button><canvas class="ds-voice-wave" aria-hidden="true"></canvas><span class="ds-voice-time">0:00</span></div>`);
+  const box = audio.nextElementSibling,
+    btn = $(".ds-voice-play", box),
+    canvas = $("canvas", box),
+    time = $(".ds-voice-time", box);
+  let peaks = Array.from({ length: 36 }, () => 0.25),
+    total = 0;
+  const draw = () => uiDrawWave(canvas, peaks, total ? audio.currentTime / total : 0);
+  const setTime = () => (time.textContent = audio.paused || !audio.currentTime ? uiClock(total) : uiClock(audio.currentTime));
+  requestAnimationFrame(draw);
+  uiWavePeaks(audio.src)
+    .then((r) => {
+      peaks = r.peaks;
+      total = r.duration;
+      setTime();
+      draw();
+    })
+    .catch(() => {
+      audio.addEventListener("loadedmetadata", () => {
+        if (Number.isFinite(audio.duration)) total = audio.duration;
+        setTime();
+      });
+    });
+  btn.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (audio.paused) {
+      $$("audio").forEach((a) => a !== audio && a.pause());
+      audio.play().catch(() => toast("Ses oynatılamadı."));
+    } else audio.pause();
+  };
+  audio.addEventListener("play", () => {
+    btn.innerHTML = icon("pause");
+    btn.setAttribute("aria-label", "Duraklat");
+    box.classList.add("is-playing");
+    hydrate();
+  });
+  audio.addEventListener("pause", () => {
+    btn.innerHTML = icon("play");
+    btn.setAttribute("aria-label", "Sesli mesajı oynat");
+    box.classList.remove("is-playing");
+    setTime();
+    hydrate();
+  });
+  audio.addEventListener("timeupdate", () => {
+    setTime();
+    draw();
+  });
+  audio.addEventListener("ended", () => {
+    audio.currentTime = 0;
+    draw();
+  });
+  hydrate();
+}
+/* Recording: elapsed time and a live level meter from the microphone. */
+const uiBaseDmRecord = dmRecord;
+dmRecord = async function (w) {
+  const wasRecording = !!w.recording;
+  await uiBaseDmRecord(w);
+  if (wasRecording || !w.recording) return;
+  const compose = $(".dm-compose", w.el);
+  compose.classList.add("is-recording");
+  compose.insertAdjacentHTML("afterbegin", `<div class="ds-rec" role="status"><i class="ds-rec-dot"></i><span class="ds-rec-time">0:00</span><canvas aria-hidden="true"></canvas><small>Bitirmek için mikrofona dokun</small></div>`);
+  const rec = $(".ds-rec", compose),
+    canvas = $("canvas", rec),
+    start = performance.now(),
+    levels = Array.from({ length: 28 }, () => 0);
+  let ctx, analyser;
+  try {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    ctx.createMediaStreamSource(w.stream).connect(analyser);
+  } catch {}
+  const buf = new Uint8Array(128);
+  const tick = () => {
+    if (!w.recording) {
+      w.voiceSeconds = (performance.now() - start) / 1000;
+      rec.remove();
+      compose.classList.remove("is-recording");
+      ctx?.close?.();
+      return;
+    }
+    $(".ds-rec-time", rec).textContent = uiClock((performance.now() - start) / 1000);
+    if (analyser) {
+      analyser.getByteTimeDomainData(buf);
+      let peak = 0;
+      for (const v of buf) peak = Math.max(peak, Math.abs(v - 128) / 128);
+      levels.push(Math.min(1, peak * 2.2));
+      levels.shift();
+      uiDrawWave(canvas, levels, 1);
+    }
+    requestAnimationFrame(tick);
+  };
+  tick();
+};
+
+
 const uiBaseDmOpen = dmOpen;
 dmOpen = async function (kind, id) {
   await uiBaseDmOpen(kind, id);
@@ -1217,6 +2111,7 @@ dmPosition = function () {
   uiBaseDmPosition();
   document.body.classList.toggle("ds-dm-open", uiPhone() && route === "chat" && !!dm.active);
   document.body.classList.toggle("ds-inbox-open", !uiPhone() && !!dm.inbox);
+  if (!uiWantsStream()) ui.stream?.abort();
 };
 const uiBaseDmLists = dmLists;
 dmLists = function () {
@@ -1239,7 +2134,28 @@ render = function () {
   uiShell();
   uiAfterRender();
 };
+async function uiPhotoPerfCard() {
+  if (demoMode || !isStaff() || !["admin", "settings"].includes(route) || $("#ds-photo-perf")) return;
+  const host = route === "settings" ? $(".admin-grid") : $(".footer");
+  if (!host) return;
+  const card = `<section class="card" id="ds-photo-perf"><h2>Fotoğraf hızı</h2><p class="muted" id="ds-perf-text">Küçük kopyası olmayan fotoğraflar sayılıyor…</p><div class="row" style="margin-top:14px">${'<button type="button" class="btn soft" data-ui="backfill" hidden>Küçük kopyaları hazırla</button>'}</div></section>`;
+  if (route === "settings") host.insertAdjacentHTML("beforeend", card);
+  else host.insertAdjacentHTML("beforebegin", card);
+  try {
+    const r = await hmApi("/variants/missing");
+    if (!$("#ds-perf-text")) return;
+    $("#ds-perf-text").textContent = r.total ? `${r.total} fotoğrafın telefon için küçük kopyası yok. Hazırlama bu tarayıcıda yapılır; orijinaller değişmez.` : "Bütün fotoğrafların küçük kopyaları hazır.";
+    $('[data-ui="backfill"]').hidden = !r.total;
+  } catch (e) {
+    if ($("#ds-perf-text")) $("#ds-perf-text").textContent = e.message;
+  }
+}
 function uiAfterRender() {
+  uiPhotoPerfCard();
+  if (["home", "profile"].includes(route)) {
+    dmStream();
+    if (!ui.feedCursor) uiFeedChanges();
+  }
   if (route === "tree") {
     if (uiPhone() && !ui.treeZoomed) {
       ui.treeZoomed = true;
@@ -1250,6 +2166,9 @@ function uiAfterRender() {
     }
     requestAnimationFrame(() => uiTreeCentre());
     uiTreePinch();
+    uiTreeMinimap();
+    if (!ui.portraitsRoute) uiTreePortraits();
+    ui.portraitsRoute = true;
     if (ui.mePerson === undefined) {
       ui.mePerson = null;
       exApi("/me")
@@ -1259,7 +2178,10 @@ function uiAfterRender() {
         })
         .catch(() => {});
     }
-  } else ui.treeCentred = false;
+  } else {
+    ui.treeCentred = false;
+    ui.portraitsRoute = false;
+  }
 }
 
 if (state) render();

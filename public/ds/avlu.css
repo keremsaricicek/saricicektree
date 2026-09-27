@@ -8,7 +8,7 @@
   gap: 12px;
   margin: -6px calc(var(--gutter) * -1) 0;
   padding: 10px var(--gutter);
-  background: linear-gradient(to bottom, var(--bg) 80%, rgba(244, 241, 232, 0));
+  background: linear-gradient(to bottom, var(--bg) 80%, transparent);
 }
 .ds-avlu-tools .search {
   max-width: 420px;
@@ -293,6 +293,29 @@
 }
 
 /* ---------- Photo story viewer (dialog) ---------- */
+/* Grow-open from the tapped tile: the dialog surface fades in while the photo travels. */
+dialog.is-viewer.ds-grow[open] {
+  animation: ds-surface-in 320ms var(--ease-out);
+}
+dialog.ds-grow .hm-marker-image > img {
+  visibility: hidden;
+}
+dialog.ds-grow .hm-view-story,
+dialog.ds-grow .dialog-header {
+  animation: ds-fade-in 320ms var(--ease) both;
+}
+.ds-grow-ghost {
+  position: fixed;
+  z-index: 10;
+  object-fit: cover;
+  pointer-events: none;
+}
+@keyframes ds-surface-in {
+  from {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
 dialog.is-viewer {
   width: min(1320px, calc(100vw - 48px));
   max-height: min(94dvh, 960px);
@@ -316,7 +339,7 @@ dialog.is-viewer .dialog-header h2 {
   clip: rect(0, 0, 0, 0);
 }
 dialog.is-viewer .dialog-header .icon-btn {
-  background: rgba(255, 253, 248, 0.9);
+  background: var(--glass-2);
   box-shadow: var(--sh-1);
   backdrop-filter: blur(8px);
 }
@@ -362,7 +385,7 @@ dialog.is-viewer .dialog-body {
   padding: 5px 10px;
   border: 0;
   border-radius: var(--r-full);
-  background: rgba(255, 253, 248, 0.92);
+  background: var(--glass-2);
   color: var(--ink);
   font-size: var(--fs-xs);
   font-weight: 650;
@@ -785,6 +808,69 @@ dialog.is-viewer .dialog-body {
 .kn-upload:not([data-step="1"]) .hm-file-zone strong {
   display: none;
 }
-.kn-upload:not([data-step="1"]) .hm-file-zone span br {
-  display: none;
+
+
+/* Upload progress: measured bytes while sending, then an honest "working" state. */
+.ds-progress {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+.ds-progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--r-full);
+  background: var(--surface-3);
+}
+.ds-progress-track i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--forest-3);
+  transition: width var(--t) var(--ease);
+}
+.ds-progress.is-indeterminate .ds-progress-track i {
+  width: 35%;
+  animation: ds-indeterminate 1.2s var(--ease) infinite;
+}
+.ds-progress[data-stage="error"] .ds-progress-track i {
+  width: 100%;
+  background: var(--danger);
+  animation: none;
+}
+.ds-progress[data-stage="error"] span {
+  color: var(--danger);
+}
+@keyframes ds-indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+/* Crop focus picker */
+.ds-focus-mode img {
+  cursor: crosshair !important;
+  outline: 3px dashed var(--pistachio);
+  outline-offset: -3px;
+}
+.ds-focus-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 8px 14px;
+  border-radius: var(--r-full);
+  background: rgba(14, 20, 16, 0.75);
+  color: #fff;
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
 }

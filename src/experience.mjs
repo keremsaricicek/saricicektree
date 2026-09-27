@@ -1,3 +1,4 @@
+import {mediaInfo} from './variants.mjs';
 import {memories} from './memories.mjs';
 import {konak} from './konak.mjs';
 import {feed} from './feed.mjs';
@@ -18,6 +19,8 @@ export async function experience(ctx){
  const where=(kind)=>kind==='dm'?'((senderId=? AND recipientId=?) OR (senderId=? AND recipientId=?))':'groupId=?';
  const params=(kind,id)=>kind==='dm'?[u.id,id,id,u.id]:[id];
  async function message(kind,id,n){return one(`SELECT * FROM ${kind==='dm'?'messages':'group_messages'} WHERE ${where(kind)} AND id=?`,...params(kind,id),n);}
+ // Portraits for the family tree: the same per-field visibility as a single profile read.
+ if(path==='/api/experience/portraits'&&method==='GET'){const hidden=await hiddenPeople(all,u),rows=await all('SELECT d.personId,d.userId,d.fields,(SELECT userId FROM person_guardians g WHERE g.personId=d.personId LIMIT 1) guardian FROM profile_details d JOIN people x ON x.id=d.personId AND x.deletedAt IS NULL'),items=[];for(const r of rows){if(hidden.has(r.personId))continue;const v=JSON.parse(r.fields||'{}').portrait;if(!v?.value)continue;const edit=u.role==='owner'||r.userId===u.id||r.guardian===u.id;if(!(edit||v.visibility==='family'||v.visibility==='selected'&&v.users?.includes(u.id)))continue;const ph=await visiblePhoto(one,u,v.value);if(!ph||!(ph.status==='approved'||ph.createdBy===u.id||u.role!=='member'))continue;items.push({personId:r.personId,url:'/media/'+v.value,media:await mediaInfo(one,all,v.value)});}return reply({items});}
  const p=path.match(/^\/api\/experience\/profile\/([\w-]+)$/);
  if(p){const id=p[1];assert(!(await hiddenPeople(all,u)).has(id)&&await one('SELECT id FROM people WHERE id=? AND deletedAt IS NULL',id),404,'Kişi bulunamadı.');const row=await one('SELECT * FROM profile_details WHERE personId=?',id),guardian=await one('SELECT userId FROM person_guardians WHERE personId=?',id),edit=u.role==='owner'||row?.userId===u.id||guardian?.userId===u.id;
  if(method==='GET'){const raw=JSON.parse(row?.fields||'{}'),fields={};for(const [k,v]of Object.entries(raw)){if(edit||v.visibility==='family'||v.visibility==='selected'&&v.users?.includes(u.id))fields[k]=edit?v:{value:v.value,visibility:v.visibility};}for(const k of ['cover','portrait'])if(fields[k]?.value&&!await visiblePhoto(one,u,fields[k].value))delete fields[k];return reply({fields,canEdit:edit,userId:row?.userId||null});}

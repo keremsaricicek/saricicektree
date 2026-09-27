@@ -71,7 +71,7 @@ body.ds-scrolled .topbar.social-topbar {
   margin: 0 auto;
   padding: 4px;
   border-radius: var(--r-full);
-  background: rgba(231, 225, 210, 0.55);
+  background: var(--nav-track);
 }
 .desktop-links .nav {
   display: inline-flex;
@@ -100,7 +100,7 @@ body.ds-scrolled .topbar.social-topbar {
   color: var(--muted);
 }
 .desktop-links .nav:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--nav-active);
   color: var(--ink);
 }
 .desktop-links .nav.active {
@@ -130,7 +130,7 @@ body.ds-scrolled .topbar.social-topbar {
   color: var(--ink-2);
 }
 .social-topbar .top-actions .icon-btn:hover {
-  background: rgba(231, 225, 210, 0.7);
+  background: var(--nav-hover);
   color: var(--ink);
 }
 .social-topbar .top-actions > [data-page="chat"] {
@@ -299,7 +299,7 @@ body.ds-scrolled .topbar.social-topbar {
     border: 0;
     border-top: 1px solid var(--line);
     border-radius: 0;
-    background: rgba(250, 247, 240, 0.9);
+    background: var(--glass-2);
     backdrop-filter: saturate(1.6) blur(20px);
     -webkit-backdrop-filter: saturate(1.6) blur(20px);
     box-shadow: 0 -8px 24px -20px rgba(29, 43, 34, 0.35);

@@ -515,8 +515,8 @@
   color: var(--pistachio-ink);
 }
 .ds-kind.is-event {
-  background: #e4eef2;
-  color: #36607a;
+  background: var(--info-soft);
+  color: var(--info-ink);
 }
 
 .ds-post-text {
@@ -1237,8 +1237,8 @@ dialog.is-post .ds-post {
   font-weight: 500;
 }
 .ds-gather {
-  background: var(--forest);
-  color: var(--on-dark);
+  background: var(--feature);
+  color: var(--feature-ink);
   box-shadow: var(--sh-2);
 }
 .ds-gather .eyebrow {
@@ -1248,7 +1248,7 @@ dialog.is-post .ds-post {
   margin: 8px 0 6px;
   font: 500 22px/1.2 var(--font-serif);
   letter-spacing: -0.015em;
-  color: var(--on-dark);
+  color: var(--feature-ink);
 }
 .ds-gather p {
   display: flex;
@@ -1463,4 +1463,112 @@ dialog.is-post .ds-post {
 html.ds-lock,
 html.ds-lock body {
   overflow: hidden;
+}
+
+/* ---------- Reactions and comment likes ---------- */
+.ds-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 18px 0;
+}
+.ds-reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 10px 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.ds-reaction span {
+  font-size: 16px;
+  line-height: 1;
+}
+.ds-reaction.is-on {
+  border-color: var(--pistachio-2);
+  background: var(--pistachio-soft);
+  color: var(--pistachio-ink);
+}
+.ds-actions {
+  position: relative;
+}
+.ds-react .ds-emoji {
+  font-size: 20px;
+  line-height: 1;
+}
+.ds-react-menu {
+  position: absolute;
+  bottom: calc(100% - 2px);
+  left: 96px;
+  z-index: 30;
+  display: flex;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  box-shadow: var(--sh-2);
+  animation: ds-pop var(--t) var(--ease-out);
+}
+.ds-react-menu button {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease);
+}
+.ds-react-menu button:hover,
+.ds-react-menu button:focus-visible {
+  background: var(--surface-3);
+  transform: translateY(-3px) scale(1.12);
+}
+.ds-react-menu button[aria-checked="true"] {
+  background: var(--pistachio-soft);
+}
+.ds-bubble {
+  position: relative;
+}
+.ds-comment-likes {
+  position: absolute;
+  right: -8px;
+  bottom: -9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px 1px 5px;
+  border-radius: var(--r-full);
+  background: var(--surface);
+  box-shadow: var(--sh-1);
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+.ds-comment-likes svg.lucide {
+  width: 12px;
+  height: 12px;
+  color: var(--heart);
+  fill: currentColor;
+}
+.ds-comment-meta button.is-on {
+  color: var(--heart);
+}
+@media (max-width: 700px) {
+  .ds-reactions {
+    margin: 12px 14px 0;
+  }
+  .ds-react-menu {
+    left: 50%;
+    transform: translateX(-50%);
+  }
 }

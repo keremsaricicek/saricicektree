@@ -91,9 +91,7 @@
   justify-content: flex-end;
   padding: 16px;
   background:
-    radial-gradient(60% 120% at 85% 0%, rgba(255, 255, 255, 0.45), transparent 60%),
-    radial-gradient(50% 80% at 10% 100%, rgba(75, 104, 39, 0.25), transparent 70%),
-    linear-gradient(120deg, #b9d08a, #dfe9c3 55%, #efe6cf);
+    var(--hero-grad);
 }
 .hm-cover-empty::after {
   content: "";
@@ -112,7 +110,7 @@
   padding: 8px 14px;
   border: 0;
   border-radius: var(--r-full);
-  background: rgba(255, 253, 248, 0.75);
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
   color: var(--ink-2);
   font-size: var(--fs-sm);
   font-weight: 600;

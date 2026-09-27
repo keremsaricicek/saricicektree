@@ -59,7 +59,7 @@
 }
 .btn.gold:hover,
 .btn.soft:hover {
-  --btn-bg: #e0ebc3;
+  --btn-bg: var(--soft-btn);
   --btn-bd: transparent;
 }
 .btn.danger {
@@ -67,7 +67,7 @@
 }
 .btn.danger:hover {
   --btn-bg: var(--danger-soft);
-  --btn-bd: #ecc8c0;
+  --btn-bd: var(--danger-line);
 }
 .btn.small {
   min-height: 32px;
@@ -822,7 +822,7 @@ dialog::backdrop {
   bottom: -26px;
   margin: 24px -26px -26px;
   padding: 14px 26px calc(18px + var(--safe-bottom));
-  background: linear-gradient(to top, var(--surface) 70%, rgba(255, 253, 248, 0));
+  background: linear-gradient(to top, var(--surface) 70%, transparent);
 }
 
 /* All sections menu */
@@ -1368,4 +1368,20 @@ dialog.is-search #server-results {
     height: calc(100dvh - 12px - var(--safe-top));
     margin: auto 0 0;
   }
+}
+
+/* Appearance choice inside the account sheet */
+.ds-theme-row {
+  flex-wrap: wrap;
+  cursor: default;
+}
+.ds-theme-row:hover {
+  background: none;
+}
+.ds-theme-row .ds-row-text {
+  flex: 1 1 140px;
+}
+.ds-theme-row .tab {
+  min-height: 36px;
+  padding: 0 14px;
 }
