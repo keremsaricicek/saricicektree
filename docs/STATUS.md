@@ -21,10 +21,18 @@ Durum: [x] kodlandı ve test edildi · [k] kodlandı, test edilmedi/kısmi · [ 
    - [k] Üst üste sarma zincirleri: aynı dosyadaki çok katmanlılar birleştirildi (knAction, archiveHandle, render/handle/ffHandle/ffApi/readRoute).
      Dosyalar arası ~45 tek katmanlı sarma duruyor (ui/*.js yeniden tasarım katmanları); kaldırmak temel fonksiyonları
      yeniden yazmayı gerektirir, bu turda davranış riski nedeniyle yapılmadı. Denetim aracı: scripts/visual-snapshot.mjs.
-4. [ ] Hız: ikon alt kümesi, harita tembel yükleme, JS küçültme; UI tutarsızlıkları
+4. [x] Hız: ikon alt kümesi, harita tembel yükleme, JS küçültme; UI tutarsızlıkları — docs/PERFORMANCE.md
+   - Aynı koşullarda ölçüldü (scripts/measure-load.mjs, CPU 4×, 10 Mbit/s, soğuk önbellek, 5 ölçümün ortancası):
+     Hayat hazır 2703 → 1488 ms; JS 1738/514 KB → 408/143 KB (ham/gzip); toplam 2286/896 → 956/524 KB.
+   - İkonlar 397 → 37 KB; harita yalnız harita ekranlarında; betikler küçültülmüş (public/min/).
+     44 demo ekranı değişiklik öncesiyle bayt bayt aynı.
+   - Yeniden çizim (1.200 kişi): kişi aramasında her tuşta sayfa kurulumu kaldırıldı (7 → 1); ağaç ziyaretinde çift çizim kaldırıldı.
+     Canlı güncellemede sayfa yeniden kurulmuyor, taslak ve kaydırma korunuyor (testli).
+   - Erişilebilirlik: axe-core WCAG 2.1 A/AA testi tüm sayfalar ve ana pencereler için (telefon + masaüstü) CI'da; bulunan tek hata düzeltildi.
+   - Kalan: 1.200 kişilik ağaç tek seferde çiziliyor (757 ms, CPU 4×); dünya haritası 755 KB (daha kaba harita tasarım kararı ister).
 5. [ ] Güvenlik, sunucu dışı yedek, veri dışa aktarma, gizlilik/destek sayfaları, güncelleme/geri dönüş belgesi
 6. [ ] Native bildirim, e-posta, GEDCOM, video, sesli yorum, çevrimdışı okuma, yönetici paneli
 7. [ ] Test ortamları: web demo bağlantısı, cihaz ölçüsü seçimi, Android/iOS derlemeleri, Appetize
 8. [ ] CI doğrulama, kapasite testi, kılavuz, tek dosya demo, teslim
 
-Sıradaki iş: 4 (hız ölçümü önce/sonra, ikon alt kümesi, harita tembel yükleme, JS küçültme, UI tutarsızlıkları)
+Sıradaki iş: 5 (güvenlik denetimi, sunucu dışı yedek + geri yükleme denemesi, hesap silme, kişisel veri dışa aktarma, gizlilik/destek sayfaları)
