@@ -361,7 +361,7 @@ async function uiCommentLike(post, cid, on) {
 /* ---------- Hayat: live updates ----------
    One event stream per tab (shared with Mesajlar) carries a feed cursor; only posts that
    changed and are on screen are fetched again. Typing, open threads and scroll stay put. */
-ui.feedCursor = 0;
+ui.feedCursor = null;
 ui.pendingRefresh = new Set();
 async function uiRefreshPost(id) {
   const el = $(`[data-feed-card="${id}"]`);
@@ -406,8 +406,9 @@ async function uiFeedChanges() {
   if (ui.feedBusy || !state || !["home", "profile"].includes(route)) return;
   ui.feedBusy = true;
   try {
-    const r = await ffApi("/changes?after=" + ui.feedCursor);
-    if (!ui.feedCursor) return void (ui.feedCursor = r.cursor);
+    const first = ui.feedCursor == null,
+      r = await ffApi(first ? "/changes" : "/changes?after=" + ui.feedCursor);
+    if (first) return void (ui.feedCursor = r.cursor);
     ui.feedCursor = r.cursor;
     const ids = r.reset ? [...new Set($$("[data-feed-card]").map((c) => Number(c.dataset.feedCard)))] : r.posts;
     for (const id of ids) await uiRefreshPost(id);
@@ -483,8 +484,8 @@ ffApi = async function (suffix = "", method = "GET", body) {
   const touch = () => ((D.activity += 1), ffDemoSave());
   const likeInfo = (c) => ({ ...c, likes: (c.likedBy || []).length, liked: (c.likedBy || []).includes(state.user.id) });
   if (suffix.startsWith("/changes")) {
-    const after = Number(new URLSearchParams(suffix.split("?")[1]).get("after")) || 0;
-    return { cursor: D.activity, posts: after && after < D.activity ? D.posts.map((p) => p.id) : [], fresh: false };
+    const raw = new URLSearchParams(suffix.split("?")[1]).get("after");
+    return { cursor: D.activity, posts: raw !== null && Number(raw) < D.activity ? D.posts.map((p) => p.id) : [], fresh: false };
   }
   let m = suffix.match(/^\/(\d+)\/reaction$/);
   if (m) {
@@ -2269,7 +2270,7 @@ function uiAfterRender() {
   uiPhotoPerfCard();
   if (["home", "profile"].includes(route)) {
     dmStream();
-    if (!ui.feedCursor) uiFeedChanges();
+    if (ui.feedCursor == null) uiFeedChanges();
   }
   if (route === "tree") {
     if (uiPhone() && !ui.treeZoomed) {

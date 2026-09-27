@@ -11,7 +11,7 @@ Durum: [ ] bekliyor · [~] sürüyor · [x] bitti · [!] dış engel
 7. [x] Gece modu (açık/koyu/sistem), geçişler, hareket azaltma
 8. [x] Erişilebilirlik, Kolay görünüm, klavye/güvenli alan/geri tuşu (emülasyon) + telefon kontrol listesi
 9. [x] Hayat şeridi, Bugün geçmişte bildirimleri, takvim/arşiv/yönetim kontrolleri
-10. [ ] Testler, güvenlik incelemesi, yedek uyumu, kılavuz/belge, tek dosya HTML, commit/push
+10. [x] Testler, güvenlik incelemesi, yedek uyumu, kılavuz/belge, tek dosya HTML, commit/push
 
 Notlar
 - Fotoğraf ölçümü (heritage.webp, archive.webp; 1536×1024): orijinal 484/418 KB → 640 px 60/53 KB, 1080 px 165/137 KB, 320 px 16 KB.
@@ -26,3 +26,6 @@ Notlar
 - Hayat şeridi: profil "Hayat hikâyesi" sekmesinde doğum, tarihi kayıtlı evlilik, çocukların doğumu, kişinin olayları, etiketli tarihli fotoğraflar, vefat; tarihsiz kayıt gösterilmez, yıl/ay kesinliği korunur. Telefonda sayfa taşması yok.
 - Bugün geçmişte: yalnızca günü kesin kayıtlar (yalnız yılı bilinen 1 Ocak fotoğrafı sayılmaz — denendi). Bildirimlerde ayrı grup; "Bugün geçmişte" tercihi kapatılınca gizlenir (denendi).
 - Yönetim: yetki seçimi tasarımdaki açılır liste biçiminde, satır düğmeleri ayrık, İnceleme merkezi aralıkları düzeltildi. Takvim ve Arşiv zaten uyumluydu.
+- Testler: npm test 66/66 (59 eski + 7 yeni: tepkiler, yorum beğenisi, değişiklik akışı ve görünürlük, fotoğraf kopyası doğrulama/erişim/odak, mesaj yeniden deneme tekrarsızlığı, yedek tabloları, soy ağacı portre görünürlüğü). Testlerle bir hata bulundu ve düzeltildi: hiç etkinliği olmayan ailede ilk canlı güncelleme kaçıyordu (after=0).
+- Güvenlik (yalnız bu değişiklikler): /media?w= erişim kontrolünden sonra kopya seçer (Node ve Worker); /changes yalnız görülebilen gönderi kimliklerini döndürür; portreler hem alan hem fotoğraf görünürlüğüne uyar; kopya yükleme yalnız sahibi/yönetici, yalnız JPEG/WebP, ≤1,5 MB, büyütme yok. Bilinen küçük not: akış sayacı herkese "bir şey değişti" bilgisini verir (içerik değil).
+- Tek dosya HTML: exports/Saricicek-Family.html (≈8,2 MB) file:// ile açıldı, dış istek yok, yazı tipleri gömülü; akış, tepki, ağaç, Avlu görüntüleyici, koyu tema masaüstü ve telefonda çalıştı.
