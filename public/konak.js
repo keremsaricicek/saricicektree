@@ -179,20 +179,6 @@ ffBindComposer = function () {
     }
   };
 };
-const knBaseFeedHandle = ffHandle;
-ffHandle = async function (action, el) {
-  if (action === "kind") {
-    ff.draft.kind = ff.draft.kind === "question" ? "post" : "question";
-    ff.draft.clientId = null;
-    knSaveDraft();
-    $(".ff-composer").outerHTML = ffComposer();
-    ffBindComposer();
-    hydrate();
-    $("#ff-body").focus();
-    return;
-  }
-  return knBaseFeedHandle(action, el);
-};
 function knCreate() {
   modal(
     "Paylaş",
@@ -400,59 +386,9 @@ document.addEventListener("focusin", (e) => {
     );
   }
 });
-const knBaseRender = render;
-render = function () {
-  if (state && kn.owner !== state.user.id) {
-    kn.owner = state.user.id;
-    kn.easy = knRead("easy", false);
-    const d = knRead("draft", null);
-    if (d?.body) {
-      ff.draft = { ...d, kind: d.kind === "question" ? "question" : "post", visibility: "family" };
-      ff.owner = state.user.id;
-    }
-  }
-  knBaseRender();
-  if (!state) return;
-  document.title = "Sarıçiçek Konağı";
-  const brand = $(".brand span");
-  if (brand) brand.innerHTML = "<strong>Sarıçiçek Konağı</strong>";
-  const actions = $(".top-actions");
-  if (actions && !$("[data-konak=notifications]", actions))
-    actions.insertAdjacentHTML("afterbegin", knButton(icon("bell"), "notifications", 'aria-label="Bildirimler"', "icon-btn kn-bell"));
-  const mobile = $(".mobile-nav");
-  if (mobile)
-    mobile.innerHTML = [
-      ["home", "house", "Hayat"],
-      ["gallery", "images", "Avlu"],
-      ["create", "plus", "Paylaş"],
-      ["tree", "git-fork", "Soy ağacı"],
-      ["chat", "messages-square", "Mesajlar"],
-    ]
-      .map(([id, i, l]) =>
-        id === "create"
-          ? knButton(icon(i) + "<span>" + l + "</span>", "create", 'aria-label="Yeni paylaşım oluştur"', "kn-mobile-create")
-          : `<button data-action="nav" data-page="${id}" class="${route === id ? "active" : ""}" ${route === id ? 'aria-current="page"' : ""}>${icon(i)}<span>${l}</span></button>`,
-      )
-      .join("");
-  $(".footer span")?.replaceChildren("Sarıçiçek Konağı");
-  document.body.classList.toggle("kn-easy", kn.easy);
-  hydrate();
-};
 window.addEventListener("online", () => {
   if (ff.draft.body) toast("Bağlantı geri geldi. Taslağını kontrol edip Paylaş’a dokunabilirsin.");
 });
-const knBaseHandle = handle;
-handle = async function (action, el) {
-  const result = await knBaseHandle(action, el);
-  if (action === "account" && dialog.open) {
-    $(".dialog-body")?.insertAdjacentHTML(
-      "beforeend",
-      knButton(kn.easy ? "Kolay görünüm açık" : "Kolay görünüm kapalı", "easy", `aria-pressed="${kn.easy}"`, "btn kn-easy-control"),
-    );
-    hydrate();
-  }
-  return result;
-};
 // Photo drafts contain private images; they stay in an account-scoped device database.
 function knPhotoDraft(op, value) {
   return new Promise((resolve, reject) => {
@@ -871,25 +807,6 @@ function knSearch(treeOnly = false, messages = false) {
 document.addEventListener("DOMContentLoaded", () => {
   searchDialog = (treeOnly) => knSearch(treeOnly);
 });
-const knFeedApi = ffApi;
-ffApi = async function (suffix = "", method = "GET", body) {
-  if (demoMode && suffix.endsWith("/restore")) {
-    await knFeedApi();
-    const p = ffDemo.posts.find((p) => p.id === Number(suffix.split("/")[1]));
-    if (p) {
-      p.deletedAt = null;
-      ffDemoSave();
-      return { ok: true };
-    }
-  }
-  const r = await knFeedApi(suffix, method, body);
-  if (demoMode && method === "GET" && suffix.includes("?q=")) {
-    const q = new URLSearchParams(suffix.split("?")[1]).get("q");
-    r.items = r.items.filter((p) => knFold(p.body + " " + (p.place || "")).includes(knFold(q)));
-    r.pinned = [];
-  }
-  return r;
-};
 function knUndo(label, undo) {
   $("#kn-undo")?.remove();
   const bar = document.createElement("div");
@@ -911,11 +828,11 @@ function knUndo(label, undo) {
   };
   setTimeout(() => bar.remove(), 300000);
 }
-const knOptions = ffHandle;
+const knBaseFeedHandle = ffHandle;
 ffHandle = async function (action, el) {
   const id = Number(el.dataset.id);
   if (action === "options") {
-    await knOptions(action, el);
+    await knBaseFeedHandle(action, el);
     $(".ff-options")?.insertAdjacentHTML("beforeend", knButton(icon("link") + " Bağlantıyı kopyala", "copy-post", `data-id="${id}"`));
     hydrate();
     return;
@@ -927,17 +844,17 @@ ffHandle = async function (action, el) {
     );
     return;
   }
-  return knOptions(action, el);
-};
-const knRoute = readRoute;
-readRoute = function () {
-  const m = location.hash.match(/^#post\/(\d+)$/);
-  if (m) {
-    route = "home";
-    kn.openPost = Number(m[1]);
+  if (action === "kind") {
+    ff.draft.kind = ff.draft.kind === "question" ? "post" : "question";
+    ff.draft.clientId = null;
+    knSaveDraft();
+    $(".ff-composer").outerHTML = ffComposer();
+    ffBindComposer();
+    hydrate();
+    $("#ff-body").focus();
     return;
   }
-  knRoute();
+  return knBaseFeedHandle(action, el);
 };
 const knChat = communityChat;
 communityChat = function () {
@@ -945,18 +862,6 @@ communityChat = function () {
     '<section class="dm-inbox-page">',
     `<div class="kn-message-search">${knButton(icon("search") + " Mesaj metninde ara", "message-search")}</div><section class="dm-inbox-page">`,
   );
-};
-const knMoreRender = render;
-render = function () {
-  knMoreRender();
-  if (!state) return;
-  kn.view = knRead("gallery-view", "mosaic");
-  if (kn.openPost) {
-    const id = kn.openPost;
-    kn.openPost = null;
-    ffHandle("notice-open", { dataset: { id } }).catch((e) => toast(e.message));
-  }
-  if (route === "admin" && isStaff()) knReview();
 };
 async function knReview() {
   if ($("#kn-review")) return;
@@ -985,20 +890,6 @@ async function knReview() {
     if ($("#kn-review-suggestions")) $("#kn-review-suggestions").textContent = e.message;
   }
 }
-const knHelpHandle = handle;
-handle = async function (action, el) {
-  if (action === "ar-simple") return knAction("easy", el);
-  const result = await knHelpHandle(action, el);
-  if (action === "account") {
-    $("[data-action=ar-simple]", dialog)?.remove();
-    $(".dialog-body")?.insertAdjacentHTML(
-      "beforeend",
-      `<div class="kn-account-help">${hmButton(icon("book-open") + " Resimli kullanım kılavuzu", "guide-full")}${knButton("Konağa ilk adımlar", "onboarding")}${knButton("Bildirim tercihlerim", "notice-prefs")}</div>`,
-    );
-    hydrate();
-  }
-  return result;
-};
 const knGo = go;
 go = function (next, id = "") {
   kn.positions.set(route + ":" + personId, { y: scrollY, query, year: hm.year, filter: ff.filter });
@@ -1021,13 +912,30 @@ window.familyEnhancements.cleanup = function () {
   kn.positions.clear();
   knCleanup();
 };
-const knFinalHandle = handle;
+const knBaseHandle = handle;
 handle = async function (action, el) {
   if (action === "ar-weekly") {
     modal("Bu hafta ailede", archiveToday() + '<p class="kn-muted">Özet, yüklenmiş ve görmeye yetkili olduğun kayıtlardan hazırlanır.</p>', true);
     return;
   }
-  return knFinalHandle(action, el);
+  if (action === "ar-simple") return knAction("easy", el);
+  const result = await knBaseHandle(action, el);
+  if (action === "account" && dialog.open) {
+    $(".dialog-body")?.insertAdjacentHTML(
+      "beforeend",
+      knButton(kn.easy ? "Kolay görünüm açık" : "Kolay görünüm kapalı", "easy", `aria-pressed="${kn.easy}"`, "btn kn-easy-control"),
+    );
+    hydrate();
+  }
+  if (action === "account") {
+    $("[data-action=ar-simple]", dialog)?.remove();
+    $(".dialog-body")?.insertAdjacentHTML(
+      "beforeend",
+      `<div class="kn-account-help">${hmButton(icon("book-open") + " Resimli kullanım kılavuzu", "guide-full")}${knButton("Konağa ilk adımlar", "onboarding")}${knButton("Bildirim tercihlerim", "notice-prefs")}</div>`,
+    );
+    hydrate();
+  }
+  return result;
 };
 const knTags = hmTags;
 hmTags = function (ids = [], prefix = "peopleIds") {
@@ -1070,12 +978,53 @@ ffListMarkup = function () {
     ? html.replace("</section>", knButton("İlk paylaşımını yaz", "write", "", "btn primary") + "</section>")
     : html;
 };
-const knLastRender = render;
+// Konak layer over the base render: account-scoped preferences and draft, shell labels,
+// deep-linked posts, the review centre and scroll restoration.
+const knBaseRender = render;
 render = function () {
   const key = route + ":" + (route === "profile" ? personId : "");
   kn.view = state ? knRead("gallery-view", "mosaic") : "mosaic";
-  knLastRender();
+  if (state && kn.owner !== state.user.id) {
+    kn.owner = state.user.id;
+    kn.easy = knRead("easy", false);
+    const d = knRead("draft", null);
+    if (d?.body) {
+      ff.draft = { ...d, kind: d.kind === "question" ? "question" : "post", visibility: "family" };
+      ff.owner = state.user.id;
+    }
+  }
+  knBaseRender();
   if (!state) return;
+  document.title = "Sarıçiçek Konağı";
+  const brand = $(".brand span");
+  if (brand) brand.innerHTML = "<strong>Sarıçiçek Konağı</strong>";
+  const actions = $(".top-actions");
+  if (actions && !$("[data-konak=notifications]", actions))
+    actions.insertAdjacentHTML("afterbegin", knButton(icon("bell"), "notifications", 'aria-label="Bildirimler"', "icon-btn kn-bell"));
+  const mobile = $(".mobile-nav");
+  if (mobile)
+    mobile.innerHTML = [
+      ["home", "house", "Hayat"],
+      ["gallery", "images", "Avlu"],
+      ["create", "plus", "Paylaş"],
+      ["tree", "git-fork", "Soy ağacı"],
+      ["chat", "messages-square", "Mesajlar"],
+    ]
+      .map(([id, i, l]) =>
+        id === "create"
+          ? knButton(icon(i) + "<span>" + l + "</span>", "create", 'aria-label="Yeni paylaşım oluştur"', "kn-mobile-create")
+          : `<button data-action="nav" data-page="${id}" class="${route === id ? "active" : ""}" ${route === id ? 'aria-current="page"' : ""}>${icon(i)}<span>${l}</span></button>`,
+      )
+      .join("");
+  $(".footer span")?.replaceChildren("Sarıçiçek Konağı");
+  document.body.classList.toggle("kn-easy", kn.easy);
+  hydrate();
+  if (kn.openPost) {
+    const id = kn.openPost;
+    kn.openPost = null;
+    ffHandle("notice-open", { dataset: { id } }).catch((e) => toast(e.message));
+  }
+  if (route === "admin" && isStaff()) knReview();
   if (kn.lastRoute !== key) {
     kn.lastRoute = key;
     const saved = kn.positions.get(key);
@@ -1103,9 +1052,13 @@ window.addEventListener(
   },
   { passive: true },
 );
-const knHistoryRoute = readRoute;
+const knBaseRoute = readRoute;
 readRoute = function () {
-  knHistoryRoute();
+  const m = location.hash.match(/^#post\/(\d+)$/);
+  if (m) {
+    route = "home";
+    kn.openPost = Number(m[1]);
+  } else knBaseRoute();
   const saved = kn.positions.get(route + ":" + (route === "profile" ? personId : ""));
   if (saved) {
     query = saved.query;
@@ -1144,9 +1097,24 @@ archiveOpen = async function (id) {
   await knArchiveOpen(id);
   $$("[data-ex=audience]", dialog).forEach((e) => e.remove());
 };
-const knDemoPreview = ffApi;
+// Demo-mode additions: restoring a removed post, text search and comment previews.
+const knBaseApi = ffApi;
 ffApi = async function (suffix = "", method = "GET", body) {
-  const r = await knDemoPreview(suffix, method, body);
+  if (demoMode && suffix.endsWith("/restore")) {
+    await knBaseApi();
+    const p = ffDemo.posts.find((p) => p.id === Number(suffix.split("/")[1]));
+    if (p) {
+      p.deletedAt = null;
+      ffDemoSave();
+      return { ok: true };
+    }
+  }
+  const r = await knBaseApi(suffix, method, body);
+  if (demoMode && method === "GET" && suffix.includes("?q=")) {
+    const q = new URLSearchParams(suffix.split("?")[1]).get("q");
+    r.items = r.items.filter((p) => knFold(p.body + " " + (p.place || "")).includes(knFold(q)));
+    r.pinned = [];
+  }
   if (demoMode && method === "GET" && r?.id && ffDemo) r.commentPreview = ffDemo.comments.filter((c) => c.postId === r.id && !c.deletedAt).slice(-3);
   return r;
 };
