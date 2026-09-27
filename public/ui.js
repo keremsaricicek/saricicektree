@@ -283,12 +283,12 @@ document.addEventListener(
 );
 
 /* ---------- Hayat: composer ---------- */
-ffComposer = function () {
+function ffComposer() {
   const d = ff.draft,
     q = d.kind === "question",
     ph = q ? "Ailene bir soru sor…" : "Ailenle ne paylaşmak istersin?";
   return `<section class="ff-composer ds-composer ${d.body ? "is-active" : ""} ${q ? "is-question" : ""}" aria-label="Yeni paylaşım"><form id="ff-compose"><header class="ds-compose-head"><button type="button" class="icon-btn" data-ui="compose-close" aria-label="Kapat">${icon("x")}</button><strong>${q ? "Aileye soru" : "Yeni paylaşım"}</strong><button type="submit" class="btn primary small">Paylaş</button></header><div class="ds-compose-line">${avatar(state.user)}<label class="sr-only" for="ff-body">${ph}</label><textarea id="ff-body" name="body" placeholder="${ph}" maxlength="6000" rows="1">${esc(d.body || "")}</textarea><button type="button" class="icon-btn ds-compose-photo" data-feed="photo" aria-label="Fotoğraf ekle">${icon("image-plus")}</button></div><div id="ff-extra">${ffComposerExtra()}</div><div id="ff-image"></div><div id="ff-tags">${ffTagDraft()}</div><input id="ff-file" type="file" accept="image/jpeg,image/png,image/webp" hidden><div class="ff-composer-bottom"><div class="ff-compose-tools">${ffAction(icon("images") + "<span>Fotoğraf</span>", "photo", "", "ff-tool")}${ffAction(icon("circle-help") + "<span>Soru</span>", "kind", 'data-kind="question" aria-pressed="' + q + '"', "ff-tool " + (q ? "active" : ""))}${knButton(icon("at-sign") + "<span>Kişi etiketle</span>", "mention", 'aria-label="Birini @ ile etiketle"', "ff-tool")}</div><div class="ds-compose-send"><span class="ds-audience">${icon("users-round")}Bütün aile</span><button type="submit" class="btn primary">Paylaş</button></div></div><div class="kn-compose-status"><small id="kn-draft-status" role="status"></small>${d.body ? knButton("Taslağı temizle", "clear-draft", "", "text-btn") : ""}</div><div class="form-error" role="alert"></div></form></section>`;
-};
+}
 function uiAutosize(ta, max = 320) {
   if (!ta) return;
   ta.style.height = "auto";
@@ -575,7 +575,7 @@ function uiAgenda() {
 function uiDayTile(date) {
   return `<time class="ds-daytile" datetime="${esc(date)}"><strong>${Number(date.slice(8))}</strong><small>${dateText(date, { month: "short" })}</small></time>`;
 }
-home = function () {
+function home() {
   const first = uiName(state.user.name).name.split(" ")[0],
     agenda = uiAgenda();
   return `<h1 class="sr-only">Hayat · aile paylaşımları</h1><div class="ff-layout kn-social ds-feed-layout"><div class="ff-main"><header class="ds-hello"><span class="eyebrow">${dateText(exDate(), { weekday: "long", day: "numeric", month: "long" })}</span><p class="ds-hello-title">${uiGreeting()}, ${esc(first)}.</p></header>${agenda.length ? `<nav class="ds-agenda-strip" aria-label="Yaklaşan aile günleri">${agenda.map((e) => `<button class="ds-agenda-chip" data-action="event-detail" data-id="${esc(e.id)}">${uiDayTile(e.date)}<span><strong>${esc(e.title)}</strong><small>${esc(types[e.type] || "")}</small></span></button>`).join("")}</nav>` : ""}${ffComposer()}<div class="rd-feed-bar ds-feed-bar"><nav class="ff-filters" aria-label="Paylaşım filtresi">${[
@@ -587,7 +587,7 @@ home = function () {
     .join(
       "",
     )}</nav></div><button id="ff-new" class="ff-new ds-new-posts" data-feed="new" hidden>${icon("arrow-up")} Yeni paylaşımlar</button><div id="ff-posts" aria-live="polite">${ff.loaded ? ffListMarkup() : uiSkeletonPosts()}</div><div id="ff-more">${ff.more ? ffAction("Daha eski paylaşımlar", "more", "", "btn") : ""}</div></div>${ffSide()}</div>`;
-};
+}
 
 /* "Bugün geçmişte": records whose exact day matches today in an earlier year.
    Photos dated only by year or month never count; a year-only photo is stored as
@@ -614,7 +614,7 @@ function uiOnThisDay() {
       out.push({ title: e.title, id: e.id, action: "ar-open", date: e.data.date });
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
-ffSide = function () {
+function ffSide() {
   const next = uiAgenda().slice(0, 4),
     gather = state.events
       .filter((e) => e.type === "gathering" && e.status === "approved" && e.date >= exDate())
@@ -624,7 +624,7 @@ ffSide = function () {
     gens = levels.size ? Math.max(...levels.values()) + 1 : 0,
     countries = new Set(state.people.map((p) => p.country).filter(Boolean)).size;
   return `<aside class="ff-aside ds-aside" aria-label="Aile gündemi"><section class="ds-side-card ds-family-card"><span class="eyebrow">${esc(state.settings?.familyTitle || "Sarıçiçek")} ailesi</span><div class="ds-stats"><button data-action="nav" data-page="people"><strong>${state.people.length}</strong><small>kişi</small></button><button data-action="nav" data-page="tree"><strong>${gens}</strong><small>nesil</small></button><button data-action="nav" data-page="places"><strong>${countries}</strong><small>ülke</small></button></div></section><section class="ds-side-card"><header class="ds-side-head"><h2>Yaklaşan günler</h2>${button("Takvim", "nav", null, "text-btn", 'data-page="calendar"')}</header>${next.map((e) => `<button class="ds-side-row" data-action="event-detail" data-id="${esc(e.id)}">${uiDayTile(e.date)}<span><strong>${esc(e.title)}</strong><small>${esc(types[e.type] || "")}${e.years ? " · " + e.years + ". yıl" : ""}</small></span>${uiIcon(typeIcon[e.type] || "calendar-days", "ds-side-icon")}</button>`).join("") || '<p class="ds-side-empty">Yaklaşan bir tarih yok.</p>'}</section>${gather ? `<section class="ds-side-card ds-gather"><span class="eyebrow">Sıradaki buluşma</span><h3>${esc(gather.title)}</h3><p>${icon("calendar-days")}${dateText(gather.date)}${gather.place ? " · " + esc(gather.place) : ""}</p>${button("Katılımını bildir", "event-detail", "arrow-up-right", "soft small", 'data-id="' + esc(gather.id) + '"')}</section>` : ""}<section class="ds-side-card ds-memory-card">${memory?.url ? `<img src="${esc(memory.url)}" alt="" loading="lazy">` : `<img src="assets/heritage.webp" alt="" loading="lazy">`}<div><span class="eyebrow">${memory ? "Bugün geçmişte" : "Aynı kökten"}</span><h3>${memory ? esc(memory.title) : "Her ismin bir hikâyesi var."}</h3>${memory ? button(dateText(memory.date) + " · Anıyı aç", memory.action, "arrow-up-right", "text-btn", 'data-id="' + esc(memory.id) + '"') : button("Soy ağacını keşfet", "nav", "arrow-up-right", "text-btn", 'data-page="tree"')}</div></section></aside>`;
-};
+}
 
 /* ---------- Hayat: post card ---------- */
 function uiMedia(p) {
@@ -662,7 +662,7 @@ function uiBody(p, hasMedia) {
     : esc(p.body);
   return `<div class="ds-post-text ${short ? "is-short" : ""}" data-full="${long ? esc(p.body) : ""}"><p>${text}</p></div>`;
 }
-ffCard = function (p) {
+function ffCard(p) {
   const person = uiPerson(p.authorPersonId),
     aud = uiAudience[p.visibility] || uiAudience.family,
     event = state.events.find((e) => e.id === p.eventId),
@@ -677,7 +677,7 @@ ffCard = function (p) {
             ? `<div class="ds-kind is-event">${icon("calendar-heart")}<span>Birlikte buluşuyoruz</span></div>`
             : "";
   return `<article class="ff-post ds-post ${q ? "is-question" : ""} ${p.kind === "memory" ? "is-memory" : ""}" data-feed-card="${p.id}">${p.pinned ? `<div class="ds-pin">${icon("pin")}Sabitlenen duyuru</div>` : ""}<header class="ds-post-head">${ffAction(avatar(p.author), "person", `data-person="${esc(person?.id || "")}" data-user="${esc(p.createdBy)}" aria-label="${esc(uiName(p.author).name)} profilini aç" tabindex="-1"`, "ds-author-avatar")}<div class="ds-post-who">${ffAction(uiNameHtml(p.author), "person", `data-person="${esc(person?.id || "")}" data-user="${esc(p.createdBy)}"`, "ds-author")}<div class="ds-post-sub"><time datetime="${esc(p.createdAt || "")}" title="${esc(uiFullDate(p.createdAt))}">${uiWhen(p.createdAt)}</time><span aria-hidden="true">·</span><span class="ds-aud" title="${aud[1]}">${icon(aud[0])}<span class="sr-only">${aud[1]}</span></span></div></div>${ffAction(icon("ellipsis"), "options", `data-id="${p.id}" aria-label="Paylaşım seçenekleri"`, "icon-btn ds-post-menu")}</header>${kindRow}${uiBody(p, !!media)}${media}${event ? `<button class="ds-event" data-action="event-detail" data-id="${esc(event.id)}">${uiDayTile(event.date)}<span><strong>${esc(event.title)}</strong><small>${esc(event.place || dateText(event.date))}</small></span>${icon("chevron-right")}</button>` : ""}${uiWith(p)}${uiReactionRow(p)}<footer class="ds-actions">${ffAction(icon("heart") + `<span>${p.likes || ""}</span>`, "like", `data-id="${p.id}" aria-pressed="${!!p.liked}" aria-label="${p.liked ? "Beğeniyi geri al" : "Beğen"}"`, "ds-act ds-like" + (p.liked ? " is-on" : ""))}<button type="button" class="ds-act" data-ui="thread-focus" data-id="${p.id}" aria-label="${q ? "Cevapla" : "Yorum yaz"}">${icon("message-circle")}<span>${p.comments || ""}</span></button><button type="button" class="ds-act ds-react ${p.myReaction ? "is-on" : ""}" data-ui="react-menu" data-id="${p.id}" aria-haspopup="true" aria-expanded="false" aria-label="${p.myReaction ? "Tepkin: " + p.myReaction + ". Değiştir" : "Tepki ver"}">${p.myReaction ? `<span class="ds-emoji" aria-hidden="true">${p.myReaction}</span>` : icon("smile-plus")}</button><span class="ds-act-gap"></span>${ffAction(icon("bookmark"), "save", `data-id="${p.id}" aria-pressed="${!!p.saved}" aria-label="${p.saved ? "Kaydedilenlerden çıkar" : "Kaydet"}"`, "ds-act ds-save" + (p.saved ? " is-on" : ""))}</footer>${uiThread(p)}</article>`;
-};
+}
 
 /* ---------- Hayat: conversation under each post ---------- */
 function uiCommentPeople(c) {
@@ -1557,7 +1557,7 @@ function uiTreeNode(p, c) {
     years = `${p.birthDate ? p.birthDate.slice(0, 4) : "?"}${memorial ? " – " + p.deathDate.slice(0, 4) : ""}`;
   return `<button class="tree-node ds-node ${memorial ? "is-memorial" : ""} ${p.id === treeFocus ? "selected" : ""} ${p.id === ui.mePerson ? "is-me" : ""}" style="left:${c.x}px;top:${c.y}px" data-konak="tree-person" data-id="${esc(p.id)}" aria-label="${esc(p.name)}, ${years}">${uiTreeAvatar(p)}<span class="ds-node-text"><strong>${esc(rest.length ? first : p.name)}</strong>${rest.length ? `<span class="ds-node-sur">${esc(rest.join(" "))}</span>` : ""}${p.nickname ? `<em>“${esc(p.nickname)}”</em>` : ""}<small>${memorial ? icon("flower-2") : ""}${years}</small></span>${p.id === ui.mePerson ? '<b class="ds-node-me">Sen</b>' : ""}</button>`;
 }
-tree = function () {
+function tree() {
   let list = state.people;
   if (treeFocus) {
     const keep = new Set([treeFocus]);
@@ -1577,7 +1577,7 @@ tree = function () {
   const head = `<section class="page-head ds-tree-head"><div><span class="eyebrow">Köklerimiz</span><h1>Soy Ağacı</h1><p>${state.people.length} kişi · ${L ? L.rows.length : 0} kuşak${treeFocus ? " · " + esc(focusName) + " ve yakınları" : ""}</p></div><div class="row">${isStaff() ? button("Kişi ekle", "add-person", "user-plus", "primary") + button("Bağ ekle", "add-relation", "link-2") : ""}${knButton(icon("circle-help"), "tree-help", 'aria-label="Soy ağacı kullanım bilgisi" title="Nasıl kullanılır?"', "icon-btn")}</div></section>`;
   if (!L) return head + empty("Köklerimizi birlikte çizelim.", "İlk aile üyesini ekleyerek başlayın.", isStaff() ? "add-person" : "");
   return `${head}<div class="ds-tree-bar"><button type="button" class="search ds-tree-find" data-action="search-tree">${icon("search")}<span>İsim veya lakapla birini bul</span></button>${treeFocus ? `<div class="ds-focus-chip">${avatar(state.people.find((p) => p.id === treeFocus) || focusName)}<span>${esc(focusName)} ve yakınları</span>${button("", "tree-reset", "x", "icon-btn", 'aria-label="Tüm ağacı göster"')}</div>` : ""}</div><section class="tree-board kn-tree-board ds-tree-board"><div class="tree-viewport" tabindex="0" aria-label="Soy ağacı. Kaydırarak gezin; bir kişiye dokunarak profilini açın."><div class="tree-canvas" style="width:${L.width}px;height:${L.height}px;transform:scale(${zoom})"><svg width="${L.width}" height="${L.height}" fill="none" aria-hidden="true">${L.svg}</svg>${L.rows.map(([level], i) => `<span class="ds-gen" style="top:${UI_TREE.top + i * UI_TREE.row - 30}px">${Number(level) + 1}. kuşak</span>`).join("")}${list.map((p) => uiTreeNode(p, L.pos.get(p.id))).join("")}</div></div><canvas class="ds-minimap" aria-hidden="true" hidden></canvas><div class="tree-tools ds-tree-tools"><button data-action="zoom-in" aria-label="Yakınlaştır">${icon("plus")}</button><span id="zoom-label">${Math.round(zoom * 100)}%</span><button data-action="zoom-out" aria-label="Uzaklaştır">${icon("minus")}</button><button data-action="zoom-fit" aria-label="Ekrana sığdır">${icon("scan")}</button></div><div class="ds-tree-legend"><span><i class="is-parent"></i>Ebeveyn – çocuk</span><span><i class="is-spouse"></i>Eş</span><span><i class="is-adoptive"></i>Evlat edinme</span><span>${icon("flower-2")}Anısına</span></div></section><p class="ds-tree-note">${"Bir kişiye dokun: profilini aç ya da yalnızca yakınlarını gör. Ağacı sürükleyerek gezebilirsin."}</p>${isStaff() ? `<div class="ds-tree-foot">${button("Yazdır / PDF", "print-tree", "printer", "text-btn")}</div>` : ""}`;
-};
+}
 /* Opening a person from the tree: a rich card with the next steps. */
 function uiTreeFit() {
   const vp = $(".ds-tree-board .tree-viewport"),
@@ -1734,12 +1734,12 @@ document.addEventListener("click", (e) => {
 
 /* ---------- Avlu ---------- */
 const uiTileRatio = (url) => Math.min(2.2, Math.max(0.62, uiRatios.get(url) || 1.3333));
-hmTile = function (p) {
+function hmTile(p) {
   const known = uiMediaRatio(p.media),
     r = known ? Math.min(2.2, Math.max(0.62, known)) : uiTileRatio(p.url);
   return `<button class="photo-card hm-tile ds-ptile" data-hm="open" data-id="${esc(p.id)}" style="--r:${r.toFixed(4)}"><span class="ds-ptile-img"><img ${uiPic(p.url, p.media, { sizes: "(max-width: 700px) 50vw, 360px", fallback: 320 })} alt="${esc(p.title || "Aile fotoğrafı")}" loading="lazy" decoding="async" data-ar="${esc(p.url)}" style="${uiFocus(p.media)}"></span>${p.status === "pending" ? '<span class="ds-badge-soft is-pending">Onay bekliyor</span>' : ""}${p.albumId ? `<span class="ds-ptile-album" title="Albüm">${icon("layers")}</span>` : ""}<span class="ds-ptile-meta"><strong>${esc(p.title || "Adsız hatıra")}</strong><small>${esc(hmDate(p))}${p.place ? " · " + esc(p.place) : ""}</small>${p.description ? `<span class="ds-ptile-desc">${esc(p.description.slice(0, 180))}${p.description.length > 180 ? "…" : ""}</span>` : ""}</span></button>`;
-};
-hmGalleryMarkup = function () {
+}
+function hmGalleryMarkup() {
   const q = query.toLocaleLowerCase("tr"),
     list = hm.items.filter((p) =>
       `${p.title} ${p.place} ${p.description} ${(p.peopleIds || []).map((id) => uiPerson(id)?.name).join(" ")}`.toLocaleLowerCase("tr").includes(q),
@@ -1755,11 +1755,11 @@ hmGalleryMarkup = function () {
       return `<section class="hm-year-section ds-year"><header class="ds-year-head"><h2>${esc(y)}</h2><span>${items.length} fotoğraf</span></header><div class="gallery-grid ds-justified">${items.map(hmTile).join("")}</div></section>`;
     })
     .join("");
-};
-gallery = function () {
+}
+function gallery() {
   const count = hm.items.length;
   return `<section class="page-head ds-avlu-head"><div><span class="eyebrow">Ailemizin hafızası</span><h1>Avlu</h1><p>${hm.loaded ? `${count} fotoğraf · ` : ""}Bir fotoğraf, bir tarih, bir yer ve içindeki insanlar.</p></div><div class="row">${hmButton(icon("circle-help"), "guide", 'aria-label="Avlu kullanım kılavuzu" title="Nasıl kullanılır?"', "icon-btn")}${button("Fotoğraf ekle", "upload", "image-plus", "primary")}</div></section><div class="ds-avlu-tools"><label class="search">${icon("search")}<input id="hm-search" placeholder="İsim, yer veya hatıra ara" aria-label="Avlu içinde ara" value="${esc(query)}"></label><div class="kn-view-switch" role="group" aria-label="Avlu görünümü">${knButton(icon("layout-grid") + "<span>Mozaik</span>", "gallery-view", 'data-view="mosaic" aria-pressed="' + (kn.view === "mosaic") + '"', "btn")}${knButton(icon("rows-3") + "<span>Zaman çizelgesi</span>", "gallery-view", 'data-view="timeline" aria-pressed="' + (kn.view === "timeline") + '"', "btn")}</div></div>${hm.years.length ? `<nav class="hm-years ds-years" aria-label="Fotoğraf yılı">${hmButton("Tüm yıllar", "year", 'data-year=""', !hm.year ? "active" : "")}${hm.years.map((y) => hmButton(y, "year", `data-year="${y}"`, hm.year === y ? "active" : "")).join("")}</nav>` : ""}<div id="hm-gallery" class="kn-gallery-${kn.view}">${hm.loaded ? hmGalleryMarkup() : `<div class="ds-justified">${Array.from({ length: 6 }, (_, i) => `<span class="skeleton ds-ptile-skeleton" style="--r:${[1.5, 0.8, 1.33, 1, 1.6, 0.75][i]}"></span>`).join("")}</div>`}</div><div id="hm-gallery-more">${hm.more ? hmButton("Daha eski fotoğraflar", "gallery-more") : ""}</div>`;
-};
+}
 document.addEventListener(
   "load",
   (e) => {

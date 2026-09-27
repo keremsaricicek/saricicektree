@@ -266,24 +266,6 @@ function eventRows(events) {
         .join("")
     : empty("Takvimimiz sakin", "Yeni tarihler burada yer alacak.");
 }
-function home() {
-  const today = new Date().toLocaleDateString("en-CA"),
-    events = upcoming()
-      .filter((e) => e.date >= today)
-      .slice(0, 3),
-    photos = state.photos.filter((p) => p.status === "approved"),
-    first = state.user.name.split(" ")[0];
-  return `<div class="greeting"><div><span class="eyebrow">AYNI KÖKTEN, BİNLERCE HİKÂYE</span><h1>Evine hoş geldin, ${esc(first)}.</h1><p>Uzakta olsak da birbirimize ait olduğumuz bir yer var.</p></div>${button("Bir anı paylaş", "upload", "plus")}</div><section class="hero" aria-label="Ailemizin hikâyesi"><img src="assets/heritage.webp" alt="Halfeti’den ilhamla üretilmiş temsili taş evler ve nehir manzarası"><span class="hero-label">Bizim ailemiz. Bizim hikâyemiz.</span><div class="hero-copy"><span class="eyebrow">SARIÇİÇEK AİLE HAYATI</span><h1>Köklerimiz bir.<br><em>Hikâyemiz sonsuz.</em></h1><p>Geçmişimizi birlikte hatırlıyor, bugünümüzü paylaşıyor, yarınlara iz bırakıyoruz.</p>${button("Hikâyemizi keşfet", "nav", "arrow-up-right", "", 'data-page="history"')}</div><span class="hero-location">${icon("map-pin")}Halfeti’den ilhamla · Temsili görsel</span></section>${statCards()}<div class="home-grid"><section class="card"><div class="section-head"><h2>Anılarımızın izinde</h2><button class="text-btn" data-action="nav" data-page="gallery">Arşive göz at ${icon("arrow-right")}</button></div><div class="archive-feature"><img src="${esc(photos[0]?.url || "assets/archive.webp")}" alt="${esc(photos[0]?.title || "Temsili aile arşivi")}" loading="lazy"><div><span class="eyebrow">DÜNDEN YARINA</span><h3>Bir fotoğraf.<br>Binlerce hatıra.</h3><p>Birlikte gülümseyen yüzler, unutulmasın istediğimiz anlar. Aile albümümüzü birlikte büyütelim.</p><button class="text-btn" data-action="upload">Sen de bir anı ekle ${icon("arrow-up-right")}</button></div></div></section><section class="card"><div class="section-head"><h2>Yaklaşan günler</h2><button class="text-btn" data-action="nav" data-page="calendar">Takvimi aç ${icon("arrow-right")}</button></div>${eventRows(events)}</section></div><div class="heritage-band"><div class="quote-card"><p>“İnsan, köklerini bildiği<br>yerde yeniden çiçek açar.”</p><div class="eyebrow">GEÇMİŞTEN GELEN, GELECEĞE KALAN</div>${icon("sprout")}</div><section class="card"><div class="section-head"><h2>Aileden izler</h2><button class="text-btn" data-action="nav" data-page="people">Ailemizi gör ${icon("arrow-right")}</button></div>${
-    [...state.people]
-      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-      .slice(0, 2)
-      .map(
-        (p) =>
-          `<button class="activity-row" data-action="profile" data-id="${esc(p.id)}" style="width:100%;text-align:left">${avatar(p)}<span><p><strong>${esc(p.name)}</strong> · Aile ağacımızda</p><small>${esc(p.place || "Birlikte yazılan bir hikâye")}</small></span></button>`,
-      )
-      .join("") || "<p>İlk aile üyesini ekleyerek başlayın.</p>"
-  }</section></div>`;
-}
 function heading(kicker, title, desc, actions = "") {
   return `<div class="page-head"><div><span class="eyebrow">${kicker}</span><h1>${title}</h1><p>${desc}</p></div><div class="row">${actions}</div></div>`;
 }
@@ -310,89 +292,6 @@ function people() {
       .join(
         "",
       )}</div><label class="search">${icon("search")}<input id="people-search" placeholder="İsim, şehir veya ülke ara" value="${esc(query)}" aria-label="Aile üyelerinde ara"></label></div><p class="muted member-list-filter" style="font-size:10px">${all.length} aile üyesi</p><div class="grid-people">${list.map((p) => `<button class="person-card" data-action="profile" data-id="${esc(p.id)}">${p.deathDate ? `<span class="memorial-mark">${icon("flower-2")}</span>` : ""}${avatar(p)}<h3>${esc(p.name)}</h3><p>${esc(p.place || "Konum eklenmedi")}${p.country ? " · " + esc(p.country) : ""}</p><span class="life">${p.birthDate ? p.birthDate.slice(0, 4) : "?"}${p.deathDate ? " — " + p.deathDate.slice(0, 4) : ""}</span><span class="text-btn">Hikâyesini gör ${icon("arrow-up-right")}</span></button>`).join("")}</div>${!list.length ? empty("Henüz bir kayıt yok", "Aramanı değiştir veya ailemize birini ekle.", isStaff() ? "add-person" : "") : ""}${all.length > 24 ? `<div class="pagination">${button("Önceki", "prev-page", "chevron-left", "small", page === 1 ? "disabled" : "")}<span>${page} / ${Math.ceil(all.length / 24)}</span>${button("Sonraki", "next-page", "chevron-right", "small", page * 24 >= all.length ? "disabled" : "")}</div>` : ""}`
-  );
-}
-function gallery() {
-  const list = state.photos.filter(
-    (p) =>
-      (filter === "all" ? p.status === "approved" : filter === "mine" ? p.createdBy === state.user.id : p.status === "pending") &&
-      `${p.title} ${p.place}`.toLocaleLowerCase("tr").includes(query.toLocaleLowerCase("tr")),
-  );
-  return (
-    heading(
-      "BİRLİKTE BİRİKTİRDİK",
-      "Hatıraların evi.",
-      "Bir fotoğrafın ardında saklı kalan hikâyeyi gelecek kuşaklara bırakalım.",
-      button("Fotoğraf ekle", "upload", "plus", "primary"),
-    ) +
-    `<div class="gallery-banner">${icon("image-plus")}<div><h3>En güzel anılar, paylaşılanlar.</h3><p>Fotoğrafını yükle, içindeki kişileri etiketle, hikâyesini anlat.</p></div>${button("Arşive katkıda bulun", "upload", "arrow-up-right")}</div><div class="toolbar"><div class="tabs">${[["all", "Aile arşivi"], ["mine", "Benim eklediklerim"], ...(isStaff() ? [["pending", "Onay bekleyenler"]] : [])].map(([v, l]) => `<button class="tab ${filter === v ? "active" : ""}" data-action="filter" data-filter="${v}">${l}</button>`).join("")}</div><label class="search">${icon("search")}<input id="gallery-search" placeholder="Yüklenen anılarda ara…" value="${esc(query)}" aria-label="Avlunde ara"></label></div><div class="gallery-grid">${list.map((p) => `<button class="photo-card" data-action="photo" data-id="${esc(p.id)}"><div class="photo-top"><img src="${esc(p.url)}" alt="${esc(p.title)}" loading="lazy">${p.illustration ? '<span class="photo-badge">Temsili görsel</span>' : ""}</div><div class="photo-meta"><h3>${esc(p.title)}</h3><p>${esc(p.place || "Aile arşivi")} · ${p.date ? dateText(p.date, { year: "numeric" }) : "Tarih bilinmiyor"}</p>${p.status !== "approved" ? `<span class="pill ${p.status}">${p.status === "pending" ? "Onay bekliyor" : "Yayımlanmadı"}</span>` : ""}</div></button>`).join("")}</div>${state.photos.length >= 200 && !state.photosComplete ? '<div class="pagination">' + button("Daha fazla fotoğraf yükle", "load-photos", "chevron-down") + "</div>" : ""}${!list.length ? empty("Bu albüm birlikte dolacak.", "İlk fotoğrafını ve ardındaki hikâyeyi paylaş.", "upload", "İlk fotoğrafı ekle") : ""}`
-  );
-}
-function tree() {
-  const levels = generationMap(),
-    ranks = new Map(levels);
-  for (let i = 0; i < 2; i++)
-    for (const r of state.relations.filter((r) => r.type === "spouse")) {
-      if (ranks.has(r.personA) && ranks.has(r.personB)) {
-        const l = Math.max(ranks.get(r.personA), ranks.get(r.personB));
-        ranks.set(r.personA, l);
-        ranks.set(r.personB, l);
-      }
-    }
-  let list = state.people;
-  if (treeFocus) {
-    const ids = new Set([treeFocus]);
-    for (let i = 0; i < 2; i++) {
-      const snapshot = new Set(ids);
-      for (const r of state.relations)
-        if (snapshot.has(r.personA) || snapshot.has(r.personB)) {
-          ids.add(r.personA);
-          ids.add(r.personB);
-        }
-    }
-    list = list.filter((p) => ids.has(p.id));
-  }
-  if (list.length > 120) list = list.slice(0, 120);
-  const rows = new Map();
-  for (const p of list) {
-    const l = ranks.get(p.id) || 0;
-    if (!rows.has(l)) rows.set(l, []);
-    rows.get(l).push(p);
-  }
-  const width = Math.max(800, ...[...rows.values()].map((r) => r.length * 195 + 80)),
-    height = Math.max(540, (rows.size + 1) * 170);
-  const coords = new Map();
-  [...rows.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .forEach(([level, row], ri) => row.forEach((p, i) => coords.set(p.id, { x: (width - row.length * 195) / 2 + i * 195, y: 50 + ri * 165 })));
-  const paths = state.relations
-    .filter((r) => coords.has(r.personA) && coords.has(r.personB))
-    .map((r) => {
-      const a = coords.get(r.personA),
-        b = coords.get(r.personB);
-      if (r.type === "spouse") return `<path d="M${a.x + 84} ${a.y + 50} L${b.x + 84} ${b.y + 50}" stroke="#b5a575" stroke-dasharray="4 4"/>`;
-      return `<path d="M${a.x + 84} ${a.y + 99} V${(a.y + b.y + 99) / 2} H${b.x + 84} V${b.y}" stroke="#9bab89" ${r.type === "adoptive" ? 'stroke-dasharray="5 4"' : ""}/>`;
-    })
-    .join("");
-  return (
-    heading(
-      "KÖKLERİMİZ VE DALLARIMIZ",
-      "Birbirimize bağlıyız.",
-      "Her dal bir yolculuk, her bağ bizi bir arada tutan bir hikâye.",
-      isStaff()
-        ? button("PDF / Yazdır", "print-tree", "printer") +
-            button("İlişki ekle", "add-relation", "link-2") +
-            button("Kişi ekle", "add-person", "plus", "primary")
-        : "",
-    ) +
-    `<div class="toolbar"><label class="search">${icon("search")}<input id="tree-search" placeholder="Ağaçta birini bul…" aria-label="Ağaçta kişi ara"></label><div class="row">${treeFocus ? button("Tüm ağaca dön", "tree-reset", "git-fork", "small") : ""}<span class="muted" style="font-size:10px">${list.length} kişi görüntüleniyor</span></div></div><div class="tree-board"><div class="tree-viewport"><div class="tree-canvas" style="width:${width}px;height:${height}px;transform:scale(${zoom})"><svg width="${width}" height="${height}" fill="none" stroke-width="1.4">${paths}</svg>${list
-      .map((p) => {
-        const c = coords.get(p.id);
-        return `<button class="tree-node ${p.id === treeFocus ? "selected" : ""}" style="left:${c.x}px;top:${c.y}px" data-action="profile" data-id="${esc(p.id)}">${avatar(p)}<span><strong>${esc(p.name)}</strong><small>${p.birthDate ? p.birthDate.slice(0, 4) : "?"}${p.deathDate ? " – " + p.deathDate.slice(0, 4) : ""}</small></span></button>`;
-      })
-      .join(
-        "",
-      )}</div></div><div class="tree-tools"><button data-action="zoom-out" aria-label="Uzaklaştır">${icon("minus")}</button><span id="zoom-label">${Math.round(zoom * 100)}%</span><button data-action="zoom-in" aria-label="Yakınlaştır">${icon("plus")}</button><button data-action="zoom-fit" aria-label="Ekrana sığdır">${icon("maximize")}</button></div><div class="tree-legend"><span>Ebeveyn / çocuk</span><span>Eş bağı (kesikli)</span></div></div><p class="tree-note">${state.people.length > 120 ? "Büyük ağaçlarda ilk 120 kişi gösterilir. Aramayla bir aile dalına odaklanın." : "Kartlara dokunarak kişi profilini açabilirsiniz. Ağacı sürükleyerek veya kaydırarak gezin."}</p>${!state.people.length ? empty("Köklerimizi birlikte çizelim.", "İlk aile üyesini ekleyerek başlayın.", isStaff() ? "add-person" : "") : ""}`
   );
 }
 function calendar() {
@@ -1358,7 +1257,10 @@ async function boot() {
     loginScreen(e.message === "Oturum açmanız gerekiyor." ? "" : e.message);
   }
 }
-boot();
+// Start once every script (feed, archive, ui, …) has run, so the first render uses the final versions.
+// (Deferred scripts run while readyState is already "interactive", before DOMContentLoaded.)
+if (document.readyState === "complete") boot();
+else addEventListener("DOMContentLoaded", boot, { once: true });
 
 // Optional browser tools share the currently authorized interface state.
 if (document.modelContext?.registerTool) {

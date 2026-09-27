@@ -15,27 +15,6 @@ const ff = {
 };
 const ffNames = { post: "Paylaşım", memory: "Bir aile anısı", question: "Aileye bir soru", event: "Birlikte buluşuyoruz" };
 const ffAction = (text, action, attrs = "", cls = "") => `<button type="button" class="${cls}" data-feed="${action}" ${attrs}>${text}</button>`;
-function ffSide() {
-  const next = upcoming()
-      .filter((e) => e.date >= exDate())
-      .slice(0, 3),
-    gather = state.events
-      .filter((e) => e.type === "gathering" && e.status === "approved" && e.date >= exDate())
-      .sort((a, b) => a.date.localeCompare(b.date))[0];
-  const memories = [
-    ...state.photos
-      .filter((p) => p.date?.slice(5) === exDate().slice(5) && p.date < exDate())
-      .map((p) => ({ title: p.title, id: p.id, action: "photo", date: p.date })),
-    ...archiveItems
-      .filter((e) => !e.locked && e.data?.date?.slice(5) === exDate().slice(5) && e.data.date < exDate())
-      .map((e) => ({ title: e.title, id: e.id, action: "ar-open", date: e.data.date })),
-  ];
-  return `<aside class="ff-aside" aria-label="Aile gündemi"><section class="ff-side-section"><div class="ff-section-label">${icon("calendar-days")}<h2>Aile gündemi</h2></div>${next.map((e) => `<button class="ff-day" data-action="event-detail" data-id="${esc(e.id)}"><time><strong>${Number(e.date.slice(8))}</strong>${dateText(e.date, { month: "short" })}</time><span><strong>${esc(e.title)}</strong><small>${esc(types[e.type])}</small></span></button>`).join("") || "<p>Yaklaşan bir tarih kaydı yok.</p>"}${button("Takvimi aç", "nav", "arrow-up-right", "text-btn", 'data-page="calendar"')}</section>${gather ? `<section class="ff-side-section ff-gather"><span class="eyebrow">SIRADAKİ BULUŞMA</span><h3>${esc(gather.title)}</h3><p>${dateText(gather.date)}${gather.place ? " · " + esc(gather.place) : ""}</p>${button("Ayrıntılar ve katılım", "event-detail", "arrow-up-right", "small", 'data-id="' + esc(gather.id) + '"')}</section>` : ""}<section class="ff-side-section ff-roots"><img src="assets/heritage.webp" alt="Halfeti’den ilhamla hazırlanmış temsili aile kökleri görseli"><div><span class="eyebrow">${memories.length ? "BUGÜN GEÇMİŞTE" : "AYNI KÖKTEN"}</span><h3>${memories.length ? esc(memories[0].title) : "Her ismin bir hikâyesi var."}</h3>${memories.length ? button(dateText(memories[0].date) + " · Anıyı aç", memories[0].action, "arrow-up-right", "text-btn", 'data-id="' + esc(memories[0].id) + '"') : button("Aile bağlarını keşfet", "nav", "git-fork", "text-btn", 'data-page="tree"')}</div></section></aside>`;
-}
-function ffComposer() {
-  const d = ff.draft;
-  return `<section class="ff-composer" aria-label="Yeni paylaşım"><div class="ff-composer-top">${avatar(state.user)}<div><strong>${esc(state.user.name)}</strong><span>Bugün senden ne haber?</span></div></div><form id="ff-compose"><label class="sr-only" for="ff-body">Ailenle ne paylaşmak istersin?</label><textarea id="ff-body" name="body" placeholder="Ailenle ne paylaşmak istersin?" maxlength="6000" rows="2">${esc(d.body || "")}</textarea><div id="ff-extra">${ffComposerExtra()}</div><div id="ff-image">${d.image ? `<img src="${esc(d.image)}" alt="Paylaşılacak fotoğrafın önizlemesi">${ffAction("Fotoğrafı kaldır", "remove-image", "", "text-btn")}` : ""}</div><div id="ff-tags">${ffTagDraft()}</div><div class="ff-composer-bottom"><div class="ff-compose-tools"><button type="button" data-feed="photo" class="ff-tool" aria-label="Fotoğraf ekle">${icon("image")}<span>Fotoğraf</span></button><input id="ff-file" type="file" accept="image/jpeg,image/png,image/webp" hidden>${ffAction(icon("clock-3") + "<span>Anı</span>", "kind", 'data-kind="memory" aria-label="Anı"', "ff-tool " + (d.kind === "memory" ? "active" : ""))}${ffAction(icon("circle-help") + "<span>Soru</span>", "kind", 'data-kind="question" aria-label="Soru"', "ff-tool " + (d.kind === "question" ? "active" : ""))}${ffAction(icon("calendar-days") + "<span>Etkinlik</span>", "kind", 'data-kind="event" aria-label="Etkinlik"', "ff-tool " + (d.kind === "event" ? "active" : ""))}${ffAction(icon("user-round-plus") + "<span>Kişiler</span>", "tag", 'aria-label="Kişiler"', "ff-tool")}</div><div class="ff-publish-row">${ffAction(icon(d.visibility === "private" ? "lock-keyhole" : "users-round") + `<span>${{ family: "Bütün aile", private: "Yalnızca ben", selected: "Seçili kişiler", group: "Seçili grup" }[d.visibility]}</span>`, "audience", "", "ff-audience")}<button type="submit" class="btn primary">Paylaş ${icon("arrow-up-right")}</button></div></div><div class="form-error" role="alert"></div></form></section>`;
-}
 function ffComposerExtra() {
   const d = ff.draft;
   return d.kind === "memory"
@@ -57,26 +36,6 @@ function ffTagDraft() {
     .filter(Boolean)
     .map((p) => `<span class="ff-tag">${esc(p.name)}</span>`)
     .join("");
-}
-home = function () {
-  return `<section class="ff-welcome"><div><span class="eyebrow">${dateText(exDate(), { weekday: "long", day: "numeric", month: "long" })}</span><h1>Hayat<span class="rd-heading-dot">.</span></h1></div><div class="ff-welcome-actions">${ffAction(icon("bell") + "<span>Bahsedilenler</span>", "notifications", 'aria-label="Bahsedilenler"', "btn")}${button("Soy ağacımız", "nav", "git-fork", "", 'data-page="tree"')}</div></section><div class="ff-layout"><div class="ff-main">${ffComposer()}<div class="rd-feed-bar"><div class="ff-feed-heading"><h2>Aileden</h2></div><nav class="ff-filters" aria-label="Paylaşım filtresi">${[
-    ["all", "Tümü"],
-    ["memory", "Anılar"],
-    ["question", "Sorular"],
-    ["saved", "Kaydettiklerim"],
-  ]
-    .map(([id, label]) => ffAction(label, "filter", `data-filter="${id}" aria-pressed="${ff.filter === id}"`, ff.filter === id ? "active" : ""))
-    .join(
-      "",
-    )}</nav></div><button id="ff-new" class="ff-new" data-feed="new" hidden>Yeni paylaşımlar var · Göster ${icon("arrow-up")}</button><div id="ff-posts" aria-live="polite">${ff.loaded ? ffListMarkup() : '<div class="ff-empty">Paylaşımlar yükleniyor…</div>'}</div><div id="ff-more">${ff.more ? ffAction("Daha fazla göster", "more", "", "btn") : ""}</div></div>${ffSide()}</div>`;
-};
-function ffCard(p) {
-  const kind = ffNames[p.kind],
-    person = state.people.find((x) => x.id === p.authorPersonId),
-    tags = (p.peopleIds || []).map((id) => state.people.find((p) => p.id === id)).filter(Boolean),
-    event = state.events.find((e) => e.id === p.eventId),
-    photo = p.image;
-  return `<article class="ff-post ${p.kind === "question" ? "ff-question" : ""} ${photo ? "rd-visual-post" : ""} ${p.kind === "memory" ? "rd-memory" : ""}" data-feed-card="${p.id}">${p.pinned ? '<div class="ff-pin">' + icon("pin") + " Sabitlenen duyuru</div>" : ""}<header class="ff-post-head">${ffAction(avatar(p.author) + "<span><strong>" + esc(p.author) + "</strong><small>" + esc(familyWhen(p.createdAt)) + " · " + esc({ family: "Aileye açık", private: "Özel", selected: "Seçili kişiler", group: "Grup üyeleri" }[p.visibility]) + "</small></span>", "person", `data-person="${esc(person?.id || "")}" data-user="${esc(p.createdBy)}"`, "ff-author")}${ffAction(icon("ellipsis"), "options", `data-id="${p.id}" aria-label="Paylaşım seçenekleri"`, "icon-btn")}</header>${p.kind !== "post" ? `<div class="ff-kind">${icon(p.kind === "memory" ? "clock-3" : p.kind === "question" ? "circle-help" : "calendar-days")}${kind}${p.date ? "<span>· " + dateText(p.date) + "</span>" : ""}${p.place ? "<span>· " + esc(p.place) + "</span>" : ""}</div>` : ""}${photo ? `<button class="ff-photo" data-feed="image" data-id="${p.id}">${p.kind === "memory" && p.date ? `<span class="rd-photo-date"><strong>${esc(p.date.slice(0, 4))}</strong><span>Birlikte hatırlıyoruz</span></span>` : ""}<img src="${esc(photo)}" alt="${esc(p.body.slice(0, 100) || "Aile paylaşımı")}" loading="lazy"></button>` : ""}${p.body ? `<div class="ff-post-copy ${p.body.length < 130 && !photo ? "ff-short" : ""}">${p.body.length > 550 ? `<p>${esc(p.body.slice(0, 550))}…</p><details><summary>Devamını oku</summary><p>${esc(p.body.slice(550))}</p></details>` : `<p>${esc(p.body)}</p>`}</div>` : ""}${event ? `<button class="ff-event" data-action="event-detail" data-id="${esc(event.id)}"><time><strong>${Number(event.date.slice(8))}</strong>${dateText(event.date, { month: "short" })}</time><span><strong>${esc(event.title)}</strong><small>${esc(event.place || dateText(event.date))}</small></span>${icon("arrow-up-right")}</button>` : ""}${tags.length ? `<div class="ff-people">${icon("git-fork")}${tags.map((p) => ffAction(avatar(p) + esc(p.name), "person", `data-person="${esc(p.id)}"`, "ff-person-chip")).join("")}</div>` : ""}<footer class="ff-post-actions">${ffAction(icon("heart") + `<span>${p.likes || ""} Beğen</span>`, "like", `data-id="${p.id}" aria-pressed="${!!p.liked}"`, p.liked ? "active" : "")}${ffAction(icon("message-circle") + `<span>${p.comments || ""} ${p.kind === "question" ? "Cevapla" : "Yorum"}</span>`, "comments", `data-id="${p.id}"`)}${ffAction(icon("bookmark") + "<span>" + (p.saved ? "Kaydedildi" : "Kaydet") + "</span>", "save", `data-id="${p.id}" aria-pressed="${!!p.saved}"`, p.saved ? "active" : "")}</footer></article>`;
 }
 function ffListMarkup() {
   const pins = ff.filter === "all" ? ff.pinned : [],

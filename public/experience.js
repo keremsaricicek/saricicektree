@@ -105,6 +105,8 @@ function dmLists() {
         .join("") || '<div class="dm-empty">Henüz konuşma yok. Davetini kabul eden kişiler burada görünür.</div>';
   });
 }
+// Live message stream of this tab (see dmStream); declared before dmPosition, which closes it.
+let dmStreamController = null;
 function dmPosition() {
   if (!state) return;
   dmHost();
@@ -798,7 +800,6 @@ window.addEventListener("beforeunload", (e) => {
 });
 
 if (state) render();
-let dmStreamController = null;
 async function dmStream() {
   if (demoMode || window.FamilyNative?.available || dmStreamController) return;
   const controller = new AbortController();

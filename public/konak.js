@@ -28,11 +28,6 @@ function knSaveDraft() {
   const label = $("#kn-draft-status");
   if (label) label.textContent = ok ? (ff.draft.body ? "Taslak bu cihazda saklandı" : "") : "Taslak saklanamadı; bu sayfayı kapatma.";
 }
-ffComposer = function () {
-  const d = ff.draft,
-    question = d.kind === "question";
-  return `<section class="ff-composer kn-composer" aria-label="Yeni paylaşım"><form id="ff-compose"><div class="kn-compose-line">${avatar(state.user)}<label class="sr-only" for="ff-body">${question ? "Ailene ne sormak istersin?" : "Ailenle ne paylaşmak istersin?"}</label><textarea id="ff-body" name="body" placeholder="${question ? "Ailene ne sormak istersin?" : "Ailenle ne paylaşmak istersin?"}" maxlength="6000" rows="2">${esc(d.body || "")}</textarea>${knButton(icon("plus"), "create", 'aria-label="Yeni paylaşım oluştur"', "kn-plus")}</div><div id="ff-extra">${ffComposerExtra()}</div><div id="ff-image"></div><div id="ff-tags">${ffTagDraft()}</div><input id="ff-file" type="file" accept="image/jpeg,image/png,image/webp" hidden><div class="ff-composer-bottom"><div class="ff-compose-tools">${ffAction(icon("image") + "<span>Fotoğraf</span>", "photo", "", "ff-tool")}${ffAction(icon("circle-help") + "<span>Soru</span>", "kind", 'data-kind="question" aria-pressed="' + question + '"', "ff-tool " + (question ? "active" : ""))}${knButton('<span class="kn-at">@</span><span>Etiketle</span>', "mention", 'aria-label="Birini @ ile etiketle"', "ff-tool")}</div><button type="submit" class="btn primary">Paylaş ${icon("arrow-up")}</button></div><div class="kn-compose-status"><small id="kn-draft-status" role="status"></small>${d.body ? knButton("Taslağı temizle", "clear-draft", "", "text-btn") : ""}</div><div class="form-error" role="alert"></div></form></section>`;
-};
 ffComposerExtra = function () {
   return ff.draft.kind === "question"
     ? `<div class="kn-question-hint">${icon("circle-help")}<span>Tek bir soru yaz. Ailen cevaplarını bu paylaşımın altında biriktirsin.</span></div>`
@@ -47,29 +42,6 @@ ffTagDraft = function () {
         `<span class="kn-tag">@${esc(p.name)}${knButton(icon("x"), "untag", `data-id="${esc(p.id)}" aria-label="${esc(p.name)} etiketini kaldır"`, "icon-btn")}</span>`,
     )
     .join("");
-};
-home = function () {
-  return `<h1 class="sr-only">Aile paylaşımları</h1><div class="ff-layout kn-social"><div class="ff-main">${ffComposer()}<div class="rd-feed-bar"><nav class="ff-filters" aria-label="Paylaşım filtresi">${[
-    ["all", "Tüm paylaşımlar"],
-    ["question", "Sorular"],
-    ["saved", "Kaydettiklerim"],
-  ]
-    .map(([id, label]) => ffAction(label, "filter", `data-filter="${id}" aria-pressed="${ff.filter === id}"`, ff.filter === id ? "active" : ""))
-    .join(
-      "",
-    )}</nav></div><button id="ff-new" class="ff-new" data-feed="new" hidden>Yeni paylaşımlar var · Göster ${icon("arrow-up")}</button><div id="ff-posts" aria-live="polite">${ff.loaded ? ffListMarkup() : '<div class="ff-empty">Paylaşımlar yükleniyor…</div>'}</div><div id="ff-more">${ff.more ? ffAction("Daha fazla göster", "more", "", "btn") : ""}</div></div>${ffSide()}</div>`;
-};
-const knBaseCard = ffCard;
-ffCard = function (p) {
-  const box = document.createElement("div");
-  box.innerHTML = knBaseCard(p);
-  box
-    .querySelector(".ff-post")
-    ?.insertAdjacentHTML(
-      "beforeend",
-      `<form class="kn-inline-comment" data-post="${p.id}">${avatar(state.user)}<label class="sr-only" for="kn-comment-${p.id}">${p.kind === "question" ? "Cevabını yaz" : "Yorumunu yaz"}</label><input id="kn-comment-${p.id}" name="body" placeholder="${p.kind === "question" ? "Cevabını yaz…" : "Yorumunu yaz…"}" maxlength="4000" required autocomplete="off"><button type="submit" class="icon-btn" aria-label="${p.kind === "question" ? "Cevabı gönder" : "Yorumu gönder"}">${icon("arrow-up")}</button><small role="alert"></small></form>`,
-    );
-  return box.innerHTML;
 };
 function knMention(input, selected, onChange) {
   if (!input || input.dataset.knMention) return;
@@ -693,95 +665,7 @@ photoDetail = async function (id) {
   if (story && !$(".kn-no-comments", story))
     story.insertAdjacentHTML("beforeend", '<p class="kn-no-comments">Avlu fotoğrafın hikâyesini saklar. Konuşmak için Hayat’ta paylaş.</p>');
 };
-const knGallery = gallery;
-gallery = function () {
-  return knGallery().replace(
-    '<div id="hm-gallery">',
-    `<div class="kn-view-switch" aria-label="Avlu görünümü">${knButton(icon("grid-2x2") + " Mozaik", "gallery-view", 'data-view="mosaic" aria-pressed="' + (kn.view === "mosaic") + '"', "btn")}${knButton(icon("list") + " Zaman çizelgesi", "gallery-view", 'data-view="timeline" aria-pressed="' + (kn.view === "timeline") + '"', "btn")}</div><div id="hm-gallery" class="kn-gallery-${kn.view}">`,
-  );
-};
 // Neighbouring spouses and parent barycentres keep the real family connections readable.
-tree = function () {
-  const levels = generationMap(),
-    ranks = new Map(levels);
-  for (let i = 0; i < 3; i++)
-    for (const r of state.relations.filter((r) => r.type === "spouse")) {
-      const l = Math.max(ranks.get(r.personA) || 0, ranks.get(r.personB) || 0);
-      ranks.set(r.personA, l);
-      ranks.set(r.personB, l);
-    }
-  let list = state.people;
-  if (treeFocus) {
-    const ids = new Set([treeFocus]);
-    for (let i = 0; i < 2; i++) {
-      const snapshot = new Set(ids);
-      for (const r of state.relations)
-        if (snapshot.has(r.personA) || snapshot.has(r.personB)) {
-          ids.add(r.personA);
-          ids.add(r.personB);
-        }
-    }
-    list = list.filter((p) => ids.has(p.id));
-  }
-  const total = list.length;
-  list = list.slice(0, 120);
-  const rows = new Map();
-  for (const p of list) {
-    const rank = ranks.get(p.id) || 0;
-    if (!rows.has(rank)) rows.set(rank, []);
-    rows.get(rank).push(p);
-  }
-  const sorted = [...rows.entries()].sort((a, b) => a[0] - b[0]),
-    coords = new Map(),
-    width = Math.max(920, ...sorted.map(([, r]) => r.length * 238 + 130)),
-    height = Math.max(580, sorted.length * 220 + 90);
-  sorted.forEach(([level, row], ri) => {
-    const parentX = (p) => {
-      const parents = state.relations
-        .filter((r) => r.type !== "spouse" && r.personB === p.id)
-        .map((r) => coords.get(r.personA)?.x)
-        .filter((x) => x !== undefined);
-      return parents.length ? parents.reduce((a, b) => a + b, 0) / parents.length : width / 2;
-    };
-    row.sort((a, b) => parentX(a) - parentX(b) || (a.birthDate || "9999").localeCompare(b.birthDate || "9999"));
-    const order = [],
-      used = new Set();
-    for (const p of row) {
-      if (used.has(p.id)) continue;
-      order.push(p);
-      used.add(p.id);
-      for (const r of state.relations.filter((r) => r.type === "spouse" && (r.personA === p.id || r.personB === p.id))) {
-        const partner = row.find((q) => q.id === (r.personA === p.id ? r.personB : r.personA));
-        if (partner && !used.has(partner.id)) {
-          order.push(partner);
-          used.add(partner.id);
-        }
-      }
-    }
-    order.forEach((p, i) => coords.set(p.id, { x: Math.max(70, (width - order.length * 238) / 2) + i * 238, y: 65 + ri * 220, level }));
-  });
-  const paths = state.relations
-    .filter((r) => coords.has(r.personA) && coords.has(r.personB))
-    .map((r) => {
-      const a = coords.get(r.personA),
-        b = coords.get(r.personB);
-      if (r.type === "spouse") {
-        const left = a.x < b.x ? a : b,
-          right = a.x < b.x ? b : a;
-        return `<path class="kn-spouse-line" d="M${left.x + 204} ${left.y + 58} L${right.x} ${right.y + 58}"/>`;
-      }
-      return `<path class="kn-parent-line" ${r.type === "adoptive" ? 'stroke-dasharray="6 5"' : ""} d="M${a.x + 102} ${a.y + 116} C${a.x + 102} ${a.y + 175},${b.x + 102} ${b.y - 65},${b.x + 102} ${b.y}"/>`;
-    })
-    .join("");
-  return `<section class="kn-tree-heading"><div>${icon("git-fork")}<h1>Soy Ağacı</h1><span>${state.people.length} kişi · ${rows.size} kuşak görüntüleniyor</span></div><div class="row">${isStaff() ? button("Kişi ekle", "add-person", "plus", "primary") + button("Bağ ekle", "add-relation", "link-2") : ""}${knButton(icon("circle-help"), "tree-help", 'aria-label="Soy ağacı kullanım bilgisi"', "icon-btn")}</div></section><div class="kn-tree-top"><label class="search">${icon("search")}<input id="tree-search" placeholder="İsim veya lakapla birini bul" aria-label="Ağaçta kişi ara"></label>${treeFocus ? `<div class="kn-tree-focus"><span>${esc(state.people.find((p) => p.id === treeFocus)?.name || "")} ve yakınları</span>${button("Tüm ağaç", "tree-reset", "x", "small")}</div>` : "<span>Aile bağlarını izleyerek keşfet.</span>"}</div><section class="tree-board kn-tree-board"><div class="tree-viewport" tabindex="0" aria-label="Soy ağacı. Kaydırarak gezin, kişi kartıyla profili veya aile dalını açın."><div class="tree-canvas" style="width:${width}px;height:${height}px;transform:scale(${zoom})"><svg width="${width}" height="${height}" fill="none" aria-hidden="true">${paths}</svg>${sorted.map(([level], i) => `<span class="kn-generation" style="top:${i * 220 + 26}px">${Number(level) + 1}. NESİL</span>`).join("")}${list
-    .map((p) => {
-      const c = coords.get(p.id);
-      return `<button class="tree-node kn-tree-node ${p.id === treeFocus ? "selected" : ""}" style="left:${c.x}px;top:${c.y}px" data-konak="tree-person" data-id="${esc(p.id)}">${avatar(p)}<span><strong>${esc(p.name)}</strong>${p.nickname ? `<em>${esc(p.nickname)}</em>` : ""}<small>${p.birthDate ? p.birthDate.slice(0, 4) : "Tarih bilinmiyor"}${p.deathDate ? " — " + p.deathDate.slice(0, 4) : ""}</small></span></button>`;
-    })
-    .join(
-      "",
-    )}</div></div><div class="tree-tools"><button data-action="zoom-out" aria-label="Uzaklaştır">${icon("minus")}</button><span id="zoom-label">${Math.round(zoom * 100)}%</span><button data-action="zoom-in" aria-label="Yakınlaştır">${icon("plus")}</button><button data-action="zoom-fit" aria-label="Ekrana sığdır">${icon("maximize")}</button></div><div class="tree-legend"><span>Ebeveyn / çocuk</span><span>Eş</span><span>Kesikli: evlat edinme</span></div></section><p class="tree-note">${total > 120 ? "Bu görünümde 120 kişi var. Aramayla istediğin aile dalına odaklan." : "Bir kişiye dokun; profilini aç veya yalnızca yakınlarını gör. Ağacı kaydırarak gezebilirsin."}</p>${isStaff() ? button("Yazdır / PDF", "print-tree", "printer", "text-btn") : ""}`;
-};
 async function knPrefs(body) {
   if (demoMode) {
     const p = knRead("prefs", {});
@@ -1179,11 +1063,6 @@ ffComments = async function (id, more = false) {
       await ffComments(id);
     });
   };
-};
-const knEmptyGallery = hmGalleryMarkup;
-hmGalleryMarkup = function () {
-  const html = knEmptyGallery();
-  return html.includes("ff-empty") ? html.replace("</div>", knButton("Fotoğraf ekle", "photo", "", "btn primary") + "</div>") : html;
 };
 const knEmptyFeed = ffListMarkup;
 ffListMarkup = function () {

@@ -119,31 +119,6 @@ function hmMerge(items) {
     else state.photos[i] = { ...state.photos[i], ...p };
   }
 }
-function hmTile(p) {
-  return `<button class="photo-card hm-tile" data-hm="open" data-id="${esc(p.id)}"><div class="photo-top"><img src="${esc(p.url)}" alt="${esc(p.title)}" loading="lazy">${p.status === "pending" ? '<span class="status">Onay bekliyor</span>' : ""}${p.albumId ? '<span class="hm-album-badge">' + icon("layers") + " Albüm</span>" : ""}</div><div class="photo-meta"><small>${esc(hmDate(p))}</small><h3>${esc(p.title)}</h3><p>${icon("map-pin")}${esc(p.place || "Yer kaydı yok")}</p></div></button>`;
-}
-gallery = function () {
-  return `<section class="hm-heading"><div><span class="eyebrow">AİLEMİZİN HAFIZASI</span><h1>Avlu<span>.</span></h1><p>Biriktirdiğimiz hayat.</p></div><div class="row">${hmButton(icon("circle-help"), "guide", 'aria-label="Avlu kullanım kılavuzu"', "icon-btn")}${button("Fotoğraf ekle", "upload", "plus", "primary")}</div></section><div class="hm-gallery-tools"><label class="search">${icon("search")}<input id="hm-search" placeholder="İsim, yer veya hatıra ara" aria-label="Avlu içinde ara" value="${esc(query)}"></label><nav class="hm-years" aria-label="Fotoğraf yılı">${hmButton("Tüm yıllar", "year", 'data-year=""', !hm.year ? "active" : "")}${hm.years.map((y) => hmButton(y, "year", `data-year="${y}"`, hm.year === y ? "active" : "")).join("")}</nav></div><div id="hm-gallery">${hm.loaded ? hmGalleryMarkup() : '<div class="ff-empty">Anılar yükleniyor…</div>'}</div><div id="hm-gallery-more">${hm.more ? hmButton("Daha eski fotoğraflar", "gallery-more") : ""}</div>`;
-};
-function hmGalleryMarkup() {
-  const list = hm.items.filter((p) =>
-    `${p.title} ${p.place} ${p.description} ${(p.peopleIds || []).map((id) => state.people.find((p) => p.id === id)?.name).join(" ")}`
-      .toLocaleLowerCase("tr")
-      .includes(query.toLocaleLowerCase("tr")),
-  );
-  const years = [...new Set(list.map((p) => p.date?.slice(0, 4) || "Tarihsiz"))];
-  return (
-    years
-      .map(
-        (y) =>
-          `<section class="hm-year-section"><h2>${y}<span>${list.filter((p) => (p.date?.slice(0, 4) || "Tarihsiz") === y).length} fotoğraf</span></h2><div class="gallery-grid">${list
-            .filter((p) => (p.date?.slice(0, 4) || "Tarihsiz") === y)
-            .map(hmTile)
-            .join("")}</div></section>`,
-      )
-      .join("") || '<div class="ff-empty"><h3>Bu sayfayı birlikte dolduracağız.</h3><p>Bir fotoğraf ve onun hikâyesiyle başlayabilirsin.</p></div>'
-  );
-}
 async function hmGalleryLoad(more = false) {
   if (hm.loading) return;
   hm.loading = true;
@@ -565,37 +540,6 @@ ffHandle = async function (action, el) {
     if (p?.photoId) return photoDetail(p.photoId);
   }
   return hmOldFeedHandle(action, el);
-};
-const hmOldCard = ffCard;
-ffCard = function (p) {
-  let html = hmOldCard(p);
-  const images = p.images || [];
-  if (images.length > 1) {
-    const start = html.indexOf('<button class="ff-photo"'),
-      end = html.indexOf("</button>", start) + 9;
-    if (start >= 0)
-      html =
-        html.slice(0, start) +
-        `<div class="hm-collage count-${Math.min(images.length, 3)}">${images
-          .slice(0, 3)
-          .map((x, i) =>
-            hmButton(
-              `<img src="${esc(x.url)}" alt="${esc(x.title || "Albüm fotoğrafı")}">${i === 2 && images.length > 3 ? '<span class="hm-collage-count">+' + (images.length - 3) + "</span>" : ""}`,
-              "open",
-              `data-id="${esc(x.id)}"`,
-              "",
-            ),
-          )
-          .join("")}</div><div class="hm-album-label">${icon("layers")}${images.length} fotoğraf · Avlu’da saklanıyor</div>` +
-        html.slice(end);
-  }
-  const previews = p.commentPreview || [];
-  if (previews.length)
-    html = html.replace(
-      "</article>",
-      `<div class="hm-comments-preview">${previews.map((c) => `<div>${avatar(c.author)}<p><strong>${esc(c.author)}</strong> ${esc(c.body.slice(0, 180))}</p></div>`).join("")}${ffAction("Tüm yorumları gör", "comments", `data-id="${p.id}"`, "text-btn")}</div></article>`,
-    );
-  return html;
 };
 const hmOldComments = ffComments;
 ffComments = async function (id, more = false) {
