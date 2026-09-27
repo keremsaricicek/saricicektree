@@ -30,9 +30,17 @@ Durum: [x] kodlandı ve test edildi · [k] kodlandı, test edilmedi/kısmi · [ 
      Canlı güncellemede sayfa yeniden kurulmuyor, taslak ve kaydırma korunuyor (testli).
    - Erişilebilirlik: axe-core WCAG 2.1 A/AA testi tüm sayfalar ve ana pencereler için (telefon + masaüstü) CI'da; bulunan tek hata düzeltildi.
    - Kalan: 1.200 kişilik ağaç tek seferde çiziliyor (757 ms, CPU 4×); dünya haritası 755 KB (daha kaba harita tasarım kararı ister).
-5. [ ] Güvenlik, sunucu dışı yedek, veri dışa aktarma, gizlilik/destek sayfaları, güncelleme/geri dönüş belgesi
+5. [x] Güvenlik, sunucu dışı yedek, veri dışa aktarma, gizlilik/destek sayfaları, güncelleme/geri dönüş belgesi
+   - Denetim ve bulunan açıklar: docs/SECURITY-REVIEW.md (giriş sınırının bütün aileye ortak olması; hesap silmede kalan veriler).
+   - Tam şifreli yedek (hesaplar, özel/grup mesajlar, ilişkiler, medya): günlük zamanlama, başarısızlıkta kayıt + uyarı adresi,
+     boş ortama geri yükleme testi (CI) ve Docker'da elle deneme. docs/BACKUP.md.
+   - [!] Gerçek S3/R2/B2 hesabına yükleme denenmedi (hesap ve anahtar gerekir); imza resmî AWS imzalayıcısıyla doğrulandı.
+   - Verilerimi indir (başkalarının verisi olmadan); hesap silme artık iz bırakmıyor (testli).
+   - Gizlilik, destek, hesap silme sayfaları. [!] İşletmeci adı ve destek e-postası sizden gelmeli.
+   - Güncelleme/geri alma: docs/OPERATIONS.md.
+   - [!] Tam Docker imajı yeniden derlenemedi (Docker Hub 429); değişen tek satır (scripts kopyası) önceki imaj üzerinde denendi.
 6. [ ] Native bildirim, e-posta, GEDCOM, video, sesli yorum, çevrimdışı okuma, yönetici paneli
 7. [ ] Test ortamları: web demo bağlantısı, cihaz ölçüsü seçimi, Android/iOS derlemeleri, Appetize
 8. [ ] CI doğrulama, kapasite testi, kılavuz, tek dosya demo, teslim
 
-Sıradaki iş: 5 (güvenlik denetimi, sunucu dışı yedek + geri yükleme denemesi, hesap silme, kişisel veri dışa aktarma, gizlilik/destek sayfaları)
+Sıradaki iş: 6 (native bildirim, e-posta, GEDCOM, video, sesli yorum, çevrimdışı okuma, yönetici paneli)
