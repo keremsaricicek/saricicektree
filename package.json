@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node src/server.mjs",
-    "dev": "node --watch src/server.mjs",
+    "dev": "DEV_SOURCES=1 node --watch src/server.mjs",
     "test": "node --test tests/*.test.mjs",
     "admin": "node src/admin.mjs",
     "demo": "DEMO_MODE=1 node src/server.mjs",
@@ -47,6 +47,7 @@
     "eslint": "^9.39.5",
     "globals": "^16.5.0",
     "leaflet": "^1.9.4",
+    "lucide": "1.8.0",
     "prettier": "^3.9.9",
     "topojson-client": "^3.1.0",
     "typescript": "^5.9.3",

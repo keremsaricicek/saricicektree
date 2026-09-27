@@ -18,6 +18,8 @@ test("all primary pages render without errors, NaN or broken history", async ({ 
     await page.evaluate((r) => (location.hash = r), r);
     await expect(page.locator("main")).toBeVisible();
     expect(await page.locator("main").innerText(), r).not.toContain("NaN");
+    // Every icon placeholder must have been turned into an SVG (the icon file holds only used icons).
+    await expect(page.locator("i[data-lucide]"), r).toHaveCount(0);
   }
   await page.evaluate(() => (location.hash = "person/p0"));
   await expect(page.locator(".ds-profile-hero, .profile-hero").first()).toBeVisible();

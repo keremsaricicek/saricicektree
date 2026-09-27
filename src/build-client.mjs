@@ -7,6 +7,39 @@ await cp("node_modules/leaflet/dist/images", "public/assets/images", { recursive
 await cp("node_modules/leaflet/LICENSE", "public/assets/LEAFLET-LICENSE");
 await build({ entryPoints: ["mobile/bridge.mjs"], bundle: true, format: "iife", target: "es2022", outfile: "public/assets/mobile-bridge.js", minify: true });
 
+// Icons: only the lucide icons whose names appear in the app's own source (a superset: any
+// matching word counts), with the same window.lucide.createIcons() the app already calls.
+{
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const lucide = await import("lucide");
+  const pascal = (name) => name.replace(/(\w)(\w*)(_|-|\s*)/g, (m, a, b) => a.toUpperCase() + b.toLowerCase());
+  const sources = [
+    "public/index.html",
+    ...readdirSync("public")
+      .filter((f) => f.endsWith(".js"))
+      .map((f) => "public/" + f),
+    ...readdirSync("public/ui").map((f) => "public/ui/" + f),
+  ];
+  const words = new Set(sources.flatMap((f) => readFileSync(f, "utf8").match(/[a-z][a-z0-9]*(?:-[a-z0-9]+)*/g) || []));
+  const used = [...new Set([...words].map(pascal).filter((n) => n in lucide.icons))].sort();
+  await build({
+    stdin: {
+      contents: `import { createIcons, ${used.join(", ")} } from "lucide";\nconst icons = { ${used.join(", ")} };\nwindow.lucide = { createIcons: (options = {}) => createIcons({ icons, ...options }) };`,
+      resolveDir: ".",
+      loader: "js",
+    },
+    bundle: true,
+    format: "iife",
+    target: "es2022",
+    outfile: "public/assets/lucide.min.js",
+    minify: true,
+    legalComments: "none",
+    banner: {
+      js: "/* lucide " + JSON.parse(readFileSync("node_modules/lucide/package.json", "utf8")).version + " (ISC), " + used.length + " icons used by the app */",
+    },
+  });
+  await cp("node_modules/lucide/LICENSE", "public/assets/LUCIDE-LICENSE");
+}
 await build({ entryPoints: ["mobile/world-map.mjs"], bundle: true, format: "iife", target: "es2022", outfile: "public/assets/world-map.js", minify: true });
 await cp("node_modules/world-atlas/LICENSE", "public/assets/WORLD-ATLAS-LICENSE");
 await cp("node_modules/topojson-client/LICENSE", "public/assets/TOPOJSON-LICENSE");
