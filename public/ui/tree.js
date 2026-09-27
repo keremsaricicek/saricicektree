@@ -174,7 +174,8 @@ async function uiTreePortraits() {
   try {
     const r = demoMode ? { items: [] } : await exApi("/portraits");
     const next = new Map(r.items.map((x) => [x.personId, x])),
-      changed = !ui.portraits || next.size !== ui.portraits.size || [...next].some(([id, x]) => ui.portraits.get(id)?.url !== x.url);
+      prev = ui.portraits || new Map(),
+      changed = next.size !== prev.size || [...next].some(([id, x]) => prev.get(id)?.url !== x.url);
     ui.portraits = next;
     if (changed && route === "tree") {
       const vp = $(".tree-viewport"),

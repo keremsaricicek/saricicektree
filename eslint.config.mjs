@@ -56,5 +56,5 @@ export default [
   // Native bridge and map bundles run in the WebView/browser.
   { files: ["mobile/**/*.mjs"], languageOptions: { globals: globals.browser } },
   // Browser tests evaluate code inside the page, where the app's globals exist.
-  { files: ["tests/e2e/**/*.mjs", "scripts/visual-snapshot.mjs"], languageOptions: { globals: { ...globals.browser, ...appGlobals } } },
+  { files: ["tests/e2e/**/*.mjs", "scripts/visual-snapshot.mjs", "scripts/measure-*.mjs"], languageOptions: { globals: { ...globals.browser, ...appGlobals } } },
 ];

@@ -48,8 +48,30 @@ Toplam boyutlara yazı tipleri ve görseller de dahildir.
   - `npm run dev` ise düzenlenebilir kaynakları sunar.
 - **Görünüm aynı kaldı.** Değişiklikten önce ve sonra alınan 44 demo ekranı (`scripts/visual-snapshot.mjs`) bayt bayt aynıdır.
 
+## Büyük aile ile yeniden çizim (1.200 kişi, 400 paylaşım)
+
+Ölçüm: `node scripts/measure-render.mjs`. Koşullar: 390×844 ekran, CPU 4× yavaşlatma. "Sayfa çizimi", tüm sayfanın `render()` ile yeniden kurulmasıdır.
+
+| Durum | Önce | Sonra |
+| --- | --- | --- |
+| Soy ağacı ziyareti | 2 çizim | 1 çizim |
+| Kişi aramasına 7 harf yazma | 7 çizim, 801 ms | 1 çizim, 64 ms |
+| Canlı beğeni ve yeni kişi gelirken Hayat | 0 çizim, kaydırma korunur | aynı |
+
+- **Soy ağacı:** portre listesi ilk yüklendiğinde boş olsa bile ağaç ikinci kez çiziliyordu. Artık yalnız portreler gerçekten değişince çiziliyor.
+- **Kişi araması:** her tuşta tüm sayfa (arama kutusu dahil) yeniden kuruluyordu. Artık yazma durunca, 150 ms sonra bir kez kuruluyor. İmleç ve odak korunuyor.
+- İkisi de tarayıcı testiyle korunuyor (`tests/e2e/rendering.spec.mjs`). Testler eski kodda başarısız oluyor (6 ve 2 çizim).
+- **Sayfa geçişleri (sonra):**
+
+  | Sayfa | Süre | DOM öğesi |
+  | --- | --- | --- |
+  | Soy ağacı | 757 ms | 8.633 |
+  | Aile üyeleri | 131 ms | 403 |
+  | Avlu | 46 ms | 212 |
+  | Hayat | 230 ms | 1.447 |
+
 ## Kalanlar
 
+- **Soy ağacı.** 1.200 kişiyi tek seferde çiziyor (8.633 DOM öğesi; CPU 4× yavaşlatmayla 757 ms). Yalnız görünen bölümü çizmek (sanallaştırma) daha büyük bir değişiklik; bu turda yapılmadı.
 - **Dünya haritası.** `world-map.js` tek başına 755 KB'tır (Natural Earth 1:50m sınırları). Daha kaba 1:110m sınırlar dosyayı belirgin biçimde küçültür, ama yakınlaştırınca haritanın görünüşü değişir. Tasarım kararı gerektirdiği için yapılmadı.
 - **CSS.** 207 KB ham, 42 KB gzip; kullanılmayan kural temizliği yapılmadı.
-- **Uzun liste performansı.** Uzun akış ve büyük soy ağacında yeniden çizim ölçümü ayrı bir maddedir.

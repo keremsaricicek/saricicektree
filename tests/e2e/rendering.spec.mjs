@@ -73,3 +73,43 @@ test("a comment containing markup is shown as text, with its likes and actions i
   await expect(comment.locator('[data-ui="reply"]')).toBeVisible();
   await ctx.close();
 });
+
+test("typing in the people search rebuilds the page once, keeps focus and filters the list", async ({ page }) => {
+  await openDemo(page);
+  await page.evaluate(() => (location.hash = "people"));
+  await expect(page.locator("#people-search")).toBeVisible();
+  const [target, other] = await page.evaluate(() => [
+    state.people[0].name.split(" ")[0],
+    state.people.find((p) => !p.name.startsWith(state.people[0].name.split(" ")[0])).name,
+  ]);
+  await page.evaluate(() => {
+    window.__renders = 0;
+    const base = render;
+    render = function () {
+      window.__renders++;
+      return base.apply(this, arguments);
+    };
+  });
+  await page.locator("#people-search").pressSequentially(target);
+  await expect(page.locator("main")).not.toContainText(other);
+  await expect(page.locator("main")).toContainText(target);
+  expect(await page.evaluate(() => window.__renders)).toBe(1);
+  await expect(page.locator("#people-search")).toBeFocused();
+  expect(await page.locator("#people-search").evaluate((e) => [e.value, e.selectionStart])).toEqual([target, target.length]);
+});
+
+test("opening the family tree draws it once when there are no portraits to add", async ({ page }) => {
+  await openDemo(page);
+  await page.evaluate(() => {
+    window.__renders = 0;
+    const base = render;
+    render = function () {
+      window.__renders++;
+      return base.apply(this, arguments);
+    };
+    location.hash = "tree";
+  });
+  await expect(page.locator(".tree-viewport")).toBeVisible();
+  await page.waitForFunction(() => !ui.portraitsBusy && ui.portraits);
+  expect(await page.evaluate(() => window.__renders)).toBe(1);
+});

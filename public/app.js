@@ -779,16 +779,23 @@ function searchDialog(treeOnly = false) {
     hydrate();
   });
 }
+let searchRenderTimer = null;
 function bindPage() {
   for (const id of ["people-search", "gallery-search"])
     $("#" + id)?.addEventListener("input", (e) => {
-      const start = e.target.selectionStart;
       query = e.target.value;
       page = 1;
-      render();
-      const el = $("#" + id);
-      el.focus();
-      el.setSelectionRange(start, start);
+      // The page (search box included) is rebuilt once typing pauses, not on every keystroke.
+      clearTimeout(searchRenderTimer);
+      searchRenderTimer = setTimeout(() => {
+        const before = $("#" + id);
+        if (!before) return; // left the page meanwhile
+        const start = before.selectionStart;
+        render();
+        const el = $("#" + id);
+        el?.focus();
+        el?.setSelectionRange(start, start);
+      }, 150);
     });
   $("#tree-search")?.addEventListener("focus", () => searchDialog(true));
   $("#settings-form")?.addEventListener("submit", (e) => saveSettings(e));
