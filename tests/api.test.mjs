@@ -176,6 +176,16 @@ test("real server: invitations, permissions, moderation, persistence and scale",
       assert.ok(!text.includes(key) && !text.includes("localSecurityKey"), path + " leaks the security key");
     }
   });
+  await t.test("personal data export never includes the password hash", async () => {
+    const r = await call("/api/account/export", "GET", null, owner);
+    assert.equal(r.status, 200);
+    const db = new DatabaseSync(join(data, "family.sqlite"));
+    const stored = db.prepare("SELECT password FROM users WHERE email='owner@example.test'").get().password;
+    db.close();
+    const text = JSON.stringify(r.body);
+    assert.equal(r.body.account.email, "owner@example.test");
+    assert.ok(!text.includes(stored.split(":")[1]) && !text.includes("password"));
+  });
   await t.test("account deletion ends sessions and removes the password and reset links", async () => {
     const invite = await call("/api/invites", "POST", { email: "leaving@example.test", role: "member" }, owner);
     const token = invite.body.url.split("invite=")[1];

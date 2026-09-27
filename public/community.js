@@ -604,6 +604,13 @@ async function familyHandle(action, el) {
         toast("Takvim dosyasını cihazının takvimine ekleyebilirsin.");
       }
       break;
+    case "export-my-data": {
+      if (demoMode) return toast("Önizlemede kişisel veri yok; gerçek hesabınla canlı sitede indirebilirsin.");
+      const data = await familyApi("/api/account/export");
+      download("saricicek-verilerim-" + data.exportedAt.slice(0, 10) + ".json", JSON.stringify(data, null, 2));
+      toast("Verilerin indirildi.");
+      break;
+    }
     case "delete-account":
       modal(
         "Hesabını sil",

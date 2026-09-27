@@ -327,6 +327,57 @@ export async function community({
       },
     });
   }
+  // Personal data export: what this member wrote, uploaded and chose. Other members appear only by
+  // display name (never e-mail), and only in this member's own conversations.
+  if (path === "/api/account/export" && method === "GET") {
+    await limit("export:" + u.id, 10, 3600000);
+    const name = async (id) => (await one("SELECT name FROM users WHERE id=?", id))?.name || "Silinen üye";
+    const dms = await all("SELECT senderId,recipientId,body,createdAt,readAt FROM messages WHERE senderId=? OR recipientId=? ORDER BY createdAt", u.id, u.id);
+    const names = new Map();
+    for (const m of dms) for (const id of [m.senderId, m.recipientId]) if (id !== u.id && !names.has(id)) names.set(id, await name(id));
+    const profile = await one("SELECT personId,fields FROM profile_details WHERE userId=?", u.id);
+    const data = {
+      exportedAt: now(),
+      note: "Sarıçiçek Konağı'nda bu hesapla yazdıkların, yüklediklerin ve seçtiklerin. Diğer üyelerin e-posta adresleri ve göremediğin içerik bu dosyada yoktur.",
+      account: { name: u.name, email: u.email, role: u.role, createdAt: u.createdAt },
+      profile: profile ? { personId: profile.personId, fields: JSON.parse(profile.fields || "{}") } : null,
+      preferences: JSON.parse((await one("SELECT data FROM user_preferences WHERE userId=?", u.id))?.data || "{}"),
+      posts: await all(
+        "SELECT id,kind,body,date,place,visibility,photoId,createdAt,updatedAt,deletedAt FROM feed_posts WHERE createdBy=? ORDER BY createdAt",
+        u.id,
+      ),
+      comments: await all("SELECT postId,parentId,body,createdAt,deletedAt FROM feed_comments WHERE createdBy=? ORDER BY createdAt", u.id),
+      likedPosts: (await all("SELECT postId FROM feed_reactions WHERE userId=?", u.id)).map((x) => x.postId),
+      savedPosts: (await all("SELECT postId FROM feed_saved WHERE userId=?", u.id)).map((x) => x.postId),
+      reactions: await all("SELECT postId,emoji,createdAt FROM feed_emoji WHERE userId=?", u.id),
+      photos: await all("SELECT id,title,date,place,description,status,createdAt,deletedAt FROM photos WHERE createdBy=? ORDER BY createdAt", u.id),
+      archiveEntries: await all(
+        "SELECT id,kind,title,body,data,visibility,status,createdAt,deletedAt FROM archive_entries WHERE createdBy=? ORDER BY createdAt",
+        u.id,
+      ),
+      messages: dms.map((m) => ({
+        direction: m.senderId === u.id ? "gönderilen" : "gelen",
+        with: names.get(m.senderId === u.id ? m.recipientId : m.senderId),
+        body: m.body,
+        createdAt: m.createdAt,
+        readAt: m.readAt,
+      })),
+      groupMessages: await all(
+        "SELECT g.name groupName,m.body,m.createdAt FROM group_messages m JOIN family_groups g ON g.id=m.groupId WHERE m.userId=? ORDER BY m.createdAt",
+        u.id,
+      ),
+      groups: (await all("SELECT g.name FROM group_members m JOIN family_groups g ON g.id=m.groupId WHERE m.userId=?", u.id)).map((x) => x.name),
+      eventResponses: await all("SELECT eventId,response FROM attendance WHERE userId=?", u.id),
+      locationSharing: await one("SELECT latitude,longitude,precision,consentedAt,updatedAt,expires FROM location_shares WHERE userId=?", u.id),
+    };
+    return new Response(JSON.stringify(data, null, 2), {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Content-Disposition": `attachment; filename="saricicek-verilerim-${now().slice(0, 10)}.json"`,
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
   if (path === "/api/account" && method === "DELETE") {
     const b = await read(2000);
     assert(b.confirm === "HESABIMI SİL", 400, "Silme onayını yazın.");

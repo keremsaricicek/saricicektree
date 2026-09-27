@@ -79,3 +79,49 @@ test("deleting an account leaves no row that names the member and no personal ro
   // 4. The linked profile person stays in the tree, no longer tied to an account.
   assert.ok(db.prepare("SELECT id FROM people WHERE id=? AND deletedAt IS NULL").get(person));
 });
+
+test("personal data export holds the member's own data and nothing private of others", async () => {
+  const { db, call, member } = fixture();
+  const a = await member("exporter@test.invalid"),
+    b = await member("neighbour@test.invalid");
+  db.prepare("UPDATE users SET name=? WHERE id=?").run("Komşu Ayşe", b.id); // the fixture names members by e-mail
+  const feed = "/api/experience/feed";
+  const mine = (await call(feed, "POST", { body: "Benim paylaşımım", visibility: "family", clientId: crypto.randomUUID(), peopleIds: [] }, a.email)).body.id;
+  await call(feed, "POST", { body: "Komşunun gizli notu", visibility: "private", clientId: crypto.randomUUID(), peopleIds: [] }, b.email);
+  const theirs = (await call(feed, "POST", { body: "Komşunun aile paylaşımı", visibility: "family", clientId: crypto.randomUUID(), peopleIds: [] }, b.email))
+    .body.id;
+  await call(feed + "/" + theirs + "/comments", "POST", { body: "Benim yorumum" }, a.email);
+  await call(feed + "/" + theirs + "/like", "PUT", {}, a.email);
+  await call("/api/experience/conversations/dm/" + b.id, "POST", { body: "Merhaba komşu", clientId: crypto.randomUUID() }, a.email);
+  await call("/api/experience/conversations/dm/" + a.id, "POST", { body: "Merhaba, hoş geldin", clientId: crypto.randomUUID() }, b.email);
+  const group = (await call("/api/archive/groups", "POST", { name: "Kuzenler", members: [a.id, b.id] })).body.id;
+  await call("/api/experience/conversations/group/" + group, "POST", { body: "Komşunun grup mesajı", clientId: crypto.randomUUID() }, b.email);
+  await call("/api/experience/conversations/group/" + group, "POST", { body: "Benim grup mesajım", clientId: crypto.randomUUID() }, a.email);
+
+  const r = await call("/api/account/export", "GET", null, a.email);
+  assert.equal(r.status, 200);
+  const text = JSON.stringify(r.body);
+  assert.equal(r.body.account.email, a.email);
+  assert.deepEqual(
+    r.body.posts.map((p) => p.id),
+    [mine],
+  );
+  assert.deepEqual(
+    r.body.comments.map((c) => c.body),
+    ["Benim yorumum"],
+  );
+  assert.deepEqual(r.body.likedPosts, [theirs]);
+  assert.deepEqual(
+    r.body.messages.map((m) => [m.direction, m.with, m.body]),
+    [
+      ["gönderilen", "Komşu Ayşe", "Merhaba komşu"],
+      ["gelen", "Komşu Ayşe", "Merhaba, hoş geldin"],
+    ],
+  );
+  assert.deepEqual(
+    r.body.groupMessages.map((m) => m.body),
+    ["Benim grup mesajım"],
+  );
+  for (const secret of ["neighbour@test.invalid", "Komşunun gizli notu", "Komşunun grup mesajı", "Komşunun aile paylaşımı", "password", "authId"])
+    assert.ok(!text.includes(secret), "export contains " + secret);
+});
