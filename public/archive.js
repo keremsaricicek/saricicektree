@@ -295,7 +295,7 @@ function drawArchiveYear() {
     `<p><strong>${living.length}</strong> kişi yıl sonunda hayatta görünüyor.</p><small>${unknown} kişinin doğum tarihi bilinmediği için sayıma alınmadı. Vefat tarihi boş kayıtlar hayatta kabul edilir.</small><div class="ar-year-people">${living.map((p) => `<button data-action="profile" data-id="${esc(p.id)}">${avatar(p)}<span>${esc(p.name)}<small>${y - Number(p.birthDate.slice(0, 4))} yaş · 31 Aralık</small></span></button>`).join("")}</div><h3>O yılın dönüm noktaları</h3>${moments.map((e) => `<article class="ar-comment"><small>${esc(e.date)}</small><br><button type="button" class="btn small" data-action="${e.action}" data-id="${esc(e.id)}">${esc(e.title)}</button></article>`).join("") || "<p>Bu yıla ait kayıt yok.</p>"}`;
 }
 function drawMigrationMap() {
-  if (!window.L || !window.FamilyWorld) return;
+  if (!window.L || !window.FamilyWorld) return familyWithMap($("#ar-migration-map"), drawMigrationMap, $("#ar-migrations"));
   archiveMap = L.map("ar-migration-map", { minZoom: 2, maxZoom: 10 }).setView([36, 28], 3);
   L.geoJSON(window.FamilyWorld, { style: { color: "#fff", weight: 1, fillColor: "#a9b797", fillOpacity: 1 } }).addTo(archiveMap);
   archiveMap.attributionControl.addAttribution("Natural Earth");
@@ -1261,7 +1261,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 let archiveRouteMap = null;
 function archiveRoutePicker() {
-  if (!window.L) return;
+  if (!window.L || !window.FamilyWorld) return familyWithMap($("#ar-route-picker"), archiveRoutePicker, $("#ar-route-pick-status"));
   archiveRouteMap?.remove();
   archiveRouteMap = L.map("ar-route-picker", { minZoom: 2, maxZoom: 10 }).setView([37, 35], 4);
   L.geoJSON(window.FamilyWorld, { style: { color: "#fff", weight: 1, fillColor: "#a9b797", fillOpacity: 1 } }).addTo(archiveRouteMap);

@@ -108,13 +108,43 @@ async function familyGuard(fn, target) {
     familyPollBusy = false;
   }
 }
+// Leaflet and the world outline are about 0.9 MB, needed only on map screens: loaded on first use.
+// The single-file export includes them inline, so there they are already present.
+let familyMapLibraries = null;
+function familyLoadMapLibraries() {
+  if (window.L && window.FamilyWorld) return Promise.resolve();
+  const script = (src) =>
+    new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = () => reject(Error("Harita dosyası yüklenemedi. Bağlantını kontrol edip sayfayı yeniden aç."));
+      document.head.append(s);
+    });
+  familyMapLibraries ||= Promise.all([window.L || script("assets/leaflet.js"), window.FamilyWorld || script("assets/world-map.js")]).catch((e) => {
+    familyMapLibraries = null; // a later visit tries again
+    throw e;
+  });
+  return familyMapLibraries;
+}
+/** Runs draw() once the map files are present, if the element is still on screen. */
+function familyWithMap(el, draw, status) {
+  if (window.L && window.FamilyWorld) return draw();
+  if (status) status.textContent = "Harita yükleniyor…";
+  familyLoadMapLibraries().then(
+    () => el?.isConnected && draw(),
+    (e) => {
+      if (status?.isConnected) status.textContent = e.message;
+    },
+  );
+}
 function familyBind() {
   familyCleanup();
+  if (route === "places" && !(window.L && window.FamilyWorld)) {
+    const el = $("#family-map");
+    return familyWithMap(el, () => route === "places" && familyBind(), $("#map-connection"));
+  }
   if (route === "places") {
-    if (!window.L) {
-      $("#map-connection").textContent = "Harita kütüphanesi yüklenemedi.";
-      return;
-    }
     familyMap = L.map("family-map", {
       minZoom: 2,
       maxZoom: 12,
@@ -125,10 +155,6 @@ function familyBind() {
       maxBoundsViscosity: 1,
       preferCanvas: true,
     }).setView([35, 24], 3);
-    if (!window.FamilyWorld) {
-      $("#map-connection").textContent = "Dünya haritası dosyası yüklenemedi.";
-      return;
-    }
     L.geoJSON(window.FamilyWorld, {
       style: () => ({ color: "#fafaf2", weight: 1, fillColor: "#a9b797", fillOpacity: 1 }),
       onEachFeature: (feature, layer) => {
