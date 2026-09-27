@@ -7,6 +7,9 @@ services:
       NODE_ENV: production
       DATA_DIR: /app/data
       TRUST_PROXY: "1" # the app is reached only through Caddy
+      # Invite and password-reset e-mails (docs/OPERATIONS.md). Empty SMTP_URL turns e-mail off.
+      SMTP_URL: ${SMTP_URL:-}
+      MAIL_FROM: ${MAIL_FROM:-}
       # Shown on the public privacy, support and account-deletion pages.
       SITE_OPERATOR_NAME: ${SITE_OPERATOR_NAME:-}
       SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}

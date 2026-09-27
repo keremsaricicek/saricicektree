@@ -433,7 +433,7 @@ function admin() {
       .map(([r, i, d]) => `<div>${icon(i)}<strong>${roleName[r]}</strong><p>${d}</p></div>`)
       .join(
         "",
-      )}</div><section class="card"><div class="section-head"><h2>Onay bekleyen katkılar</h2><span class="pill">${pending.length} kayıt</span></div>${pending.map((p) => `<div class="event-row"><div style="flex:1"><h3>${esc(p.title)}</h3><p>${p.table === "photos" ? "Fotoğraf" : "Aile olayı"} · ${p.date ? dateText(p.date) : ""}</p></div>${button("İncele", p.table === "photos" ? "photo" : "event-detail", "eye", "small", 'data-id="' + esc(p.id) + '"')}${button("Onayla", "approve", "check", "small", 'data-id="' + esc(p.id) + '" data-table="' + p.table + '"')}${button("Reddet", "reject", "x", "small", 'data-id="' + esc(p.id) + '" data-table="' + p.table + '"')}</div>`).join("") || '<p style="font-size:12px">Tüm katkılar gözden geçirilmiş. Bekleyen kayıt yok.</p>'}</section>${isOwner() ? `<section class="card" style="margin-top:22px"><div class="section-head"><h2>Üyeler ve yetkiler</h2><span class="muted" style="font-size:11px">${adminData.users.length} hesap</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Üye</th><th>Yetki</th><th>Durum</th><th>İşlemler</th></tr></thead><tbody>${adminData.users.map((u) => `<tr><td><strong>${esc(u.name)}</strong><small>${esc(u.email)}</small></td><td>${u.role === "owner" ? "Aile yöneticisi" : `<select data-user-role="${esc(u.id)}" aria-label="${esc(u.name)} yetkisi"><option value="member" ${u.role === "member" ? "selected" : ""}>Aile üyesi</option><option value="moderator" ${u.role === "moderator" ? "selected" : ""}>Moderatör</option></select>`}</td><td><span class="pill ${u.active ? "" : "rejected"}">${u.active ? "Aktif" : "Donduruldu"}</span></td><td>${u.role !== "owner" ? button(u.active ? "Dondur" : "Etkinleştir", "toggle-user", null, "small", 'data-id="' + esc(u.id) + '"') + (hostedAuth ? "" : button("Şifre yenile", "reset-link", null, "small", 'data-id="' + esc(u.id) + '"')) : ""}</td></tr>`).join("")}</tbody></table></div></section><section class="card" style="margin-top:22px"><div class="section-head"><h2>Davetler</h2></div>${adminData.invites.length ? adminData.invites.map((i) => `<div class="event-row"><div style="flex:1"><h3>${esc(i.email)}</h3><p>${roleName[i.role]} · ${i.used ? "Katıldı" : i.expires < Date.now() ? "Süresi doldu" : "Kabul bekleniyor"}</p></div>${!i.used ? button("İptal et", "cancel-invite", null, "small", 'data-id="' + esc(i.id) + '"') : ""}</div>`).join("") : '<p style="font-size:12px">Henüz davet oluşturulmadı.</p>'}</section>` : ""}<div class="admin-grid" style="margin-top:22px"><section class="card"><div class="section-head"><h2>Değişiklik geçmişi</h2></div>${
+      )}</div><section class="card"><div class="section-head"><h2>Onay bekleyen katkılar</h2><span class="pill">${pending.length} kayıt</span></div>${pending.map((p) => `<div class="event-row"><div style="flex:1"><h3>${esc(p.title)}</h3><p>${p.table === "photos" ? "Fotoğraf" : "Aile olayı"} · ${p.date ? dateText(p.date) : ""}</p></div>${button("İncele", p.table === "photos" ? "photo" : "event-detail", "eye", "small", 'data-id="' + esc(p.id) + '"')}${button("Onayla", "approve", "check", "small", 'data-id="' + esc(p.id) + '" data-table="' + p.table + '"')}${button("Reddet", "reject", "x", "small", 'data-id="' + esc(p.id) + '" data-table="' + p.table + '"')}</div>`).join("") || '<p style="font-size:12px">Tüm katkılar gözden geçirilmiş. Bekleyen kayıt yok.</p>'}</section>${isOwner() ? `<section class="card" style="margin-top:22px"><div class="section-head"><h2>Üyeler ve yetkiler</h2><span class="muted" style="font-size:11px">${adminData.users.length} hesap</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Üye</th><th>Yetki</th><th>Durum</th><th>İşlemler</th></tr></thead><tbody>${adminData.users.map((u) => `<tr><td><strong>${esc(u.name)}</strong><small>${esc(u.email)}</small></td><td>${u.role === "owner" ? "Aile yöneticisi" : `<select data-user-role="${esc(u.id)}" aria-label="${esc(u.name)} yetkisi"><option value="member" ${u.role === "member" ? "selected" : ""}>Aile üyesi</option><option value="moderator" ${u.role === "moderator" ? "selected" : ""}>Moderatör</option></select>`}</td><td><span class="pill ${u.active ? "" : "rejected"}">${u.active ? "Aktif" : "Donduruldu"}</span></td><td>${u.role !== "owner" ? button(u.active ? "Dondur" : "Etkinleştir", "toggle-user", null, "small", 'data-id="' + esc(u.id) + '"') + (hostedAuth ? "" : button("Şifre yenile", "reset-link", null, "small", 'data-id="' + esc(u.id) + '"')) : ""}</td></tr>`).join("")}</tbody></table></div></section><section class="card" style="margin-top:22px"><div class="section-head"><h2>Davetler</h2></div>${adminData.invites.length ? adminData.invites.map((i) => `<div class="event-row"><div style="flex:1"><h3>${esc(i.email)}</h3><p>${roleName[i.role]} · ${i.used ? "Katıldı" : i.expires < Date.now() ? "Süresi doldu" : "Kabul bekleniyor"}${inviteMailText(i)}</p></div>${!i.used ? button(i.mailStatus ? "Yeniden gönder" : "Yeni bağlantı", "resend-invite", null, "small", 'data-id="' + esc(i.id) + '"') + button("İptal et", "cancel-invite", null, "small", 'data-id="' + esc(i.id) + '"') : ""}</div>`).join("") : '<p style="font-size:12px">Henüz davet oluşturulmadı.</p>'}</section>` : ""}<div class="admin-grid" style="margin-top:22px"><section class="card"><div class="section-head"><h2>Değişiklik geçmişi</h2></div>${
       adminData.audit
         .slice(0, 10)
         .map(
@@ -703,7 +703,7 @@ function inviteForm() {
           ["member", "Aile üyesi"],
           ["moderator", "Moderatör"],
         ]) +
-        `<div class="field full"><div class="notice">Davet bağlantısı 7 gün geçerlidir. Üye, davet edildiği e-posta hesabıyla giriş yapar. Daveti oluşturmak e-posta göndermez; bağlantıyı kendiniz paylaşabilirsiniz.</div></div>`,
+        `<div class="field full"><div class="notice">Davet bağlantısı 7 gün geçerlidir ve bir kez kullanılır. Üye, davet edildiği e-posta hesabıyla giriş yapar. ${window.sfConfig?.mail ? "Davet bu adrese e-postayla da gönderilir." : "Bu kurulumda e-posta gönderimi kapalı; bağlantıyı kendiniz paylaşın."}</div></div>`,
       "Davet bağlantısı oluştur",
     ),
   );
@@ -714,12 +714,36 @@ function inviteForm() {
     await refresh();
   });
 }
+function inviteMailText(i) {
+  if (i.used || !i.mailStatus) return "";
+  if (i.mailStatus === "sent") return " · E-posta gönderildi";
+  if (i.mailStatus === "failed") return " · E-posta gönderilemedi" + (i.mailError ? " (" + esc(i.mailError) + ")" : "");
+  return " · E-posta sırada";
+}
+// Self-service reset: the answer is the same whether or not the address has an account.
+function forgotPassword() {
+  modal(
+    "Şifremi unuttum",
+    form(
+      `<p class="field full">Giriş e-postanı yaz. Bu adres kayıtlıysa bir saat geçerli, tek kullanımlık bir şifre yenileme bağlantısı gönderilir.</p>` +
+        input("E-posta adresi", "email", $("#login-form [name=email]")?.value || "", "email", 'required autocomplete="username"'),
+      "Bağlantı gönder",
+    ),
+  );
+  submitWith(async (b) => {
+    const r = await api("/api/forgot-password", "POST", b);
+    modal(
+      "Şifremi unuttum",
+      `<p role="status">${esc(r.message)}</p><p class="muted">E-posta gelmezse gereksiz (spam) klasörüne bak ya da aile yöneticinden bağlantı iste.</p><div class="form-actions">${button("Tamam", "close", null, "primary")}</div>`,
+    );
+  });
+}
 function showLink(result, title) {
   modal(
     title,
     result.demo
       ? `<div class="notice">Önizlemede davet örneği kaydedildi. Gerçek sunucuda aynı işlem, tek kullanımlık ve süreli bir kayıt bağlantısı üretir. E-posta gönderilmedi.</div>`
-      : `<p style="font-size:12px;margin-bottom:18px">Bu bağlantıyı yalnızca ilgili kişiyle paylaşın.</p>${input("Kayıt bağlantısı", "share-link", result.url, "text", "readonly")}<div class="form-actions">${button("Bağlantıyı kopyala", "copy-link", "copy", "primary")}</div>`,
+      : `${result.mail === "queued" ? `<div class="notice" role="status">${esc(result.email || "Üyenin adresi")} adresine e-posta gönderiliyor. Gelmezse bu bağlantıyı kendiniz de paylaşabilirsiniz.</div>` : ""}<p style="font-size:12px;margin-bottom:18px">Bu bağlantıyı yalnızca ilgili kişiyle paylaşın.</p>${input("Kayıt bağlantısı", "share-link", result.url, "text", "readonly")}<div class="form-actions">${button("Bağlantıyı kopyala", "copy-link", "copy", "primary")}</div>`,
   );
 }
 function confirmAction(title, desc, callback) {
@@ -1069,6 +1093,13 @@ async function handle(action, el) {
         toast("Bağlantı seçildi. Kopyalamak için Ctrl+C kullanın.");
       }
       break;
+    case "resend-invite": {
+      const result = await api("/api/invites/" + id + "/resend", "POST", {});
+      showLink(result, result.mail === "queued" ? "Davet yeniden gönderildi" : "Yeni davet bağlantısı");
+      adminData = null;
+      await refresh();
+      break;
+    }
     case "cancel-invite":
       confirmAction("Daveti iptal et", "Bu davet bağlantısı artık kullanılamayacak.", async () => {
         await api("/api/invites/" + id, "DELETE", {});
@@ -1164,7 +1195,7 @@ function loginScreen(error = "") {
     reset = fragment.startsWith("reset="),
     special = invite || reset;
   $("#app").innerHTML =
-    `<div class="login-page"><section class="login-visual"><div class="brand"><img src="assets/mark.svg" alt=""><span><strong>Sarıçiçek Konağı</strong></span></div><div><span class="eyebrow" style="color:#e0d2a5">AYNI KÖKTEN, GELECEĞE BİRLİKTE</span><h1 style="margin-top:20px">Köklerimiz bir.<br><em>Hikâyemiz sonsuz.</em></h1><p>Ailemizin dünyanın her yerinden buluştuğu, hatıralarını birlikte yaşattığı özel konağı.</p></div></section><section class="login-panel"><span class="eyebrow">YALNIZCA AİLEMİZE AİT</span><h2>${invite ? "Ailemize hoş geldin." : reset ? "Yeni bir başlangıç." : "Evine hoş geldin."}</h2><p>${invite ? "Adını ve şifreni belirleyerek aile konağına katıl." : reset ? "Hesabın için yeni bir şifre belirle." : "Anılarımıza, hikâyelerimize ve birbirimize açılan kapı."}</p><form id="login-form" class="stack">${invite ? input("Ad soyad", "name", "", "text", 'required minlength="2" autocomplete="name"') : ""}${!special ? input("E-posta adresi", "email", "", "email", 'required autocomplete="username"') : ""}${input(special ? "Yeni şifre" : "Şifre", "password", "", "password", `required ${special ? 'minlength="12"' : ""} maxlength="256" autocomplete="${special ? "new-password" : "current-password"}"`)}${special ? '<small class="muted">En az 12 karakter kullanın.</small>' : ""}<div class="form-error" role="alert">${esc(error)}</div><button class="btn primary" type="submit">${invite ? "Aileye katıl" : reset ? "Şifremi yenile" : "Konağa giriş yap"}${icon("arrow-right")}</button></form>${!special ? '<div class="notice">Katılmak veya şifrenizi yenilemek için aile yöneticisinden davet / yenileme bağlantısı isteyin.</div>' : ""}${demoMode ? button("Etkileşimli önizlemeyi aç", "open-demo", "arrow-up-right") : ""}<footer>${icon("lock-keyhole")} Kişisel arşivimiz yalnızca yetkili aile üyelerine açıktır.<nav class="legal-links" aria-label="Bilgi sayfaları"><a href="gizlilik.html">Gizlilik</a><a href="destek.html">Destek</a><a href="hesap-silme.html">Hesap silme</a></nav></footer></section></div>`;
+    `<div class="login-page"><section class="login-visual"><div class="brand"><img src="assets/mark.svg" alt=""><span><strong>Sarıçiçek Konağı</strong></span></div><div><span class="eyebrow" style="color:#e0d2a5">AYNI KÖKTEN, GELECEĞE BİRLİKTE</span><h1 style="margin-top:20px">Köklerimiz bir.<br><em>Hikâyemiz sonsuz.</em></h1><p>Ailemizin dünyanın her yerinden buluştuğu, hatıralarını birlikte yaşattığı özel konağı.</p></div></section><section class="login-panel"><span class="eyebrow">YALNIZCA AİLEMİZE AİT</span><h2>${invite ? "Ailemize hoş geldin." : reset ? "Yeni bir başlangıç." : "Evine hoş geldin."}</h2><p>${invite ? "Adını ve şifreni belirleyerek aile konağına katıl." : reset ? "Hesabın için yeni bir şifre belirle." : "Anılarımıza, hikâyelerimize ve birbirimize açılan kapı."}</p><form id="login-form" class="stack">${invite ? input("Ad soyad", "name", "", "text", 'required minlength="2" autocomplete="name"') : ""}${!special ? input("E-posta adresi", "email", "", "email", 'required autocomplete="username"') : ""}${input(special ? "Yeni şifre" : "Şifre", "password", "", "password", `required ${special ? 'minlength="12"' : ""} maxlength="256" autocomplete="${special ? "new-password" : "current-password"}"`)}${special ? '<small class="muted">En az 12 karakter kullanın.</small>' : ""}<div class="form-error" role="alert">${esc(error)}</div><button class="btn primary" type="submit">${invite ? "Aileye katıl" : reset ? "Şifremi yenile" : "Konağa giriş yap"}${icon("arrow-right")}</button></form>${!special ? (window.sfConfig?.mail ? `<button type="button" class="text-btn login-forgot" data-action="forgot-password">Şifremi unuttum</button><div class="notice">Katılmak için aile yöneticisinden davet isteyin.</div>` : '<div class="notice">Katılmak veya şifrenizi yenilemek için aile yöneticisinden davet / yenileme bağlantısı isteyin.</div>') : ""}${demoMode ? button("Etkileşimli önizlemeyi aç", "open-demo", "arrow-up-right") : ""}<footer>${icon("lock-keyhole")} Kişisel arşivimiz yalnızca yetkili aile üyelerine açıktır.<nav class="legal-links" aria-label="Bilgi sayfaları"><a href="gizlilik.html">Gizlilik</a><a href="destek.html">Destek</a><a href="hesap-silme.html">Hesap silme</a></nav></footer></section></div>`;
   hydrate();
   $("#login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1196,6 +1227,7 @@ function loginScreen(error = "") {
       btn.disabled = false;
     }
   });
+  $('[data-action="forgot-password"]')?.addEventListener("click", forgotPassword);
   $('[data-action="open-demo"]')?.addEventListener("click", async () => {
     route = "home";
     await refresh();

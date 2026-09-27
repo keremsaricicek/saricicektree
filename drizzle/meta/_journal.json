@@ -99,6 +99,13 @@
       "when": 1790475007977,
       "tag": "0013_error_log",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1790539832860,
+      "tag": "0014_mail_queue",
+      "breakpoints": true
     }
   ]
 }

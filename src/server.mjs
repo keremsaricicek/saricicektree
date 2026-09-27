@@ -11,6 +11,7 @@ import { community, communityPath } from "./community.mjs";
 import { coreApi } from "./core-api.mjs";
 import { log } from "./log.mjs";
 import { backupDue } from "./offsite-backup.mjs";
+import { createMailer } from "./mail.mjs";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { recordError } from "./ops.mjs";
@@ -48,6 +49,7 @@ const localStorageAdapter = {
 };
 // Smaller photo copies are made here in the background (MEDIA_JOBS=off disables it, e.g. for tools).
 const mediaJobs = process.env.MEDIA_JOBS === "off" ? null : startMediaJobs({ all, one, run, storage: localStorageAdapter });
+const mailer = (await createMailer({ all, one, run })).start();
 const now = () => new Date().toISOString(),
   publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: u.active });
 // Logged as a JSON line and kept in error_log for the admin panel; never with request bodies.
@@ -134,6 +136,13 @@ const opsInfo = {
     };
   },
 };
+// A one-hour, single-use reset link; any older unused link for the account stops working.
+function createReset(userId) {
+  const raw = token();
+  run("UPDATE resets SET used=1 WHERE userId=?", userId);
+  run("INSERT INTO resets VALUES(?,?,?,0)", hash(raw), userId, Date.now() + 3600000);
+  return origin + "/#reset=" + raw;
+}
 function createSession(res, u) {
   const raw = token(),
     csrf = token();
@@ -198,6 +207,25 @@ async function handler(req, res) {
       });
       return json(res, 201, createSession(res, u));
     }
+    // Self-service reset by e-mail. The answer is the same whether or not the address has an account.
+    if (path === "/api/forgot-password" && method === "POST") {
+      assert(mailer.enabled, 503, "Bu kurulumda e-posta gönderimi açık değil. Aile yöneticinden şifre yenileme bağlantısı iste.");
+      limit("forgot-ip:" + clientAddress(req), 10, 3600000);
+      const b = await body(req, 2048),
+        email = clean(b.email).toLowerCase();
+      const user = email && one("SELECT id,email FROM users WHERE email=? AND active=1", email);
+      let allowed = true;
+      try {
+        limit("forgot:" + email, 3, 3600000); // at most three e-mails an hour to one address, silently
+      } catch {
+        allowed = false;
+      }
+      if (user && allowed) {
+        await mailer.enqueue("reset", String(user.email), String(user.id), { url: createReset(user.id) });
+        audit(user.id, "Şifre yenileme e-postası istendi");
+      }
+      return json(res, 200, { ok: true, message: "Bu adres kayıtlıysa şifre yenileme bağlantısı birkaç dakika içinde e-postana gelir." });
+    }
     if (path === "/api/reset-password" && method === "POST") {
       limit("reset:" + clientAddress(req), 15);
       const b = await body(req, 4096),
@@ -219,6 +247,7 @@ async function handler(req, res) {
         mediaOptimizer: mediaJobs ? "server" : "client",
         operatorName: process.env.SITE_OPERATOR_NAME || null,
         supportEmail: process.env.SUPPORT_EMAIL || null,
+        mail: mailer.enabled,
       });
     if (path.startsWith("/api/") || path.startsWith("/media/") || path.startsWith("/document/") || path.startsWith("/archive-media/")) {
       const { u, session } = authorize(req);
@@ -323,13 +352,12 @@ async function handler(req, res) {
       if (path === "/api/reset-link" && method === "POST") {
         owner(u);
         const b = await body(req, 4096),
-          target = one("SELECT id FROM users WHERE id=?", b.userId);
+          target = one("SELECT id,email FROM users WHERE id=?", b.userId);
         assert(target, 404, "Üye bulunamadı.");
-        const raw = token();
-        run("UPDATE resets SET used=1 WHERE userId=?", target.id);
-        run("INSERT INTO resets VALUES(?,?,?,0)", hash(raw), target.id, Date.now() + 3600000);
+        const url = createReset(target.id);
         audit(u.id, "Şifre yenileme bağlantısı oluşturuldu", String(target.id));
-        return json(res, 201, { url: origin + "/#reset=" + raw });
+        const mail = await mailer.enqueue("reset", String(target.email), String(target.id), { url });
+        return json(res, 201, { url, mail });
       }
       // Everything else is shared with the Cloudflare runtime.
       const r = await coreApi({
@@ -355,6 +383,7 @@ async function handler(req, res) {
         hash,
         mediaJobs,
         onUserDeactivated: (id) => run("DELETE FROM sessions WHERE userId=?", id),
+        onInviteCreated: ({ id, email, role, url, inviter }) => mailer.enqueue("invite", email, id, { url, role, inviter }),
       });
       res.writeHead(r.status, Object.fromEntries(r.headers));
       return res.end(Buffer.from(await r.arrayBuffer()));

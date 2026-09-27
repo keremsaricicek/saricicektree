@@ -13,6 +13,7 @@ Alan adı, sunucu ve e-posta kurulumu için [DEPLOYMENT.md](DEPLOYMENT.md), mobi
 | `DATA_DIR` | Hayır | `./data` | SQLite (`family.sqlite`) ve yüklenen dosyalar. **Yedeklenecek tek klasör budur.** |
 | `TRUST_PROXY` | Docker'da `1` | — | Uygulama yalnız Caddy arkasındaysa `1`: giriş/davet/şifre sınırları ziyaretçi adresini `X-Forwarded-For` başlığının son değerinden alır. Uygulama doğrudan internete açıksa verilmez. |
 | `SITE_OPERATOR_NAME`, `SUPPORT_EMAIL` | Yayından önce evet | — | Veri sorumlusunun adı ve destek adresi; gizlilik, destek ve hesap silme sayfalarında gösterilir. Boşsa sayfalar bu alanların eksik olduğunu açıkça yazar. |
+| `SMTP_URL`, `MAIL_FROM` | Önerilir | — | Davet ve şifre yenileme e-postaları. Örnek: `smtps://kullanici:parola@smtp.saglayici.com:465` ve `Sarıçiçek Konağı <aile@alanadiniz.com>`. Boşsa e-posta gönderilmez; yönetici bağlantıyı elle paylaşır, "Şifremi unuttum" gösterilmez. Gönderilemeyen e-postalar 1 dk → 1 sa arası artan aralıklarla 5 kez denenir; kalıcı hatalar ve son deneme yönetici panelinde görünür. Cloudflare sürümünde e-posta gönderimi yoktur. |
 | `NODE_ENV` | Üretimde `production` | — | Güvenli çerez ve statik dosya önbelleği. |
 | `BACKUP_TARGET`, `BACKUP_PASSPHRASE`, `BACKUP_ALERT_URL`, `BACKUP_KEEP`, `BACKUP_S3_*` | Önerilir | — | Tam şifreli yedek: [BACKUP.md](BACKUP.md). |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | Yalnız ilk kurulumda | — | `npm run admin` ilk yöneticiyi oluşturur; sonra parolayı ortamdan kaldırın. |

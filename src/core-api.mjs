@@ -290,7 +290,14 @@ export async function coreApi(c) {
     staff(u);
     return json(res, 200, {
       users: u.role === "owner" ? await all("SELECT id,name,email,role,active,createdAt FROM users") : [],
-      invites: u.role === "owner" ? await all("SELECT id,email,role,expires,used FROM invites ORDER BY expires DESC") : [],
+      invites:
+        u.role === "owner"
+          ? await all(
+              `SELECT i.id,i.email,i.role,i.expires,i.used,m.status mailStatus,m.lastError mailError,m.sentAt mailSentAt
+               FROM invites i LEFT JOIN mail_queue m ON m.id=(SELECT MAX(id) FROM mail_queue WHERE refId=i.id AND kind='invite')
+               ORDER BY i.expires DESC`,
+            )
+          : [],
       audit: await all("SELECT a.*,u.name FROM audit a LEFT JOIN users u ON u.id=a.userId ORDER BY a.id DESC LIMIT 100"),
       trash: {
         people: await all("SELECT id,name,deletedAt FROM people WHERE deletedAt IS NOT NULL"),
@@ -310,7 +317,22 @@ export async function coreApi(c) {
       id = randomUUID();
     await run("INSERT INTO invites VALUES(?,?,?,?,?,?,?)", id, email, b.role, await hash(raw), Date.now() + 7 * 86400000, 0, u.id);
     await audit(u.id, "Davet oluşturuldu", id);
-    return json(res, 201, { url: origin + "/#invite=" + raw, email });
+    const url = origin + "/#invite=" + raw;
+    const mail = (await c.onInviteCreated?.({ id, email, role: b.role, url, inviter: u.name })) || null;
+    return json(res, 201, { url, email, mail });
+  }
+  // A new link for an unused invite (the old one stops working), sent again by e-mail when available.
+  const resend = path.match(/^\/api\/invites\/([\w-]+)\/resend$/);
+  if (resend && method === "POST") {
+    owner(u);
+    const invite = await one("SELECT * FROM invites WHERE id=? AND used=0", resend[1]);
+    assert(invite, 404, "Davet bulunamadı ya da kullanılmış.");
+    const raw = token();
+    await run("UPDATE invites SET token=?,expires=? WHERE id=?", await hash(raw), Date.now() + 7 * 86400000, invite.id);
+    await audit(u.id, "Davet yenilendi", invite.id);
+    const url = origin + "/#invite=" + raw;
+    const mail = (await c.onInviteCreated?.({ id: invite.id, email: invite.email, role: invite.role, url, inviter: u.name })) || null;
+    return json(res, 200, { url, email: invite.email, mail });
   }
   if (path.match(/^\/api\/invites\/[\w-]+$/) && method === "DELETE") {
     owner(u);

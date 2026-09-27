@@ -657,3 +657,23 @@ export const error_log = sqliteTable(
   },
   (t) => [index("error_log_created").on(t.createdAt)],
 );
+// Outgoing e-mail (invites, password resets). The body holds a one-time link, so it is cleared as
+// soon as the message is sent or finally fails; only the status and the error stay.
+export const mail_queue = sqliteTable(
+  "mail_queue",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    kind: text("kind").notNull(),
+    refId: text("refId"),
+    toAddr: text("toAddr").notNull(),
+    subject: text("subject").notNull(),
+    body: text("body"),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: text("nextAttemptAt"),
+    lastError: text("lastError"),
+    createdAt: text("createdAt").notNull(),
+    sentAt: text("sentAt"),
+  },
+  (t) => [index("mail_queue_due").on(t.status, t.nextAttemptAt), index("mail_queue_ref").on(t.refId)],
+);
