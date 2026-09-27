@@ -1,0 +1,21 @@
+{
+  // Type checking for plain JavaScript (checkJs); no build output. Covers every server module
+  // that passes today; the browser scripts share one global scope and are checked by ESLint.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2023",
+    "lib": ["es2023", "dom"],
+    "types": ["node"],
+    "skipLibCheck": true
+  },
+  // server.mjs and worker/index.mjs are not yet included: their route dispatch needs typing work.
+  "include": ["src/**/*.mjs"],
+  "exclude": ["src/server.mjs"]
+}

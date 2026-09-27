@@ -20,7 +20,7 @@ export async function recordError(run, source, event, message, area = null) {
     area && clip(area, 40),
     now.toISOString(),
   );
-  await run("DELETE FROM error_log WHERE createdAt<?", new Date(now - KEEP_DAYS * 86400_000).toISOString());
+  await run("DELETE FROM error_log WHERE createdAt<?", new Date(now.getTime() - KEEP_DAYS * 86400_000).toISOString());
 }
 
 export async function ops({ path, method, u, read, all, run, limit }) {

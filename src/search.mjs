@@ -45,6 +45,7 @@ export async function search({ path, url, u, all, one }) {
   const person = (id) => "(NOT EXISTS(SELECT 1 FROM person_guardians g WHERE g.personId=" + id + " AND g.userId!=?) OR ?='owner')";
   const pArgs = [u.id, u.role],
     photoArgs = [u.id, u.role, u.id, u.id, u.id];
+  /** @type {Array<[string, string, string, string, string, string, string, any[]]>} */
   const specs = [
     [
       "people",

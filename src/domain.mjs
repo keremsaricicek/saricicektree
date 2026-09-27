@@ -69,5 +69,5 @@ export function nextAnniversary(date, now = new Date()) {
     next = new Date(now.getFullYear() + 1, m - 1, d);
     if (next.getMonth() !== m - 1) next = new Date(now.getFullYear() + 1, m, 0);
   }
-  return { date: next.toLocaleDateString("en-CA"), days: Math.round((next - today) / 86400000), years: next.getFullYear() - y };
+  return { date: next.toLocaleDateString("en-CA"), days: Math.round((next.getTime() - today.getTime()) / 86400000), years: next.getFullYear() - y };
 }

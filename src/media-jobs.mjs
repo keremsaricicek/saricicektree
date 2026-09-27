@@ -10,7 +10,12 @@ import { expectedWidths, originalSize, refreshStatus, storeVariant } from "./var
 const MAX_ATTEMPTS = 6;
 const backoffMs = (attempts) => Math.min(6 * 3600_000, 60_000 * 2 ** (attempts - 1));
 
-/** Makes the missing copies for one photo. */
+/**
+ * Makes the missing copies for one photo.
+ * @param {any} ctx
+ * @param {string} photoId
+ * @param {(bytes: Uint8Array, width: number) => Promise<Uint8Array>} [encode]
+ */
 export async function optimisePhoto(ctx, photoId, encode = defaultEncode) {
   const photo = await ctx.one("SELECT id,filename FROM photos WHERE id=? AND deletedAt IS NULL", photoId);
   if (!photo) return "gone";
@@ -31,8 +36,13 @@ async function defaultEncode(bytes, width) {
   return new Uint8Array(await sharp(bytes, { limitInputPixels: MAX_IMAGE_PIXELS }).rotate().resize({ width }).webp({ quality: 80 }).toBuffer());
 }
 
-/** One pass over due photos; returns counts. Photos without a status row are adopted first. */
-export async function runMediaJobs(ctx, { now = Date.now(), limit = 10, encode } = {}) {
+/**
+ * One pass over due photos; returns counts. Photos without a status row are adopted first.
+ * @param {any} ctx database and storage functions
+ * @param {{now?: number, limit?: number, encode?: (bytes: Uint8Array, width: number) => Promise<Uint8Array>}} [options]
+ */
+export async function runMediaJobs(ctx, options = {}) {
+  const { now = Date.now(), limit = 10, encode } = options;
   const stamp = new Date(now).toISOString();
   await ctx.run(
     "INSERT OR IGNORE INTO photo_media(photoId,updatedAt,status) SELECT id,?,'pending' FROM photos WHERE deletedAt IS NULL AND id NOT IN (SELECT photoId FROM photo_media)",
