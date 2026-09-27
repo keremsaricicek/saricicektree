@@ -154,12 +154,18 @@ test("a full backup restores accounts, messages, relations and photos into an em
   }
 
   // A damaged file, a wrong passphrase and a non-empty target are refused; nothing is left behind.
-  const damaged = join(root, "damaged.sfbk");
+  // One damaged byte inside the data and one in the final authentication tag.
+  const damaged = join(root, "damaged.sfbk"),
+    badTag = join(root, "bad-tag.sfbk");
   const bytes = readFileSync(join(target, file));
   bytes[Math.floor(bytes.length / 2)] ^= 0xff;
   writeFileSync(damaged, bytes);
+  const tagged = readFileSync(join(target, file));
+  tagged[tagged.length - 1] ^= 0xff;
+  writeFileSync(badTag, tagged);
   for (const [f, pass, dest, pattern] of [
-    [damaged, PASS, join(root, "r1"), /Yedek (çözülemedi|dosyası eksik|teki dosya bozuk)/],
+    [damaged, PASS, join(root, "r1"), /Yedek( çözülemedi| dosyası eksik|teki dosya bozuk)/],
+    [badTag, PASS, join(root, "r3"), /Yedek çözülemedi/],
     [join(target, file), "yanlis-parola-1234", join(root, "r2"), /çözülemedi/],
     [join(target, file), PASS, restored, /boş olmalı/],
   ]) {
