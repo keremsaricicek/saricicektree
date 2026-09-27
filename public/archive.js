@@ -893,7 +893,7 @@ function archiveBind() {
   if (route === "settings" && isOwner())
     $("#main .footer").insertAdjacentHTML(
       "beforebegin",
-      `<section class="card ar-section"><h2>Ailenin devamlılığı</h2>${aButton("Veli kontrolü ve yönetim devri", "governance")}${aButton("Otomatik yedekler", "backups")}</section>`,
+      `<section class="card ar-section"><h2>Ailenin devamlılığı</h2><div class="row" style="flex-wrap:wrap;margin-top:15px">${aButton("Veli kontrolü ve yönetim devri", "governance")}${aButton("Otomatik yedekler", "backups")}</div></section>`,
     );
   document.body.classList.toggle("ar-simple", localStorage.getItem("sf-simple") === "1");
   hydrate();
