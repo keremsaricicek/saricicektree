@@ -23,6 +23,7 @@ export async function community({
   keyText = null,
   defer = null,
   mediaJobs = null,
+  onAccountDeleted = null,
 }) {
   if (path.startsWith("/api/experience/"))
     return experience({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted, keyText, defer, mediaJobs });
@@ -351,6 +352,13 @@ export async function community({
       ["DELETE FROM feed_notifications WHERE userId=?", u.id],
       ["DELETE FROM feed_saved WHERE userId=?", u.id],
       ["DELETE FROM feed_reactions WHERE userId=?", u.id],
+      ["DELETE FROM feed_emoji WHERE userId=?", u.id],
+      ["DELETE FROM feed_comment_likes WHERE userId=?", u.id],
+      ["DELETE FROM user_preferences WHERE userId=?", u.id],
+      ["DELETE FROM archive_votes WHERE userId=?", u.id],
+      ["DELETE FROM person_guardians WHERE userId=?", u.id],
+      ["UPDATE profile_details SET userId=NULL WHERE userId=?", u.id],
+      ["DELETE FROM invites WHERE lower(email)=lower(?)", u.email],
       ["UPDATE archive_entries SET deletedAt=? WHERE createdBy=? AND (visibility='private' OR kind='directory')", now(), u.id],
       [
         `UPDATE users SET active=0,name='Silinen üye',email=?${hosted ? ",authId=?" : ""} WHERE id=?`,
@@ -358,6 +366,7 @@ export async function community({
       ],
     ]);
     for (const m of media) await storage.delete(m.filename);
+    await onAccountDeleted?.(u.id); // Node: sessions, reset links and the password hash
     return reply({ ok: true });
   }
   return reply({ error: "İşlem bulunamadı." }, 404);

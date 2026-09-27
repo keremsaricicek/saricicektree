@@ -243,6 +243,13 @@ async function handler(req, res) {
           storage,
           limit,
           mediaJobs,
+          // Node keeps its own sign-in data; the shared code removes everything else.
+          onAccountDeleted: (id) =>
+            transaction(() => {
+              run("DELETE FROM sessions WHERE userId=?", id);
+              run("DELETE FROM resets WHERE userId=?", id);
+              run("UPDATE users SET password=? WHERE id=?", "deleted:" + "0".repeat(128), id);
+            }),
         });
         res.writeHead(r.status, Object.fromEntries(r.headers));
         return res.end(Buffer.from(await r.arrayBuffer()));

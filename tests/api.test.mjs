@@ -176,6 +176,27 @@ test("real server: invitations, permissions, moderation, persistence and scale",
       assert.ok(!text.includes(key) && !text.includes("localSecurityKey"), path + " leaks the security key");
     }
   });
+  await t.test("account deletion ends sessions and removes the password and reset links", async () => {
+    const invite = await call("/api/invites", "POST", { email: "leaving@example.test", role: "member" }, owner);
+    const token = invite.body.url.split("invite=")[1];
+    const leaving = await call("/api/accept-invite", "POST", { token, name: "Leaving Member", password: "leaving-long-password" });
+    assert.equal(leaving.status, 201);
+    const second = await call("/api/login", "POST", { email: "leaving@example.test", password: "leaving-long-password" });
+    assert.equal((await call("/api/reset-link", "POST", { userId: leaving.body.user.id }, owner)).status, 201);
+    assert.equal((await call("/api/account", "DELETE", { confirm: "HESABIMI SİL" }, leaving)).status, 200);
+    assert.equal((await call("/api/me", "GET", null, second)).status, 401);
+    const db = new DatabaseSync(join(data, "family.sqlite"));
+    const id = leaving.body.user.id;
+    const row = db.prepare("SELECT name,email,password,active FROM users WHERE id=?").get(id);
+    const left = ["sessions", "resets"].map((t) => db.prepare(`SELECT COUNT(*) n FROM ${t} WHERE userId=?`).get(id).n);
+    db.close();
+    assert.deepEqual(left, [0, 0]);
+    assert.equal(row.active, 0);
+    assert.equal(row.name, "Silinen üye");
+    assert.ok(!row.email.includes("leaving"));
+    assert.ok(!row.password.includes(":") || row.password.startsWith("deleted:"), "password hash removed");
+    assert.equal((await call("/api/login", "POST", { email: "leaving@example.test", password: "leaving-long-password" })).status, 401);
+  });
   await t.test("role changes revoke sessions; resets are single-use", async () => {
     const userId = member.body.user.id;
     assert.equal((await call("/api/users/" + userId, "PATCH", { role: "member", active: 0 }, owner)).status, 200);
