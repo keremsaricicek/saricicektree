@@ -18,6 +18,7 @@ const cwd = process.cwd(),
     ADMIN_EMAIL: "owner@example.test",
     ADMIN_PASSWORD: "long-test-password-123",
     ADMIN_NAME: "Test Owner",
+    TRUST_PROXY: "1", // as behind Caddy in compose.yaml
   };
 let child;
 async function start() {
@@ -150,6 +151,14 @@ test("real server: invitations, permissions, moderation, persistence and scale",
     assert.equal(b.status, 200);
     assert.equal(b.body.people.length, 1202);
     assert.ok(b.body.photos.some((p) => p.id === photoId));
+  });
+  await t.test("sign-in limits count each visitor behind the proxy separately", async () => {
+    // Behind Caddy every connection comes from the proxy; one visitor's failed attempts must not lock out the family.
+    const attempt = (ip, n) => call("/api/login", "POST", { email: `nobody${n}@example.test`, password: "wrong-password-123" }, {}, { "x-forwarded-for": ip });
+    for (let n = 0; n < 40; n++) assert.equal((await attempt("203.0.113.7", n)).status, 401);
+    assert.equal((await attempt("203.0.113.7", 40)).status, 429);
+    assert.equal((await attempt("198.51.100.4", 41)).status, 401);
+    assert.equal((await call("/api/login", "POST", { email: "owner@example.test", password: "long-test-password-123" }, {}, { "x-forwarded-for": "198.51.100.9" })).status, 200);
   });
   await t.test("the two-factor encryption key never leaves the server", async () => {
     await call("/api/archive/photos", "GET", null, owner); // creates the key on first archive use

@@ -6,6 +6,7 @@ services:
       APP_ORIGIN: https://${SITE_DOMAIN:?Set SITE_DOMAIN in .env}
       NODE_ENV: production
       DATA_DIR: /app/data
+      TRUST_PROXY: "1" # the app is reached only through Caddy
     volumes:
       - family_data:/app/data
     expose:

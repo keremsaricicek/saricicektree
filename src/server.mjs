@@ -79,6 +79,13 @@ function json(res, status, data) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   res.end(JSON.stringify(filterFamilyPayload(data, res.hidden)));
 }
+// Behind Caddy (compose.yaml sets TRUST_PROXY=1) every connection comes from the proxy, so the
+// visitor's address is the last X-Forwarded-For entry, which Caddy itself writes. Without the
+// setting the header is ignored, so a visitor cannot choose their own address.
+function clientAddress(req) {
+  const forwarded = process.env.TRUST_PROXY === "1" && String(req.headers["x-forwarded-for"] || "").split(",").pop().trim();
+  return forwarded || req.socket.remoteAddress;
+}
 function createSession(res, u) {
   const raw = token(),
     csrf = token();
@@ -114,7 +121,7 @@ async function handler(req, res) {
       assert((req.headers["content-type"] || "").startsWith("application/json"), 415, "JSON içerik gerekiyor.");
     }
     if (path === "/api/login" && method === "POST") {
-      limit("login-ip:" + req.socket.remoteAddress, 40);
+      limit("login-ip:" + clientAddress(req), 40);
       const b = await body(req, 4096),
         email = clean(b.email).toLowerCase();
       limit("login:" + email, 10);
@@ -126,7 +133,7 @@ async function handler(req, res) {
       return json(res, 200, createSession(res, u));
     }
     if (path === "/api/accept-invite" && method === "POST") {
-      limit("accept:" + req.socket.remoteAddress, 20);
+      limit("accept:" + clientAddress(req), 20);
       const b = await body(req, 4096),
         p = await passwordHash(b.password),
         name = clean(b.name, 120);
@@ -144,7 +151,7 @@ async function handler(req, res) {
       return json(res, 201, createSession(res, u));
     }
     if (path === "/api/reset-password" && method === "POST") {
-      limit("reset:" + req.socket.remoteAddress, 15);
+      limit("reset:" + clientAddress(req), 15);
       const b = await body(req, 4096),
         p = await passwordHash(b.password);
       transaction(() => {

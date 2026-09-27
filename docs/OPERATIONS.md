@@ -11,6 +11,7 @@ Alan adı, sunucu ve e-posta kurulumu için [DEPLOYMENT.md](DEPLOYMENT.md), mobi
 | `APP_ORIGIN` | Üretimde evet | `http://localhost:PORT` | Tam köken. CSRF/Origin denetimi ve davet bağlantıları bunu kullanır. |
 | `PORT` / `HOST` | Hayır | `3000` / `0.0.0.0` | Dinlenen adres. |
 | `DATA_DIR` | Hayır | `./data` | SQLite (`family.sqlite`) ve yüklenen dosyalar. **Yedeklenecek tek klasör budur.** |
+| `TRUST_PROXY` | Docker'da `1` | — | Uygulama yalnız Caddy arkasındaysa `1`: giriş/davet/şifre sınırları ziyaretçi adresini `X-Forwarded-For` başlığının son değerinden alır. Uygulama doğrudan internete açıksa verilmez. |
 | `NODE_ENV` | Üretimde `production` | — | Güvenli çerez ve statik dosya önbelleği. |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | Yalnız ilk kurulumda | — | `npm run admin` ilk yöneticiyi oluşturur; sonra parolayı ortamdan kaldırın. |
 | `SECURITY_KEY` | Hayır | Otomatik üretilir | İki adımlı doğrulama sırlarını şifreler. Verilmezse veri tabanında saklanır; hiçbir API yanıtına girmez (test: `tests/api.test.mjs`). Değiştirilirse kayıtlı iki adımlı doğrulamalar çözülemez. |
