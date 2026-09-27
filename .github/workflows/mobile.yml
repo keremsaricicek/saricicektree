@@ -1,7 +1,7 @@
 name: Mobile build checks
 on:
   push:
-    paths: ['mobile/**', 'ios/**', 'android/**', 'capacitor.config.json', '.github/workflows/mobile.yml', 'package-lock.json']
+    paths: ['mobile/**', 'ios/**', 'android/**', 'public/**', 'capacitor.config.json', '.github/workflows/mobile.yml', 'package-lock.json']
   workflow_dispatch:
 jobs:
   android:
@@ -16,7 +16,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - uses: android-actions/setup-android@v3
       - run: npm ci
       - run: npm run build:client
       - run: npx cap sync android
@@ -39,7 +38,9 @@ jobs:
       - run: npm run build:client
       - run: npx cap sync ios
       - run: xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath ios-build CODE_SIGNING_ALLOWED=NO build
+      # Zipped .app: installable with `xcrun simctl install booted App.app` and accepted by Appetize.
+      - run: cd ios-build/Build/Products/Debug-iphonesimulator && ditto -c -k --sequesterRsrc --keepParent App.app "$GITHUB_WORKSPACE/Saricicek-iOS-Simulator.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: Saricicek-iOS-Simulator
-          path: ios-build/Build/Products/Debug-iphonesimulator/*.app
+          path: Saricicek-iOS-Simulator.zip
