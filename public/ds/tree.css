@@ -50,9 +50,10 @@
   border-radius: var(--r-xl);
   background-color: var(--canvas);
   background-image:
-    radial-gradient(circle at 1px 1px, var(--canvas-dots) 1px, transparent 1.5px),
-    radial-gradient(120% 80% at 50% 0%, var(--canvas-glow), transparent 70%);
-  background-size: 24px 24px, 100% 100%;
+    radial-gradient(circle at 1px 1px, var(--canvas-dots) 1px, transparent 1.5px), radial-gradient(120% 80% at 50% 0%, var(--canvas-glow), transparent 70%);
+  background-size:
+    24px 24px,
+    100% 100%;
   box-shadow: inset 0 0 0 1px rgba(29, 43, 34, 0.05);
 }
 .ds-tree-board .tree-viewport {
@@ -120,12 +121,17 @@
   border: 1px solid var(--line-soft);
   border-radius: 18px;
   background: var(--surface);
-  box-shadow: 0 1px 2px rgba(29, 43, 34, 0.05), 0 8px 20px -14px rgba(29, 43, 34, 0.35);
+  box-shadow:
+    0 1px 2px rgba(29, 43, 34, 0.05),
+    0 8px 20px -14px rgba(29, 43, 34, 0.35);
   color: var(--ink);
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
-  transition: transform var(--t) var(--ease-out), box-shadow var(--t) var(--ease), border-color var(--t) var(--ease);
+  transition:
+    transform var(--t) var(--ease-out),
+    box-shadow var(--t) var(--ease),
+    border-color var(--t) var(--ease);
   /* Large trees: nodes outside the viewport skip layout and paint. */
   content-visibility: auto;
   contain-intrinsic-size: 216px 84px;
@@ -133,11 +139,15 @@
 .tree-node.ds-node:hover {
   transform: translateY(-2px);
   border-color: var(--pistachio-2);
-  box-shadow: 0 2px 4px rgba(29, 43, 34, 0.05), 0 18px 32px -18px rgba(29, 43, 34, 0.45);
+  box-shadow:
+    0 2px 4px rgba(29, 43, 34, 0.05),
+    0 18px 32px -18px rgba(29, 43, 34, 0.45);
 }
 .tree-node.ds-node .avatar {
   --av: 46px;
-  box-shadow: 0 0 0 3px var(--surface), 0 0 0 4px var(--line);
+  box-shadow:
+    0 0 0 3px var(--surface),
+    0 0 0 4px var(--line);
 }
 .ds-node-text {
   display: flex;
@@ -191,7 +201,9 @@
 .tree-node.ds-node.is-memorial .avatar {
   background: var(--gold-soft);
   color: var(--gold-ink);
-  box-shadow: 0 0 0 3px var(--memorial-bg), 0 0 0 4px rgba(169, 131, 74, 0.45);
+  box-shadow:
+    0 0 0 3px var(--memorial-bg),
+    0 0 0 4px rgba(169, 131, 74, 0.45);
   filter: saturate(0.6);
 }
 .tree-node.ds-node.is-memorial .ds-node-text strong {
@@ -200,7 +212,9 @@
 .tree-node.ds-node.selected {
   border: 2px solid var(--forest-3);
   background: var(--pistachio-wash);
-  box-shadow: 0 0 0 5px rgba(188, 214, 127, 0.35), 0 18px 32px -18px rgba(29, 43, 34, 0.45);
+  box-shadow:
+    0 0 0 5px rgba(188, 214, 127, 0.35),
+    0 18px 32px -18px rgba(29, 43, 34, 0.45);
 }
 .tree-node.ds-node.is-me {
   border-color: var(--pistachio-2);
@@ -388,7 +402,9 @@
   .tree-board.ds-tree-board {
     margin: 0 -16px;
     border-radius: 0;
-    box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line);
+    box-shadow:
+      inset 0 1px 0 var(--line),
+      inset 0 -1px 0 var(--line);
   }
   .ds-tree-legend {
     display: none;

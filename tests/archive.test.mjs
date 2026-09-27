@@ -1,25 +1,390 @@
-import {sendPush} from '../src/notifications.mjs';
-import {eventStream,publishChange} from '../src/realtime.mjs';
-import test from 'node:test';import assert from 'node:assert/strict';import{DatabaseSync}from'node:sqlite';import{readFileSync,readdirSync}from'node:fs';import worker from '../worker/index.mjs';import {totp,base32} from '../src/security.mjs';
-function fixture(){const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');for(const f of readdirSync('drizzle').filter(x=>x.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+f,'utf8'));const files=new Map(),env={OWNER_EMAIL:'owner@test.invalid',CSRF_SECRET:'fixture-encryption-key',DB:{prepare(sql){const s={args:[],bind(...args){s.args=args;return s;},async first(){return db.prepare(sql).get(...s.args)||null;},async all(){return{results:db.prepare(sql).all(...s.args)};},async run(){return{meta:{changes:db.prepare(sql).run(...s.args).changes}};}};return s;},async batch(ss){db.exec('BEGIN');try{const out=[];for(const s of ss)out.push(await s.run());db.exec('COMMIT');return out;}catch(e){db.exec('ROLLBACK');throw e;}}},BUCKET:{async put(k,b){files.set(k,new Uint8Array(b));},async get(k){return files.has(k)?{body:files.get(k)}:null;},async delete(k){files.delete(k);}}};const csrf=new Map();async function call(path,method='GET',data,email='owner@test.invalid',factor=''){if(path==='/api/photos'&&method==='POST')data={date:'2000-01-02',place:'Test location',description:'Test family memory',outsiders:'Test guest',...data};const headers={'Content-Type':'application/json',Origin:'https://family.test','oai-authenticated-user-id':email,'oai-authenticated-user-email':email,'X-CSRF-Token':csrf.get(email)||'','X-Family-Factor':factor};const res=await worker.fetch(new Request('https://family.test'+path,{method,headers,...(data?{body:JSON.stringify(data)}:{})}),env);const type=res.headers.get('Content-Type'),body=type?.includes('json')?await res.json():await res.arrayBuffer();if(body.csrf)csrf.set(email,body.csrf);return{status:res.status,body};}async function member(email){await call('/api/me');const inv=await call('/api/invites','POST',{email,role:'member'});await call('/api/me','GET',null,email);return(await call('/api/accept-invite','POST',{name:email,token:inv.body.url.split('#invite=')[1]},email)).body.user;}return{db,files,env,call,member};}
-const newEntry=(kind='story',extra={})=>({kind,title:'Test archive',body:'A meaningful family memory',visibility:'family',data:{},...extra});
-test('archive moderation, private content and capsule release are enforced server-side',async()=>{const{call,member,db}=fixture();const a=await member('a@test.invalid'),b=await member('b@test.invalid');let r=await call('/api/archive/entries','POST',newEntry(),'a@test.invalid');assert.equal(r.status,201);const id=r.body.id;assert.equal((await call('/api/archive/entries','GET',null,b.email)).body.items.length,0);assert.equal((await call('/api/archive/entries/'+id,'PATCH',{status:'approved'},a.email)).status,403);await call('/api/archive/entries/'+id,'PATCH',{status:'approved'});assert.equal((await call('/api/archive/entries','GET',null,b.email)).body.items.length,1);const secret=(await call('/api/archive/entries','POST',newEntry('story',{visibility:'private'}),a.email)).body.id;assert.equal((await call('/api/archive/entries/'+secret)).status,404);const cap=(await call('/api/archive/entries','POST',newEntry('capsule',{opensAt:'2099-01-01T00:00:00Z'}))).body.id;const locked=(await call('/api/archive/entries/'+cap)).body;assert.equal(locked.body,'');assert.equal(locked.locked,true);assert.equal((await call('/api/archive/entries/'+cap+'/comments','POST',{body:'early'})).status,403);db.prepare('UPDATE archive_entries SET opensAt=? WHERE id=?').run('2000-01-01',cap);assert.equal((await call('/api/archive/entries/'+cap)).body.body,'A meaningful family memory');});
-test('poll validation, votes and quiz scores do not trust client score',async()=>{const{call,member}=fixture();const a=await member('a@test.invalid');const poll=(await call('/api/archive/entries','POST',newEntry('poll',{data:{options:['2026-12-01','2026-12-02']}}))).body.id;assert.equal((await call('/api/archive/entries/'+poll+'/vote','POST',{value:'wrong'},a.email)).status,400);await call('/api/archive/entries/'+poll+'/vote','POST',{value:'2026-12-01'},a.email);const quiz=(await call('/api/archive/entries','POST',newEntry('quiz',{data:{questions:[{question:'Which?',options:['one','two'],answer:1}]}}))).body.id;assert.equal((await call('/api/archive/entries/'+quiz,'GET',null,a.email)).body.data.questions[0].answer,undefined);const score=await call('/api/archive/entries/'+quiz+'/vote','POST',{answers:[0],score:99},a.email);assert.equal(JSON.parse(score.body.value).score,0);assert.equal((await call('/api/archive/entries/'+quiz+'/vote','POST',{answers:[1]},a.email)).status,409);});
-test('group membership excludes outsiders and removed members',async()=>{const{call,member}=fixture();const a=await member('a@test.invalid'),b=await member('b@test.invalid');const g=(await call('/api/archive/groups','POST',{name:'Cousins',members:[a.id]})).body.id;assert.equal((await call('/api/archive/groups/'+g,'GET',null,b.email)).status,404);await call('/api/archive/groups/'+g+'/messages','POST',{body:'family group'},a.email);assert.equal((await call('/api/archive/groups/'+g)).body.items.length,1);await call('/api/archive/groups/'+g,'DELETE',{userId:a.id});assert.equal((await call('/api/archive/groups/'+g+'/messages','POST',{body:'blocked'},a.email)).status,404);});
-test('photo privacy applies to bootstrap, pagination and raw bytes; guardian restriction',async()=>{const{call,member}=fixture();const a=await member('a@test.invalid'),b=await member('b@test.invalid');const p=(await call('/api/people','POST',{name:'Child Test',birthDate:'2020-01-01'})).body.id;const ph=(await call('/api/photos','POST',{title:'Test photo',peopleIds:[p],data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5L8AAAAASUVORK5CYII='})).body.id;await call('/api/archive/photo-settings','PUT',{photoId:ph,visibility:'private',peopleIds:[p]});assert.equal((await call('/api/bootstrap','GET',null,a.email)).body.photos.length,0);assert.equal((await call('/api/photos','GET',null,a.email)).body.items.length,0);assert.equal((await call('/media/'+ph,'GET',null,a.email)).status,404);await call('/api/users/'+b.id,'PATCH',{role:'moderator',active:1});assert.equal((await call('/api/photos/'+ph,'PATCH',{title:'Forbidden',date:''},b.email)).status,404);assert.equal((await call('/api/photos/'+ph,'DELETE',{},b.email)).status,404);await call('/api/archive/photo-settings','PUT',{photoId:ph,visibility:'family',peopleIds:[p]});await call('/api/archive/guardians','PUT',{personId:p,userId:a.id});assert.equal((await call('/media/'+ph,'GET',null,a.email)).status,200);assert.equal((await call('/media/'+ph,'GET',null,b.email)).status,404);});
-test('source verification is staff-only and changing source removes verification',async()=>{const{call,member}=fixture();const a=await member('a@test.invalid');const id=(await call('/api/archive/entries','POST',newEntry('source',{data:{confidence:'oral',narrator:'Grandparent'}}),a.email)).body.id;assert.equal((await call('/api/archive/entries/'+id,'PATCH',{verify:true},a.email)).status,403);await call('/api/archive/entries/'+id,'PATCH',{verify:true});assert.equal((await call('/api/archive/entries/'+id)).body.data.verified,true);await call('/api/archive/entries/'+id,'PATCH',newEntry('source',{data:{confidence:'uncertain'}}),a.email);assert.equal((await call('/api/archive/entries/'+id)).body.data.verified,false);});
-test('merge preserves graph and tags, undo restores source without cycles',async()=>{const{call}=fixture();await call('/api/me');const add=async name=>(await call('/api/people','POST',{name})).body.id;const a=await add('Person A'),b=await add('Person A duplicate'),c=await add('Child C');await call('/api/relations','POST',{personA:b,personB:c,type:'parent'});const merged=await call('/api/archive/merges','POST',{sourceId:b,targetId:a});assert.equal(merged.status,201);assert.equal((await call('/api/bootstrap')).body.relations[0].personA,a);assert.equal((await call('/api/archive/merges/'+merged.body.id+'/undo','POST',{})).status,200);assert.equal((await call('/api/bootstrap')).body.relations[0].personA,b);});
-test('TOTP vectors, encrypted enrollment, replay rejection and authenticated second factor',async()=>{assert.equal(await totp(base32(new TextEncoder().encode('12345678901234567890')),1),'287082');const{call,db}=fixture();await call('/api/me');const setup=await call('/api/security/setup','POST',{});const secret=setup.body.secret;assert.ok(secret);assert.ok(!db.prepare('SELECT secret FROM security_factors').get().secret.includes(secret));const enable=await call('/api/security/enable','POST',{code:await totp(secret)});assert.equal(enable.status,200);assert.equal((await call('/api/bootstrap')).status,428);assert.equal((await call('/api/bootstrap','GET',null,'owner@test.invalid',enable.body.token)).status,200);assert.equal((await call('/api/security/verify','POST',{code:await totp(secret)})).status,403);});
-test('backup is owner-only, auto runs once per day and restores missing records',async()=>{const{call,member,db}=fixture();const a=await member('a@test.invalid');const p=(await call('/api/people','POST',{name:'A record'})).body.id;await call('/api/bootstrap');await call('/api/bootstrap');assert.equal((await call('/api/archive/backups')).body.items.length,1);assert.equal((await call('/api/archive/backups','GET',null,a.email)).status,403);const backup=(await call('/api/archive/backups')).body.items[0].id;db.prepare('DELETE FROM people WHERE id=?').run(p);const r=await call('/api/archive/backups/'+backup+'/restore','POST',{confirm:'ARŞİVİ GERİ YÜKLE'});assert.equal(r.status,200);assert.equal((await call('/api/bootstrap')).body.people[0].id,p);});
-test('AI enhancement reports unconfigured service without external requests',async()=>{const{call}=fixture();await call('/api/me');assert.equal((await call('/api/archive/photo-enhance')).body.available,false);assert.equal((await call('/api/archive/photo-enhance','POST',{photoId:'x',consent:true,mode:'restore'})).status,503);});
-test('capsule media stays inaccessible until release and sealed uploads are rejected',async()=>{const{call,db}=fixture();await call('/api/me');const cap=(await call('/api/archive/entries','POST',newEntry('capsule',{opensAt:'2099-01-01T00:00:00Z'}))).body.id;const wav=Buffer.from('RIFF0000WAVEtest').toString('base64');const m=await call('/api/archive/entries/'+cap+'/media','POST',{data:wav,mime:'audio/wav'});assert.equal(m.status,201);assert.equal((await call('/archive-media/'+m.body.id)).status,403);await call('/api/archive/entries/'+cap+'/seal','POST',{});assert.equal((await call('/api/archive/entries/'+cap+'/media','POST',{data:wav,mime:'audio/wav'})).status,403);db.prepare('UPDATE archive_entries SET opensAt=? WHERE id=?').run('2000-01-01',cap);assert.equal((await call('/archive-media/'+m.body.id)).status,200);});
-test('finalizing a date poll creates linked calendar gathering once',async()=>{const{call}=fixture();await call('/api/me');const id=(await call('/api/archive/entries','POST',newEntry('poll',{data:{options:['2026-12-01','2026-12-02'],place:'Family house'}}))).body.id;const result=await call('/api/archive/entries/'+id+'/finalize','POST',{date:'2026-12-02'});assert.equal(result.status,201);assert.equal((await call('/api/bootstrap')).body.events[0].date,'2026-12-02');assert.equal((await call('/api/archive/entries/'+id)).body.eventId,result.body.id);assert.equal((await call('/api/archive/entries/'+id+'/finalize','POST',{date:'2026-12-02'})).status,409);});
+import { sendPush } from "../src/notifications.mjs";
+import { eventStream, publishChange } from "../src/realtime.mjs";
+import test from "node:test";
+import assert from "node:assert/strict";
+import { DatabaseSync } from "node:sqlite";
+import { readFileSync, readdirSync } from "node:fs";
+import worker from "../worker/index.mjs";
+import { totp, base32 } from "../src/security.mjs";
+function fixture() {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys=ON");
+  for (const f of readdirSync("drizzle")
+    .filter((x) => x.endsWith(".sql"))
+    .sort())
+    db.exec(readFileSync("drizzle/" + f, "utf8"));
+  const files = new Map(),
+    env = {
+      OWNER_EMAIL: "owner@test.invalid",
+      CSRF_SECRET: "fixture-encryption-key",
+      DB: {
+        prepare(sql) {
+          const s = {
+            args: [],
+            bind(...args) {
+              s.args = args;
+              return s;
+            },
+            async first() {
+              return db.prepare(sql).get(...s.args) || null;
+            },
+            async all() {
+              return { results: db.prepare(sql).all(...s.args) };
+            },
+            async run() {
+              return { meta: { changes: db.prepare(sql).run(...s.args).changes } };
+            },
+          };
+          return s;
+        },
+        async batch(ss) {
+          db.exec("BEGIN");
+          try {
+            const out = [];
+            for (const s of ss) out.push(await s.run());
+            db.exec("COMMIT");
+            return out;
+          } catch (e) {
+            db.exec("ROLLBACK");
+            throw e;
+          }
+        },
+      },
+      BUCKET: {
+        async put(k, b) {
+          files.set(k, new Uint8Array(b));
+        },
+        async get(k) {
+          return files.has(k) ? { body: files.get(k) } : null;
+        },
+        async delete(k) {
+          files.delete(k);
+        },
+      },
+    };
+  const csrf = new Map();
+  async function call(path, method = "GET", data, email = "owner@test.invalid", factor = "") {
+    if (path === "/api/photos" && method === "POST")
+      data = { date: "2000-01-02", place: "Test location", description: "Test family memory", outsiders: "Test guest", ...data };
+    const headers = {
+      "Content-Type": "application/json",
+      Origin: "https://family.test",
+      "oai-authenticated-user-id": email,
+      "oai-authenticated-user-email": email,
+      "X-CSRF-Token": csrf.get(email) || "",
+      "X-Family-Factor": factor,
+    };
+    const res = await worker.fetch(new Request("https://family.test" + path, { method, headers, ...(data ? { body: JSON.stringify(data) } : {}) }), env);
+    const type = res.headers.get("Content-Type"),
+      body = type?.includes("json") ? await res.json() : await res.arrayBuffer();
+    if (body.csrf) csrf.set(email, body.csrf);
+    return { status: res.status, body };
+  }
+  async function member(email) {
+    await call("/api/me");
+    const inv = await call("/api/invites", "POST", { email, role: "member" });
+    await call("/api/me", "GET", null, email);
+    return (await call("/api/accept-invite", "POST", { name: email, token: inv.body.url.split("#invite=")[1] }, email)).body.user;
+  }
+  return { db, files, env, call, member };
+}
+const newEntry = (kind = "story", extra = {}) => ({
+  kind,
+  title: "Test archive",
+  body: "A meaningful family memory",
+  visibility: "family",
+  data: {},
+  ...extra,
+});
+test("archive moderation, private content and capsule release are enforced server-side", async () => {
+  const { call, member, db } = fixture();
+  const a = await member("a@test.invalid"),
+    b = await member("b@test.invalid");
+  let r = await call("/api/archive/entries", "POST", newEntry(), "a@test.invalid");
+  assert.equal(r.status, 201);
+  const id = r.body.id;
+  assert.equal((await call("/api/archive/entries", "GET", null, b.email)).body.items.length, 0);
+  assert.equal((await call("/api/archive/entries/" + id, "PATCH", { status: "approved" }, a.email)).status, 403);
+  await call("/api/archive/entries/" + id, "PATCH", { status: "approved" });
+  assert.equal((await call("/api/archive/entries", "GET", null, b.email)).body.items.length, 1);
+  const secret = (await call("/api/archive/entries", "POST", newEntry("story", { visibility: "private" }), a.email)).body.id;
+  assert.equal((await call("/api/archive/entries/" + secret)).status, 404);
+  const cap = (await call("/api/archive/entries", "POST", newEntry("capsule", { opensAt: "2099-01-01T00:00:00Z" }))).body.id;
+  const locked = (await call("/api/archive/entries/" + cap)).body;
+  assert.equal(locked.body, "");
+  assert.equal(locked.locked, true);
+  assert.equal((await call("/api/archive/entries/" + cap + "/comments", "POST", { body: "early" })).status, 403);
+  db.prepare("UPDATE archive_entries SET opensAt=? WHERE id=?").run("2000-01-01", cap);
+  assert.equal((await call("/api/archive/entries/" + cap)).body.body, "A meaningful family memory");
+});
+test("poll validation, votes and quiz scores do not trust client score", async () => {
+  const { call, member } = fixture();
+  const a = await member("a@test.invalid");
+  const poll = (await call("/api/archive/entries", "POST", newEntry("poll", { data: { options: ["2026-12-01", "2026-12-02"] } }))).body.id;
+  assert.equal((await call("/api/archive/entries/" + poll + "/vote", "POST", { value: "wrong" }, a.email)).status, 400);
+  await call("/api/archive/entries/" + poll + "/vote", "POST", { value: "2026-12-01" }, a.email);
+  const quiz = (
+    await call("/api/archive/entries", "POST", newEntry("quiz", { data: { questions: [{ question: "Which?", options: ["one", "two"], answer: 1 }] } }))
+  ).body.id;
+  assert.equal((await call("/api/archive/entries/" + quiz, "GET", null, a.email)).body.data.questions[0].answer, undefined);
+  const score = await call("/api/archive/entries/" + quiz + "/vote", "POST", { answers: [0], score: 99 }, a.email);
+  assert.equal(JSON.parse(score.body.value).score, 0);
+  assert.equal((await call("/api/archive/entries/" + quiz + "/vote", "POST", { answers: [1] }, a.email)).status, 409);
+});
+test("group membership excludes outsiders and removed members", async () => {
+  const { call, member } = fixture();
+  const a = await member("a@test.invalid"),
+    b = await member("b@test.invalid");
+  const g = (await call("/api/archive/groups", "POST", { name: "Cousins", members: [a.id] })).body.id;
+  assert.equal((await call("/api/archive/groups/" + g, "GET", null, b.email)).status, 404);
+  await call("/api/archive/groups/" + g + "/messages", "POST", { body: "family group" }, a.email);
+  assert.equal((await call("/api/archive/groups/" + g)).body.items.length, 1);
+  await call("/api/archive/groups/" + g, "DELETE", { userId: a.id });
+  assert.equal((await call("/api/archive/groups/" + g + "/messages", "POST", { body: "blocked" }, a.email)).status, 404);
+});
+test("photo privacy applies to bootstrap, pagination and raw bytes; guardian restriction", async () => {
+  const { call, member } = fixture();
+  const a = await member("a@test.invalid"),
+    b = await member("b@test.invalid");
+  const p = (await call("/api/people", "POST", { name: "Child Test", birthDate: "2020-01-01" })).body.id;
+  const ph = (
+    await call("/api/photos", "POST", {
+      title: "Test photo",
+      peopleIds: [p],
+      data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5L8AAAAASUVORK5CYII=",
+    })
+  ).body.id;
+  await call("/api/archive/photo-settings", "PUT", { photoId: ph, visibility: "private", peopleIds: [p] });
+  assert.equal((await call("/api/bootstrap", "GET", null, a.email)).body.photos.length, 0);
+  assert.equal((await call("/api/photos", "GET", null, a.email)).body.items.length, 0);
+  assert.equal((await call("/media/" + ph, "GET", null, a.email)).status, 404);
+  await call("/api/users/" + b.id, "PATCH", { role: "moderator", active: 1 });
+  assert.equal((await call("/api/photos/" + ph, "PATCH", { title: "Forbidden", date: "" }, b.email)).status, 404);
+  assert.equal((await call("/api/photos/" + ph, "DELETE", {}, b.email)).status, 404);
+  await call("/api/archive/photo-settings", "PUT", { photoId: ph, visibility: "family", peopleIds: [p] });
+  await call("/api/archive/guardians", "PUT", { personId: p, userId: a.id });
+  assert.equal((await call("/media/" + ph, "GET", null, a.email)).status, 200);
+  assert.equal((await call("/media/" + ph, "GET", null, b.email)).status, 404);
+});
+test("source verification is staff-only and changing source removes verification", async () => {
+  const { call, member } = fixture();
+  const a = await member("a@test.invalid");
+  const id = (await call("/api/archive/entries", "POST", newEntry("source", { data: { confidence: "oral", narrator: "Grandparent" } }), a.email)).body.id;
+  assert.equal((await call("/api/archive/entries/" + id, "PATCH", { verify: true }, a.email)).status, 403);
+  await call("/api/archive/entries/" + id, "PATCH", { verify: true });
+  assert.equal((await call("/api/archive/entries/" + id)).body.data.verified, true);
+  await call("/api/archive/entries/" + id, "PATCH", newEntry("source", { data: { confidence: "uncertain" } }), a.email);
+  assert.equal((await call("/api/archive/entries/" + id)).body.data.verified, false);
+});
+test("merge preserves graph and tags, undo restores source without cycles", async () => {
+  const { call } = fixture();
+  await call("/api/me");
+  const add = async (name) => (await call("/api/people", "POST", { name })).body.id;
+  const a = await add("Person A"),
+    b = await add("Person A duplicate"),
+    c = await add("Child C");
+  await call("/api/relations", "POST", { personA: b, personB: c, type: "parent" });
+  const merged = await call("/api/archive/merges", "POST", { sourceId: b, targetId: a });
+  assert.equal(merged.status, 201);
+  assert.equal((await call("/api/bootstrap")).body.relations[0].personA, a);
+  assert.equal((await call("/api/archive/merges/" + merged.body.id + "/undo", "POST", {})).status, 200);
+  assert.equal((await call("/api/bootstrap")).body.relations[0].personA, b);
+});
+test("TOTP vectors, encrypted enrollment, replay rejection and authenticated second factor", async () => {
+  assert.equal(await totp(base32(new TextEncoder().encode("12345678901234567890")), 1), "287082");
+  const { call, db } = fixture();
+  await call("/api/me");
+  const setup = await call("/api/security/setup", "POST", {});
+  const secret = setup.body.secret;
+  assert.ok(secret);
+  assert.ok(!db.prepare("SELECT secret FROM security_factors").get().secret.includes(secret));
+  const enable = await call("/api/security/enable", "POST", { code: await totp(secret) });
+  assert.equal(enable.status, 200);
+  assert.equal((await call("/api/bootstrap")).status, 428);
+  assert.equal((await call("/api/bootstrap", "GET", null, "owner@test.invalid", enable.body.token)).status, 200);
+  assert.equal((await call("/api/security/verify", "POST", { code: await totp(secret) })).status, 403);
+});
+test("backup is owner-only, auto runs once per day and restores missing records", async () => {
+  const { call, member, db } = fixture();
+  const a = await member("a@test.invalid");
+  const p = (await call("/api/people", "POST", { name: "A record" })).body.id;
+  await call("/api/bootstrap");
+  await call("/api/bootstrap");
+  assert.equal((await call("/api/archive/backups")).body.items.length, 1);
+  assert.equal((await call("/api/archive/backups", "GET", null, a.email)).status, 403);
+  const backup = (await call("/api/archive/backups")).body.items[0].id;
+  db.prepare("DELETE FROM people WHERE id=?").run(p);
+  const r = await call("/api/archive/backups/" + backup + "/restore", "POST", { confirm: "ARŞİVİ GERİ YÜKLE" });
+  assert.equal(r.status, 200);
+  assert.equal((await call("/api/bootstrap")).body.people[0].id, p);
+});
+test("AI enhancement reports unconfigured service without external requests", async () => {
+  const { call } = fixture();
+  await call("/api/me");
+  assert.equal((await call("/api/archive/photo-enhance")).body.available, false);
+  assert.equal((await call("/api/archive/photo-enhance", "POST", { photoId: "x", consent: true, mode: "restore" })).status, 503);
+});
+test("capsule media stays inaccessible until release and sealed uploads are rejected", async () => {
+  const { call, db } = fixture();
+  await call("/api/me");
+  const cap = (await call("/api/archive/entries", "POST", newEntry("capsule", { opensAt: "2099-01-01T00:00:00Z" }))).body.id;
+  const wav = Buffer.from("RIFF0000WAVEtest").toString("base64");
+  const m = await call("/api/archive/entries/" + cap + "/media", "POST", { data: wav, mime: "audio/wav" });
+  assert.equal(m.status, 201);
+  assert.equal((await call("/archive-media/" + m.body.id)).status, 403);
+  await call("/api/archive/entries/" + cap + "/seal", "POST", {});
+  assert.equal((await call("/api/archive/entries/" + cap + "/media", "POST", { data: wav, mime: "audio/wav" })).status, 403);
+  db.prepare("UPDATE archive_entries SET opensAt=? WHERE id=?").run("2000-01-01", cap);
+  assert.equal((await call("/archive-media/" + m.body.id)).status, 200);
+});
+test("finalizing a date poll creates linked calendar gathering once", async () => {
+  const { call } = fixture();
+  await call("/api/me");
+  const id = (await call("/api/archive/entries", "POST", newEntry("poll", { data: { options: ["2026-12-01", "2026-12-02"], place: "Family house" } }))).body.id;
+  const result = await call("/api/archive/entries/" + id + "/finalize", "POST", { date: "2026-12-02" });
+  assert.equal(result.status, 201);
+  assert.equal((await call("/api/bootstrap")).body.events[0].date, "2026-12-02");
+  assert.equal((await call("/api/archive/entries/" + id)).body.eventId, result.body.id);
+  assert.equal((await call("/api/archive/entries/" + id + "/finalize", "POST", { date: "2026-12-02" })).status, 409);
+});
 
-test('recovery codes are hashed, single-use and isolated per account',async()=>{const {call,db,member}=fixture();const a=await member('recovery@test.invalid');const setup=(await call('/api/security/setup','POST',{},a.email)).body;const enabled=await call('/api/security/enable','POST',{code:await totp(setup.secret)},a.email);assert.equal(enabled.status,200);assert.equal(enabled.body.recoveryCodes.length,10);const code=enabled.body.recoveryCodes[0];assert.ok(!JSON.stringify(db.prepare('SELECT * FROM security_recovery').all()).includes(code));assert.equal((await call('/api/bootstrap','GET',null,a.email)).status,428);const recovered=await call('/api/security/recover','POST',{code},a.email);assert.equal(recovered.status,200);assert.equal((await call('/api/bootstrap','GET',null,a.email,recovered.body.token)).status,200);assert.equal((await call('/api/security/recover','POST',{code},a.email)).status,403);});
-test('protected child is removed from graph, events, residences and server search',async()=>{const {call,member,db}=fixture();const a=await member('guardian@test.invalid'),b=await member('outsider@test.invalid');const child=(await call('/api/people','POST',{name:'Gizli Çocuk',birthDate:'2020-01-01'})).body.id;const parent=(await call('/api/people','POST',{name:'Açık Ebeveyn'})).body.id;await call('/api/relations','POST',{personA:parent,personB:child,type:'parent'});await call('/api/events','POST',{title:'Gizli Etkinlik',type:'birthday',date:'2026-01-01',personId:child});await call('/api/residences','PUT',{personId:child,latitude:37,longitude:37,label:'Gizli ev'});await call('/api/archive/guardians','PUT',{personId:child,userId:a.id});const outside=(await call('/api/bootstrap','GET',null,b.email)).body;assert.ok(!JSON.stringify(outside).includes(child));assert.equal((await call('/api/locations','GET',null,b.email)).body.residences.length,0);const search=await call('/api/search?q=Gizli','GET',null,b.email);assert.equal(search.status,200);assert.equal(search.body.items.length,0);assert.ok((await call('/api/search?q=Gizli','GET',null,a.email)).body.items.length>=2);assert.ok((await call('/api/bootstrap','GET',null,a.email)).body.people.some(p=>p.id===child));});
-test('server search covers older rows and respects private, pending and sealed records',async()=>{const {call,member,db}=fixture();const a=await member('search@test.invalid');for(let i=0;i<260;i++)await call('/api/people','POST',{name:'Geçmiş Kişi '+i});const r=await call('/api/search?q=Gecmis%20Kisi%20259','GET',null,a.email);assert.equal(r.status,200);assert.equal(r.body.items.length,1);await call('/api/archive/entries','POST',newEntry('story',{title:'SecretWord',visibility:'private'}));await call('/api/archive/entries','POST',newEntry('capsule',{title:'SecretWord',opensAt:'2099-01-01'}));assert.equal((await call('/api/search?q=SecretWord','GET',null,a.email)).body.items.length,0);});
-test('full media backup repairs missing bytes and rejects corrupted copies',async()=>{const{call,files,db}=fixture();await call('/api/me');const id=(await call('/api/photos','POST',{title:'Media backup',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5L8AAAAASUVORK5CYII='})).body.id;const backup=(await call('/api/archive/backups','POST',{})).body.id;const manifest=(await call('/api/archive/backups/'+backup)).body;assert.equal(manifest.version,3);assert.equal(manifest.media.length,1);const m=manifest.media[0],original=files.get(m.key);files.delete(m.key);assert.equal((await call('/api/archive/backups/'+backup+'/restore','POST',{confirm:'ARŞİVİ GERİ YÜKLE'})).status,200);assert.deepEqual(files.get(m.key),original);files.set(m.backupKey,new Uint8Array([1,2,3]));assert.equal((await call('/api/archive/backups/'+backup+'/restore','POST',{confirm:'ARŞİVİ GERİ YÜKLE'})).status,409);});
-test('notification subscriptions reject arbitrary outbound destinations',async()=>{const{call,member,db}=fixture();const a=await member('push@test.invalid');assert.equal((await call('/api/notifications/subscription','POST',{endpoint:'https://127.0.0.1/private'},a.email)).status,400);const key=await call('/api/notifications/key','POST',{},a.email);assert.equal(key.status,200);assert.ok(key.body.publicKey.length>80);assert.ok(!db.prepare('SELECT privateKey FROM push_keys').get().privateKey.includes('"d"'));assert.equal((await call('/api/notifications/subscription','POST',{endpoint:'https://fcm.googleapis.com/fcm/send/test-fixture'},a.email)).status,200);assert.equal((await call('/api/notifications/subscription','DELETE',{endpoint:'https://fcm.googleapis.com/fcm/send/test-fixture'},a.email)).status,200);});
+test("recovery codes are hashed, single-use and isolated per account", async () => {
+  const { call, db, member } = fixture();
+  const a = await member("recovery@test.invalid");
+  const setup = (await call("/api/security/setup", "POST", {}, a.email)).body;
+  const enabled = await call("/api/security/enable", "POST", { code: await totp(setup.secret) }, a.email);
+  assert.equal(enabled.status, 200);
+  assert.equal(enabled.body.recoveryCodes.length, 10);
+  const code = enabled.body.recoveryCodes[0];
+  assert.ok(!JSON.stringify(db.prepare("SELECT * FROM security_recovery").all()).includes(code));
+  assert.equal((await call("/api/bootstrap", "GET", null, a.email)).status, 428);
+  const recovered = await call("/api/security/recover", "POST", { code }, a.email);
+  assert.equal(recovered.status, 200);
+  assert.equal((await call("/api/bootstrap", "GET", null, a.email, recovered.body.token)).status, 200);
+  assert.equal((await call("/api/security/recover", "POST", { code }, a.email)).status, 403);
+});
+test("protected child is removed from graph, events, residences and server search", async () => {
+  const { call, member, db } = fixture();
+  const a = await member("guardian@test.invalid"),
+    b = await member("outsider@test.invalid");
+  const child = (await call("/api/people", "POST", { name: "Gizli Çocuk", birthDate: "2020-01-01" })).body.id;
+  const parent = (await call("/api/people", "POST", { name: "Açık Ebeveyn" })).body.id;
+  await call("/api/relations", "POST", { personA: parent, personB: child, type: "parent" });
+  await call("/api/events", "POST", { title: "Gizli Etkinlik", type: "birthday", date: "2026-01-01", personId: child });
+  await call("/api/residences", "PUT", { personId: child, latitude: 37, longitude: 37, label: "Gizli ev" });
+  await call("/api/archive/guardians", "PUT", { personId: child, userId: a.id });
+  const outside = (await call("/api/bootstrap", "GET", null, b.email)).body;
+  assert.ok(!JSON.stringify(outside).includes(child));
+  assert.equal((await call("/api/locations", "GET", null, b.email)).body.residences.length, 0);
+  const search = await call("/api/search?q=Gizli", "GET", null, b.email);
+  assert.equal(search.status, 200);
+  assert.equal(search.body.items.length, 0);
+  assert.ok((await call("/api/search?q=Gizli", "GET", null, a.email)).body.items.length >= 2);
+  assert.ok((await call("/api/bootstrap", "GET", null, a.email)).body.people.some((p) => p.id === child));
+});
+test("server search covers older rows and respects private, pending and sealed records", async () => {
+  const { call, member, db } = fixture();
+  const a = await member("search@test.invalid");
+  for (let i = 0; i < 260; i++) await call("/api/people", "POST", { name: "Geçmiş Kişi " + i });
+  const r = await call("/api/search?q=Gecmis%20Kisi%20259", "GET", null, a.email);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.items.length, 1);
+  await call("/api/archive/entries", "POST", newEntry("story", { title: "SecretWord", visibility: "private" }));
+  await call("/api/archive/entries", "POST", newEntry("capsule", { title: "SecretWord", opensAt: "2099-01-01" }));
+  assert.equal((await call("/api/search?q=SecretWord", "GET", null, a.email)).body.items.length, 0);
+});
+test("full media backup repairs missing bytes and rejects corrupted copies", async () => {
+  const { call, files, db } = fixture();
+  await call("/api/me");
+  const id = (
+    await call("/api/photos", "POST", {
+      title: "Media backup",
+      data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5L8AAAAASUVORK5CYII=",
+    })
+  ).body.id;
+  const backup = (await call("/api/archive/backups", "POST", {})).body.id;
+  const manifest = (await call("/api/archive/backups/" + backup)).body;
+  assert.equal(manifest.version, 3);
+  assert.equal(manifest.media.length, 1);
+  const m = manifest.media[0],
+    original = files.get(m.key);
+  files.delete(m.key);
+  assert.equal((await call("/api/archive/backups/" + backup + "/restore", "POST", { confirm: "ARŞİVİ GERİ YÜKLE" })).status, 200);
+  assert.deepEqual(files.get(m.key), original);
+  files.set(m.backupKey, new Uint8Array([1, 2, 3]));
+  assert.equal((await call("/api/archive/backups/" + backup + "/restore", "POST", { confirm: "ARŞİVİ GERİ YÜKLE" })).status, 409);
+});
+test("notification subscriptions reject arbitrary outbound destinations", async () => {
+  const { call, member, db } = fixture();
+  const a = await member("push@test.invalid");
+  assert.equal((await call("/api/notifications/subscription", "POST", { endpoint: "https://127.0.0.1/private" }, a.email)).status, 400);
+  const key = await call("/api/notifications/key", "POST", {}, a.email);
+  assert.equal(key.status, 200);
+  assert.ok(key.body.publicKey.length > 80);
+  assert.ok(!db.prepare("SELECT privateKey FROM push_keys").get().privateKey.includes('"d"'));
+  assert.equal((await call("/api/notifications/subscription", "POST", { endpoint: "https://fcm.googleapis.com/fcm/send/test-fixture" }, a.email)).status, 200);
+  assert.equal(
+    (await call("/api/notifications/subscription", "DELETE", { endpoint: "https://fcm.googleapis.com/fcm/send/test-fixture" }, a.email)).status,
+    200,
+  );
+});
 
-test('web push signs correct audience and sends no family content',async()=>{const {call,db,member}=fixture();const a=await member('notify@test.invalid');const key=(await call('/api/notifications/key','POST',{},a.email)).body.publicKey;await call('/api/notifications/subscription','POST',{endpoint:'https://fcm.googleapis.com/fcm/send/fixture'},a.email);let request;const one=(q,...p)=>db.prepare(q).get(...p),all=(q,...p)=>db.prepare(q).all(...p),run=(q,...p)=>db.prepare(q).run(...p);await sendPush({userId:a.id,one,all,run,keyText:'fixture-encryption-key',origin:'https://family.test',transport:async(url,options)=>{request={url,options};return new Response(null,{status:201});}});assert.equal(request.options.body,undefined);const jwt=request.options.headers.Authorization.split('t=')[1].split(',')[0],parts=jwt.split('.'),decode=s=>Buffer.from(s,'base64url');const claims=JSON.parse(decode(parts[1]));assert.equal(claims.aud,'https://fcm.googleapis.com');assert.equal(claims.sub,'https://family.test');const pub=await crypto.subtle.importKey('raw',decode(key),{name:'ECDSA',namedCurve:'P-256'},false,['verify']);assert.equal(await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},pub,decode(parts[2]),new TextEncoder().encode(parts[0]+'.'+parts[1])),true);});
-test('event streams wake only the addressed user and close after access revocation',async()=>{let permitted=true,callsA=0,callsB=0;const a=eventStream({u:{id:'stream-a'},one:async()=>({lastId:++callsA}),authorize:async()=>{if(!permitted)throw Error('revoked');},intervalMs:60000}),b=eventStream({u:{id:'stream-b'},one:async()=>({lastId:++callsB}),authorize:async()=>{},intervalMs:60000});const ra=a.body.getReader(),rb=b.body.getReader();await ra.read();await rb.read();publishChange('stream-a');assert.match(new TextDecoder().decode((await ra.read()).value),/lastId.*2/);assert.equal(callsB,1);permitted=false;publishChange('stream-a');assert.equal((await ra.read()).done,true);await rb.cancel();});
+test("web push signs correct audience and sends no family content", async () => {
+  const { call, db, member } = fixture();
+  const a = await member("notify@test.invalid");
+  const key = (await call("/api/notifications/key", "POST", {}, a.email)).body.publicKey;
+  await call("/api/notifications/subscription", "POST", { endpoint: "https://fcm.googleapis.com/fcm/send/fixture" }, a.email);
+  let request;
+  const one = (q, ...p) => db.prepare(q).get(...p),
+    all = (q, ...p) => db.prepare(q).all(...p),
+    run = (q, ...p) => db.prepare(q).run(...p);
+  await sendPush({
+    userId: a.id,
+    one,
+    all,
+    run,
+    keyText: "fixture-encryption-key",
+    origin: "https://family.test",
+    transport: async (url, options) => {
+      request = { url, options };
+      return new Response(null, { status: 201 });
+    },
+  });
+  assert.equal(request.options.body, undefined);
+  const jwt = request.options.headers.Authorization.split("t=")[1].split(",")[0],
+    parts = jwt.split("."),
+    decode = (s) => Buffer.from(s, "base64url");
+  const claims = JSON.parse(decode(parts[1]));
+  assert.equal(claims.aud, "https://fcm.googleapis.com");
+  assert.equal(claims.sub, "https://family.test");
+  const pub = await crypto.subtle.importKey("raw", decode(key), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+  assert.equal(
+    await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pub, decode(parts[2]), new TextEncoder().encode(parts[0] + "." + parts[1])),
+    true,
+  );
+});
+test("event streams wake only the addressed user and close after access revocation", async () => {
+  let permitted = true,
+    callsA = 0,
+    callsB = 0;
+  const a = eventStream({
+      u: { id: "stream-a" },
+      one: async () => ({ lastId: ++callsA }),
+      authorize: async () => {
+        if (!permitted) throw Error("revoked");
+      },
+      intervalMs: 60000,
+    }),
+    b = eventStream({ u: { id: "stream-b" }, one: async () => ({ lastId: ++callsB }), authorize: async () => {}, intervalMs: 60000 });
+  const ra = a.body.getReader(),
+    rb = b.body.getReader();
+  await ra.read();
+  await rb.read();
+  publishChange("stream-a");
+  assert.match(new TextDecoder().decode((await ra.read()).value), /lastId.*2/);
+  assert.equal(callsB, 1);
+  permitted = false;
+  publishChange("stream-a");
+  assert.equal((await ra.read()).done, true);
+  await rb.cancel();
+});

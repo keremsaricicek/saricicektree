@@ -762,7 +762,9 @@
   font-size: var(--fs-md);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  transition:
+    background var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
 }
 .ds-act:hover {
   background: var(--surface-3);
@@ -986,7 +988,10 @@
   border: 1px solid var(--line);
   border-radius: 20px;
   background: var(--surface-2);
-  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+  transition:
+    border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease);
 }
 .ds-comment-input:focus-within {
   border-color: var(--pistachio-2);
@@ -1026,7 +1031,9 @@
   opacity: 0;
   transform: scale(0.6);
   pointer-events: none;
-  transition: opacity var(--t-fast) var(--ease), transform var(--t) var(--ease-out);
+  transition:
+    opacity var(--t-fast) var(--ease),
+    transform var(--t) var(--ease-out);
 }
 .ds-send svg.lucide {
   width: 18px;
@@ -1526,7 +1533,9 @@ html.ds-lock body {
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
-  transition: transform var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease);
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    background var(--t-fast) var(--ease);
 }
 .ds-react-menu button:hover,
 .ds-react-menu button:focus-visible {

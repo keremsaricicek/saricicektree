@@ -30,6 +30,6 @@
       apply();
     },
   };
-  if (media) (media.addEventListener ? media.addEventListener("change", apply) : media.addListener(apply));
+  if (media) media.addEventListener ? media.addEventListener("change", apply) : media.addListener(apply);
   apply();
 })();

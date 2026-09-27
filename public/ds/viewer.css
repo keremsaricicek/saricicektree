@@ -140,7 +140,9 @@ dialog.ds-lightbox.is-zoomed .ds-lb-slide img {
   color: #fff;
   cursor: pointer;
   backdrop-filter: blur(10px);
-  transition: background var(--t-fast) var(--ease), opacity var(--t) var(--ease);
+  transition:
+    background var(--t-fast) var(--ease),
+    opacity var(--t) var(--ease);
 }
 .ds-lb-nav:hover {
   background: rgba(255, 255, 255, 0.24);
@@ -216,7 +218,9 @@ dialog.ds-lightbox.is-zoomed .ds-lb-slide img {
   height: 6px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.3);
-  transition: background var(--t) var(--ease), transform var(--t) var(--ease);
+  transition:
+    background var(--t) var(--ease),
+    transform var(--t) var(--ease);
 }
 .ds-lb-dots i.on {
   background: #fff;

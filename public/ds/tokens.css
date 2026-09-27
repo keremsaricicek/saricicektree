@@ -83,12 +83,18 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
   /* Avatar tones (bg / fg) */
-  --tone-1-bg: #e3edc8; --tone-1-fg: #42602a;
-  --tone-2-bg: #f1e4cb; --tone-2-fg: #7a5a2a;
-  --tone-3-bg: #e9ddd2; --tone-3-fg: #6b4a37;
-  --tone-4-bg: #d9e8e1; --tone-4-fg: #2e5a4d;
-  --tone-5-bg: #ecdfe3; --tone-5-fg: #6e4455;
-  --tone-6-bg: #e1e4ec; --tone-6-fg: #3f4a69;
+  --tone-1-bg: #e3edc8;
+  --tone-1-fg: #42602a;
+  --tone-2-bg: #f1e4cb;
+  --tone-2-fg: #7a5a2a;
+  --tone-3-bg: #e9ddd2;
+  --tone-3-fg: #6b4a37;
+  --tone-4-bg: #d9e8e1;
+  --tone-4-fg: #2e5a4d;
+  --tone-5-bg: #ecdfe3;
+  --tone-5-fg: #6e4455;
+  --tone-6-bg: #e1e4ec;
+  --tone-6-fg: #3f4a69;
 
   /* Named surfaces that used to be literal colours. */
   --glass-2: rgba(255, 253, 248, 0.9);
@@ -109,7 +115,9 @@
   --soft-btn: #e0ebc3;
   --danger-line: #ecc8c0;
   --wave-idle: #cfc7b3;
-  --hero-grad: radial-gradient(60% 120% at 85% 0%, rgba(255, 255, 255, 0.45), transparent 60%), radial-gradient(50% 80% at 10% 100%, rgba(75, 104, 39, 0.25), transparent 70%), linear-gradient(120deg, #b9d08a, #dfe9c3 55%, #efe6cf);
+  --hero-grad:
+    radial-gradient(60% 120% at 85% 0%, rgba(255, 255, 255, 0.45), transparent 60%),
+    radial-gradient(50% 80% at 10% 100%, rgba(75, 104, 39, 0.25), transparent 70%), linear-gradient(120deg, #b9d08a, #dfe9c3 55%, #efe6cf);
 
   /* Legacy variables now resolve to the same palette. */
   --paper: var(--bg);
@@ -167,12 +175,18 @@
   --sh-3: 0 30px 80px -20px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.3);
   --ring: 0 0 0 3px rgba(183, 209, 139, 0.45);
 
-  --tone-1-bg: #34422a; --tone-1-fg: #d4e5ab;
-  --tone-2-bg: #43382a; --tone-2-fg: #ecd3a6;
-  --tone-3-bg: #45372f; --tone-3-fg: #ecd0bf;
-  --tone-4-bg: #2a3f39; --tone-4-fg: #b9e0d2;
-  --tone-5-bg: #45313a; --tone-5-fg: #efcad7;
-  --tone-6-bg: #313646; --tone-6-fg: #cfd6ef;
+  --tone-1-bg: #34422a;
+  --tone-1-fg: #d4e5ab;
+  --tone-2-bg: #43382a;
+  --tone-2-fg: #ecd3a6;
+  --tone-3-bg: #45372f;
+  --tone-3-fg: #ecd0bf;
+  --tone-4-bg: #2a3f39;
+  --tone-4-fg: #b9e0d2;
+  --tone-5-bg: #45313a;
+  --tone-5-fg: #efcad7;
+  --tone-6-bg: #313646;
+  --tone-6-fg: #cfd6ef;
 
   --feature: #2a3b26;
   --on-forest-accent: #2d4a35;
@@ -195,7 +209,9 @@
   --soft-btn: #33422a;
   --danger-line: #6b3a33;
   --wave-idle: #4b5448;
-  --hero-grad: radial-gradient(60% 120% at 85% 0%, rgba(207, 227, 155, 0.12), transparent 60%), radial-gradient(50% 80% at 10% 100%, rgba(75, 104, 39, 0.35), transparent 70%), linear-gradient(120deg, #26331f, #1f281c 55%, #2a261c);
+  --hero-grad:
+    radial-gradient(60% 120% at 85% 0%, rgba(207, 227, 155, 0.12), transparent 60%),
+    radial-gradient(50% 80% at 10% 100%, rgba(75, 104, 39, 0.35), transparent 70%), linear-gradient(120deg, #26331f, #1f281c 55%, #2a261c);
 
   color-scheme: dark;
 }

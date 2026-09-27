@@ -1,0 +1,17 @@
+node_modules
+dist
+exports
+android
+ios
+native-www
+.claude
+coverage
+test-results
+playwright-report
+public/assets
+public/app.bundle.css
+worker/assets.mjs
+drizzle/meta
+package-lock.json
+*.md
+public/*.html

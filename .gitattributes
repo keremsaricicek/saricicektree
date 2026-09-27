@@ -1,4 +1,2 @@
-* text=auto
-*.png binary
-*.webp binary
-*.jar binary
+public/assets/leaflet.css text eol=lf
+public/assets/LEAFLET-LICENSE text eol=lf

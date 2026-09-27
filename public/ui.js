@@ -28,8 +28,7 @@ function uiWhen(iso) {
     ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}),
   });
 }
-const uiFullDate = (iso) =>
-  iso ? new Date(iso).toLocaleString("tr-TR", { dateStyle: "long", timeStyle: "short" }) : "";
+const uiFullDate = (iso) => (iso ? new Date(iso).toLocaleString("tr-TR", { dateStyle: "long", timeStyle: "short" }) : "");
 
 /* ---------- Shell ---------- */
 function uiGreeting() {
@@ -56,8 +55,7 @@ function uiShell() {
     chat?.setAttribute("title", "Mesajlar");
   }
   const mobileChat = $('.mobile-nav [data-page="chat"]');
-  if (mobileChat && !$(".ds-badge", mobileChat))
-    mobileChat.insertAdjacentHTML("beforeend", '<b class="ds-badge ds-chat-badge" hidden></b>');
+  if (mobileChat && !$(".ds-badge", mobileChat)) mobileChat.insertAdjacentHTML("beforeend", '<b class="ds-badge ds-chat-badge" hidden></b>');
   uiBadges();
   const strip = $(".demo-strip");
   if (strip) strip.textContent = "Kişiler ve tarihler örnektir; değişiklikler yalnızca bu tarayıcıda kalır.";
@@ -216,7 +214,9 @@ async function uiBackfillVariants(report) {
       seen.add(x.id);
       report(`${done + failed + 1}. fotoğraf hazırlanıyor… (${r.total} eksik)`);
       try {
-        const blob = await (await fetch(x.url, { credentials: "same-origin", headers: { "X-Family-Factor": sessionStorage.getItem("sf-factor") || "" } })).blob(),
+        const blob = await (
+            await fetch(x.url, { credentials: "same-origin", headers: { "X-Family-Factor": sessionStorage.getItem("sf-factor") || "" } })
+          ).blob(),
           url = URL.createObjectURL(blob);
         try {
           await uiStoreVariants(x.id, url);
@@ -308,7 +308,10 @@ function uiReactionRow(p) {
   if (!r.length) return "";
   return `<div class="ds-reactions" role="group" aria-label="Tepkiler">${r
     .sort((a, b) => UI_EMOJI.indexOf(a[0]) - UI_EMOJI.indexOf(b[0]))
-    .map(([e, n]) => `<button type="button" class="ds-reaction ${p.myReaction === e ? "is-on" : ""}" data-ui="react" data-id="${p.id}" data-emoji="${e}" aria-pressed="${p.myReaction === e}" aria-label="${UI_EMOJI_LABEL[e]}: ${n}"><span aria-hidden="true">${e}</span>${n}</button>`)
+    .map(
+      ([e, n]) =>
+        `<button type="button" class="ds-reaction ${p.myReaction === e ? "is-on" : ""}" data-ui="react" data-id="${p.id}" data-emoji="${e}" aria-pressed="${p.myReaction === e}" aria-label="${UI_EMOJI_LABEL[e]}: ${n}"><span aria-hidden="true">${e}</span>${n}</button>`,
+    )
     .join("")}</div>`;
 }
 function uiReactMenu(btn) {
@@ -316,7 +319,10 @@ function uiReactMenu(btn) {
   if (btn.getAttribute("aria-expanded") === "true") return btn.setAttribute("aria-expanded", "false");
   const p = ffFind(Number(btn.dataset.id));
   btn.setAttribute("aria-expanded", "true");
-  btn.insertAdjacentHTML("afterend", `<div class="ds-react-menu" role="menu" aria-label="Tepki seç">${UI_EMOJI.map((e) => `<button type="button" role="menuitemradio" aria-checked="${p?.myReaction === e}" data-ui="react" data-id="${btn.dataset.id}" data-emoji="${e}" title="${UI_EMOJI_LABEL[e]}" aria-label="${UI_EMOJI_LABEL[e]}">${e}</button>`).join("")}</div>`);
+  btn.insertAdjacentHTML(
+    "afterend",
+    `<div class="ds-react-menu" role="menu" aria-label="Tepki seç">${UI_EMOJI.map((e) => `<button type="button" role="menuitemradio" aria-checked="${p?.myReaction === e}" data-ui="react" data-id="${btn.dataset.id}" data-emoji="${e}" title="${UI_EMOJI_LABEL[e]}" aria-label="${UI_EMOJI_LABEL[e]}">${e}</button>`).join("")}</div>`,
+  );
   $(".ds-react-menu button")?.focus();
 }
 document.addEventListener("click", (e) => {
@@ -367,7 +373,7 @@ async function uiRefreshPost(id) {
   const el = $(`[data-feed-card="${id}"]`);
   if (!el) return;
   const active = document.activeElement;
-  if (el.contains(active) && active.matches("textarea, input") || el.querySelector(".ds-react-menu")) return ui.pendingRefresh.add(id);
+  if ((el.contains(active) && active.matches("textarea, input")) || el.querySelector(".ds-react-menu")) return ui.pendingRefresh.add(id);
   let p;
   try {
     p = await ffApi("/" + id);
@@ -429,7 +435,11 @@ dmStream = async function () {
   try {
     while (!controller.signal.aborted && uiWantsStream()) {
       try {
-        const r = await fetch("/api/chat/stream", { credentials: "same-origin", headers: { "X-Family-Factor": sessionStorage.getItem("sf-factor") || "" }, signal: controller.signal });
+        const r = await fetch("/api/chat/stream", {
+          credentials: "same-origin",
+          headers: { "X-Family-Factor": sessionStorage.getItem("sf-factor") || "" },
+          signal: controller.signal,
+        });
         if (!r.ok) throw Error("Bağlantı yenileniyor.");
         const reader = r.body.getReader(),
           decoder = new TextDecoder();
@@ -544,7 +554,9 @@ home = function () {
     ["saved", "Kaydettiklerim"],
   ]
     .map(([id, label]) => ffAction(label, "filter", `data-filter="${id}" aria-pressed="${ff.filter === id}"`, ff.filter === id ? "active" : ""))
-    .join("")}</nav></div><button id="ff-new" class="ff-new ds-new-posts" data-feed="new" hidden>${icon("arrow-up")} Yeni paylaşımlar</button><div id="ff-posts" aria-live="polite">${ff.loaded ? ffListMarkup() : uiSkeletonPosts()}</div><div id="ff-more">${ff.more ? ffAction("Daha eski paylaşımlar", "more", "", "btn") : ""}</div></div>${ffSide()}</div>`;
+    .join(
+      "",
+    )}</nav></div><button id="ff-new" class="ff-new ds-new-posts" data-feed="new" hidden>${icon("arrow-up")} Yeni paylaşımlar</button><div id="ff-posts" aria-live="polite">${ff.loaded ? ffListMarkup() : uiSkeletonPosts()}</div><div id="ff-more">${ff.more ? ffAction("Daha eski paylaşımlar", "more", "", "btn") : ""}</div></div>${ffSide()}</div>`;
 };
 
 /* "Bugün geçmişte": records whose exact day matches today in an earlier year.
@@ -568,7 +580,8 @@ function uiOnThisDay() {
     if (e.status === "approved" && !["birthday", "gathering"].includes(e.type) && uiExactDay(e.date) && e.date.slice(5, 10) === md && e.date < today)
       out.push({ title: e.title, id: e.id, action: "event-detail", date: e.date });
   for (const e of typeof archiveItems === "undefined" ? [] : archiveItems)
-    if (!e.locked && uiExactDay(e.data?.date) && e.data.date.slice(5, 10) === md && e.data.date < today) out.push({ title: e.title, id: e.id, action: "ar-open", date: e.data.date });
+    if (!e.locked && uiExactDay(e.data?.date) && e.data.date.slice(5, 10) === md && e.data.date < today)
+      out.push({ title: e.title, id: e.id, action: "ar-open", date: e.data.date });
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 ffSide = function () {
@@ -614,7 +627,9 @@ function uiBody(p, hasMedia) {
   if (!p.body) return "";
   const long = p.body.length > 420,
     short = p.body.length < 120 && !hasMedia && p.kind !== "question";
-  const text = long ? `${esc(p.body.slice(0, 380).replace(/\s+\S*$/, ""))}… <button type="button" class="ds-readmore" data-ui="readmore" data-id="${p.id}">devamını oku</button>` : esc(p.body);
+  const text = long
+    ? `${esc(p.body.slice(0, 380).replace(/\s+\S*$/, ""))}… <button type="button" class="ds-readmore" data-ui="readmore" data-id="${p.id}">devamını oku</button>`
+    : esc(p.body);
   return `<div class="ds-post-text ${short ? "is-short" : ""}" data-full="${long ? esc(p.body) : ""}"><p>${text}</p></div>`;
 }
 ffCard = function (p) {
@@ -638,7 +653,9 @@ ffCard = function (p) {
 function uiCommentPeople(c) {
   const ids = Array.isArray(c.peopleIds) ? c.peopleIds : JSON.parse(c.peopleIds || "[]");
   const list = ids.map(uiPerson).filter(Boolean);
-  return list.length ? `<div class="ds-comment-tags">${list.map((x) => `<button data-action="profile" data-id="${esc(x.id)}">${avatar(x)}${esc(x.name)}</button>`).join("")}</div>` : "";
+  return list.length
+    ? `<div class="ds-comment-tags">${list.map((x) => `<button data-action="profile" data-id="${esc(x.id)}">${avatar(x)}${esc(x.name)}</button>`).join("")}</div>`
+    : "";
 }
 function uiComment(c, postId, replyTo) {
   const mine = c.createdBy === state.user.id;
@@ -661,7 +678,13 @@ function uiThreadList(items, postId) {
   return [...groups.keys()]
     .map((r) => {
       const root = byId.get(r);
-      return uiComment(root, postId) + groups.get(r).map((c) => uiComment(c, postId, c.parentId !== r ? byId.get(c.parentId)?.author : "")).join("");
+      return (
+        uiComment(root, postId) +
+        groups
+          .get(r)
+          .map((c) => uiComment(c, postId, c.parentId !== r ? byId.get(c.parentId)?.author : ""))
+          .join("")
+      );
     })
     .join("");
 }
@@ -1140,7 +1163,10 @@ document.addEventListener(
   (e) => {
     const tile = e.target.closest?.('[data-hm="open"][data-id]'),
       img = tile && $("img", tile);
-    ui.growFrom = img && img.complete && img.naturalWidth ? { id: tile.dataset.id, src: img.currentSrc || img.src, rect: img.getBoundingClientRect(), at: Date.now(), fit: getComputedStyle(img).objectPosition } : null;
+    ui.growFrom =
+      img && img.complete && img.naturalWidth
+        ? { id: tile.dataset.id, src: img.currentSrc || img.src, rect: img.getBoundingClientRect(), at: Date.now(), fit: getComputedStyle(img).objectPosition }
+        : null;
   },
   true,
 );
@@ -1210,8 +1236,17 @@ knNotifications = async function () {
     const items = uiOnThisDay();
     const years = (d) => Number(exDate().slice(0, 4)) - Number(d.slice(0, 4));
     const group = `<section class="kn-notice-group ds-notice-memories"><h3>${icon("history")} Bugün geçmişte</h3>${
-      items.map((x) => button(`${uiDayTile(x.date)}<span><strong>${esc(x.title)}</strong><small>${years(x.date)} yıl önce bugün · ${esc(x.date.slice(0, 4))}</small></span>`, x.action, null, "search-result ds-memory-row", `data-id="${esc(x.id)}"`)).join("") ||
-      "<p>Bugüne denk gelen, günü kesin bilinen bir hatıra yok.</p>"
+      items
+        .map((x) =>
+          button(
+            `${uiDayTile(x.date)}<span><strong>${esc(x.title)}</strong><small>${years(x.date)} yıl önce bugün · ${esc(x.date.slice(0, 4))}</small></span>`,
+            x.action,
+            null,
+            "search-result ds-memory-row",
+            `data-id="${esc(x.id)}"`,
+          ),
+        )
+        .join("") || "<p>Bugüne denk gelen, günü kesin bilinen bir hatıra yok.</p>"
     }</section>`;
     const first = $(".kn-notice-group", body);
     first ? first.insertAdjacentHTML("beforebegin", group) : body.insertAdjacentHTML("beforeend", group);
@@ -1220,7 +1255,8 @@ knNotifications = async function () {
   const days = new Map(upcoming().map((e) => [String(e.id), e]));
   for (const b of $$('.kn-notice-group .search-result[data-action="event-detail"]:not(.ds-memory-row)', dialog)) {
     const e = days.get(b.dataset.id);
-    if (e) b.innerHTML = `${uiDayTile(e.date)}<span><strong>${esc(e.title)}</strong><small>${esc(types[e.type] || "")}${e.years ? " · " + e.years + ". yıl" : ""}</small></span>`;
+    if (e)
+      b.innerHTML = `${uiDayTile(e.date)}<span><strong>${esc(e.title)}</strong><small>${esc(types[e.type] || "")}${e.years ? " · " + e.years + ". yıl" : ""}</small></span>`;
   }
 };
 
@@ -1246,8 +1282,13 @@ function uiMenu() {
   modal(
     "Konak",
     `<button type="button" class="ds-me" data-action="account">${avatar(state.user)}<span><strong>${esc(state.user.name)}</strong><small>${esc(roleName[state.user.role] || "")} · Hesabım</small></span>${icon("chevron-right")}</button><nav class="ds-menu-grid" aria-label="Tüm bölümler">${navItems
-      .map(([id, i, l]) => `<button type="button" class="ds-menu-tile ${route === id ? "is-current" : ""}" data-action="nav" data-page="${id}">${icon(i)}<strong>${esc(l)}</strong><small>${uiSectionNotes[id] || ""}</small></button>`)
-      .join("")}</nav>${isStaff() ? `<div class="ds-list">${uiRow("Yönetim paneli", "Onaylar, üyeler, kayıtlar", "shield-check", 'data-action="nav" data-page="admin"')}${isOwner() ? uiRow("Aile ayarları", "Aile kimliği, yedekler", "settings-2", 'data-action="nav" data-page="settings"') : ""}</div>` : ""}`,
+      .map(
+        ([id, i, l]) =>
+          `<button type="button" class="ds-menu-tile ${route === id ? "is-current" : ""}" data-action="nav" data-page="${id}">${icon(i)}<strong>${esc(l)}</strong><small>${uiSectionNotes[id] || ""}</small></button>`,
+      )
+      .join(
+        "",
+      )}</nav>${isStaff() ? `<div class="ds-list">${uiRow("Yönetim paneli", "Onaylar, üyeler, kayıtlar", "shield-check", 'data-action="nav" data-page="admin"')}${isOwner() ? uiRow("Aile ayarları", "Aile kimliği, yedekler", "settings-2", 'data-action="nav" data-page="settings"') : ""}</div>` : ""}`,
   );
 }
 /* Appearance: light, dark or follow the device. */
@@ -1258,7 +1299,9 @@ function uiThemeRow() {
     ["dark", "Koyu"],
     ["system", "Sistem"],
   ]
-    .map(([v, l]) => `<button type="button" class="tab ${cur === v ? "active" : ""}" data-ui="theme" data-theme="${v}" aria-pressed="${cur === v}">${l}</button>`)
+    .map(
+      ([v, l]) => `<button type="button" class="tab ${cur === v ? "active" : ""}" data-ui="theme" data-theme="${v}" aria-pressed="${cur === v}">${l}</button>`,
+    )
     .join("")}</span></div>`;
 }
 function uiAccount() {
@@ -1359,9 +1402,7 @@ function uiTreeLayout(list) {
     }
   for (let pass = 0; pass < 2; pass++)
     for (let ri = sorted.length - 2; ri >= 0; ri--) {
-      const row = sorted[ri][1]
-        .map((p) => p.id)
-        .sort((a, b) => pos.get(a).x - pos.get(b).x);
+      const row = sorted[ri][1].map((p) => p.id).sort((a, b) => pos.get(a).x - pos.get(b).x);
       const groups = [];
       for (const id of row) {
         const last = groups.at(-1);
@@ -1437,7 +1478,10 @@ function uiTreeLayout(list) {
         bus = cy - 36,
         dir = Math.sign(cx - ox),
         rad = Math.min(r, Math.abs(cx - ox) / 2);
-      const d = Math.abs(cx - ox) < 1 ? `M${ox} ${oy}V${cy}` : `M${ox} ${oy}V${bus - rad}Q${ox} ${bus} ${ox + dir * rad} ${bus}H${cx - dir * rad}Q${cx} ${bus} ${cx} ${bus + rad}V${cy}`;
+      const d =
+        Math.abs(cx - ox) < 1
+          ? `M${ox} ${oy}V${cy}`
+          : `M${ox} ${oy}V${bus - rad}Q${ox} ${bus} ${ox + dir * rad} ${bus}H${cx - dir * rad}Q${cx} ${bus} ${cx} ${bus + rad}V${cy}`;
       paths.unshift(`<path class="ds-edge-parent ${k.adoptive ? "is-adoptive" : ""}" data-child="${esc(k.id)}" d="${d}"/>`);
     }
   }
@@ -1492,8 +1536,7 @@ tree = function () {
   }
   const L = list.length ? uiTreeLayout(list) : null;
   ui.treeLayout = L;
-  const
-    focusName = treeFocus ? state.people.find((p) => p.id === treeFocus)?.name : "";
+  const focusName = treeFocus ? state.people.find((p) => p.id === treeFocus)?.name : "";
   const head = `<section class="page-head ds-tree-head"><div><span class="eyebrow">Köklerimiz</span><h1>Soy Ağacı</h1><p>${state.people.length} kişi · ${L ? L.rows.length : 0} kuşak${treeFocus ? " · " + esc(focusName) + " ve yakınları" : ""}</p></div><div class="row">${isStaff() ? button("Kişi ekle", "add-person", "user-plus", "primary") + button("Bağ ekle", "add-relation", "link-2") : ""}${knButton(icon("circle-help"), "tree-help", 'aria-label="Soy ağacı kullanım bilgisi" title="Nasıl kullanılır?"', "icon-btn")}</div></section>`;
   if (!L) return head + empty("Köklerimizi birlikte çizelim.", "İlk aile üyesini ekleyerek başlayın.", isStaff() ? "add-person" : "");
   return `${head}<div class="ds-tree-bar"><button type="button" class="search ds-tree-find" data-action="search-tree">${icon("search")}<span>İsim veya lakapla birini bul</span></button>${treeFocus ? `<div class="ds-focus-chip">${avatar(state.people.find((p) => p.id === treeFocus) || focusName)}<span>${esc(focusName)} ve yakınları</span>${button("", "tree-reset", "x", "icon-btn", 'aria-label="Tüm ağacı göster"')}</div>` : ""}</div><section class="tree-board kn-tree-board ds-tree-board"><div class="tree-viewport" tabindex="0" aria-label="Soy ağacı. Kaydırarak gezin; bir kişiye dokunarak profilini açın."><div class="tree-canvas" style="width:${L.width}px;height:${L.height}px;transform:scale(${zoom})"><svg width="${L.width}" height="${L.height}" fill="none" aria-hidden="true">${L.svg}</svg>${L.rows.map(([level], i) => `<span class="ds-gen" style="top:${UI_TREE.top + i * UI_TREE.row - 30}px">${Number(level) + 1}. kuşak</span>`).join("")}${list.map((p) => uiTreeNode(p, L.pos.get(p.id))).join("")}</div></div><canvas class="ds-minimap" aria-hidden="true" hidden></canvas><div class="tree-tools ds-tree-tools"><button data-action="zoom-in" aria-label="Yakınlaştır">${icon("plus")}</button><span id="zoom-label">${Math.round(zoom * 100)}%</span><button data-action="zoom-out" aria-label="Uzaklaştır">${icon("minus")}</button><button data-action="zoom-fit" aria-label="Ekrana sığdır">${icon("scan")}</button></div><div class="ds-tree-legend"><span><i class="is-parent"></i>Ebeveyn – çocuk</span><span><i class="is-spouse"></i>Eş</span><span><i class="is-adoptive"></i>Evlat edinme</span><span>${icon("flower-2")}Anısına</span></div></section><p class="ds-tree-note">${"Bir kişiye dokun: profilini aç ya da yalnızca yakınlarını gör. Ağacı sürükleyerek gezebilirsin."}</p>${isStaff() ? `<div class="ds-tree-foot">${button("Yazdır / PDF", "print-tree", "printer", "text-btn")}</div>` : ""}`;
@@ -1555,12 +1598,18 @@ function uiTreeMinimap() {
     g.clearRect(0, 0, W, H);
     g.fillStyle = css.getPropertyValue("--map-node").trim() || "#8fa965";
     for (const [id, p] of L.pos) {
-      g.fillStyle = id === treeFocus || id === ui.mePerson ? css.getPropertyValue("--map-me").trim() || "#2f4a35" : css.getPropertyValue("--map-node").trim() || "#8fa965";
+      g.fillStyle =
+        id === treeFocus || id === ui.mePerson ? css.getPropertyValue("--map-me").trim() || "#2f4a35" : css.getPropertyValue("--map-node").trim() || "#8fa965";
       g.fillRect(p.x * scale, p.y * sy, Math.max(2, UI_TREE.w * scale), Math.max(2, UI_TREE.h * sy));
     }
     g.strokeStyle = css.getPropertyValue("--map-frame").trim() || "#2f4a35";
     g.lineWidth = 1.5;
-    g.strokeRect((vp.scrollLeft / zoom) * scale + 0.75, (vp.scrollTop / zoom) * sy + 0.75, Math.min(W, (vp.clientWidth / zoom) * scale) - 1.5, Math.min(H, (vp.clientHeight / zoom) * sy) - 1.5);
+    g.strokeRect(
+      (vp.scrollLeft / zoom) * scale + 0.75,
+      (vp.scrollTop / zoom) * sy + 0.75,
+      Math.min(W, (vp.clientWidth / zoom) * scale) - 1.5,
+      Math.min(H, (vp.clientHeight / zoom) * sy) - 1.5,
+    );
   };
   ui.drawMinimap = draw;
   if (!map.dataset.ready) {
@@ -1710,7 +1759,10 @@ photoDetail = async function (id) {
     if (img && m?.variants?.length) img.src = img.src.split("?")[0] + "?w=" + m.variants[0];
   }
   if (cur.canEdit && !$('[data-ui="focus"]', dialog))
-    $(".hm-view-actions", dialog)?.insertAdjacentHTML("beforeend", `<button type="button" class="btn" data-ui="focus" data-id="${esc(id)}">${icon("scan-face")} Kırpma odağı</button>`);
+    $(".hm-view-actions", dialog)?.insertAdjacentHTML(
+      "beforeend",
+      `<button type="button" class="btn" data-ui="focus" data-id="${esc(id)}">${icon("scan-face")} Kırpma odağı</button>`,
+    );
   if (cur.canEdit && !demoMode && !media?.variants?.length && !ui.variantBusy?.has(id)) {
     (ui.variantBusy ||= new Set()).add(id);
     uiStoreVariants(id, cur.url)
@@ -1756,8 +1808,13 @@ document.addEventListener("click", (e) => {
   if (!img) return;
   const strip = $$("#hm-album-strip img", dialog),
     big = (x, id) => uiBigUrl(x.getAttribute("src").split("?")[0], uiPhotoMedia(id)),
-    items = strip.length ? strip.map((x) => ({ url: big(x, x.closest("button")?.dataset.id), alt: x.alt })) : [{ url: uiBigUrl(img.getAttribute("src").split("?")[0], hm.current?.media), alt: img.alt }],
-    start = Math.max(0, strip.findIndex((x) => x.closest("button")?.classList.contains("active")));
+    items = strip.length
+      ? strip.map((x) => ({ url: big(x, x.closest("button")?.dataset.id), alt: x.alt }))
+      : [{ url: uiBigUrl(img.getAttribute("src").split("?")[0], hm.current?.media), alt: img.alt }],
+    start = Math.max(
+      0,
+      strip.findIndex((x) => x.closest("button")?.classList.contains("active")),
+    );
   uiViewer(items, strip.length ? start : 0);
 });
 
@@ -1767,7 +1824,12 @@ function uiUploadStatus(stage, value, text) {
   if (!form) return;
   let box = $("#ds-upload-progress", form);
   if (!box) {
-    form.querySelector(".kn-upload-footer, .form-actions")?.insertAdjacentHTML("beforebegin", `<div id="ds-upload-progress" class="ds-progress" role="status" aria-live="polite"><div class="ds-progress-track"><i></i></div><span></span></div>`);
+    form
+      .querySelector(".kn-upload-footer, .form-actions")
+      ?.insertAdjacentHTML(
+        "beforebegin",
+        `<div id="ds-upload-progress" class="ds-progress" role="status" aria-live="polite"><div class="ds-progress-track"><i></i></div><span></span></div>`,
+      );
     box = $("#ds-upload-progress", form);
   }
   if (!box) return;
@@ -1866,7 +1928,10 @@ async function uiProfileHero() {
   hero.classList.toggle("is-memorial", !!p.deathDate);
   hero.innerHTML = `<div class="ds-ph-avatar">${portraitUrl ? `<img class="hm-portrait" src="${esc(portraitUrl)}" alt="${esc(p.name)}">` : avatar(p, "large")}</div><div class="ds-ph-main">${p.deathDate ? `<span class="ds-ph-memorial">${icon("flower-2")}Sevgiyle anıyoruz</span>` : ""}<h1>${esc(p.name)}</h1>${p.nickname ? `<p class="ds-ph-nick">“${esc(p.nickname)}”</p>` : ""}${p.birthDate || p.deathDate ? `<p class="ds-ph-life">${p.birthDate ? dateText(p.birthDate, { year: "numeric" }) : "?"}${p.deathDate ? " – " + dateText(p.deathDate, { year: "numeric" }) : ""}${age ? `<span> · ${esc(age)}</span>` : ""}</p>` : ""}<div class="ds-ph-chips">${chip("git-fork", generation + ". kuşak")}${chip("map-pin", p.place ? p.place + (p.country ? ", " + p.country : "") : "")}${chip("baby", p.birthPlace ? "Doğum yeri: " + p.birthPlace : "")}</div>${kin ? `<p class="ds-ph-kin">${icon("route")}<span>${esc(kin)}</span></p>` : ""}</div><div class="ds-ph-actions">${button("Ağaçta göster", "focus-person", "git-fork", "", 'data-id="' + esc(id) + '"')}${info.userId && info.userId !== state.user.id ? exButton(icon("message-circle") + "Mesaj gönder", "profile-message", `data-id="${esc(info.userId)}"`, "btn primary") : ""}${isStaff() ? button("", "edit-person", "pencil", "icon-btn", 'data-id="' + esc(id) + '" aria-label="Kişi kaydını düzenle" title="Kişi kaydını düzenle"') : ""}${info.canEdit ? exButton(icon("image"), "profile-edit", `data-id="${esc(id)}" aria-label="Profil resmi, kapak ve ayrıntılar" title="Profil resmi, kapak ve ayrıntılar"`, "icon-btn") : ""}</div>`;
   const cover = $(".hm-cover-empty");
-  if (cover) cover.innerHTML = info.canEdit ? `<button type="button" class="ds-cover-add" data-ex="profile-edit" data-id="${esc(id)}">${icon("image-plus")}Kapak ekle</button>` : "";
+  if (cover)
+    cover.innerHTML = info.canEdit
+      ? `<button type="button" class="ds-cover-add" data-ex="profile-edit" data-id="${esc(id)}">${icon("image-plus")}Kapak ekle</button>`
+      : "";
   hydrate();
 }
 const uiBaseMountProfile = ffMountProfile;
@@ -1905,11 +1970,20 @@ async function uiLifeStrip() {
     if (r.type === "spouse" && (r.personA === id || r.personB === id)) add(r.date, null, "Evlendi", name(r.personA === id ? r.personB : r.personA), "heart");
     if (r.type !== "spouse" && r.personA === id) {
       const c = uiPerson(r.personB);
-      if (c) add(c.birthDate, null, (r.type === "adoptive" ? "Ailesine katıldı: " : "Çocuğu doğdu: ") + c.name.split(" ")[0], "", "sprout", `data-action="profile" data-id="${esc(c.id)}"`);
+      if (c)
+        add(
+          c.birthDate,
+          null,
+          (r.type === "adoptive" ? "Ailesine katıldı: " : "Çocuğu doğdu: ") + c.name.split(" ")[0],
+          "",
+          "sprout",
+          `data-action="profile" data-id="${esc(c.id)}"`,
+        );
     }
   }
   for (const e of state.events || [])
-    if (e.personId === id && e.status === "approved" && !["birthday"].includes(e.type)) add(e.date, null, e.title, e.place || "", "calendar-days", `data-action="event-detail" data-id="${esc(e.id)}"`);
+    if (e.personId === id && e.status === "approved" && !["birthday"].includes(e.type))
+      add(e.date, null, e.title, e.place || "", "calendar-days", `data-action="event-detail" data-id="${esc(e.id)}"`);
   let photos = [];
   try {
     photos = (await hmApi("?person=" + encodeURIComponent(id))).items || [];
@@ -1919,7 +1993,14 @@ async function uiLifeStrip() {
   if (personId !== id) return;
   for (const x of photos.filter((x) => x.status !== "rejected").slice(0, 24))
     // Without a stored precision a 1 January date is treated as "year only".
-    add(x.date, x.datePrecision || (String(x.date).endsWith("-01-01") ? "year" : null), x.title || "Fotoğraf", x.place || "", "image", `data-hm="open" data-id="${esc(x.id)}"`);
+    add(
+      x.date,
+      x.datePrecision || (String(x.date).endsWith("-01-01") ? "year" : null),
+      x.title || "Fotoğraf",
+      x.place || "",
+      "image",
+      `data-hm="open" data-id="${esc(x.id)}"`,
+    );
   add(p.deathDate, null, "Aramızdan ayrıldı", "", "flower-2");
   items.sort((a, b) => a.key.localeCompare(b.key));
   $(".ds-life", pane)?.remove();
@@ -1931,7 +2012,10 @@ async function uiLifeStrip() {
         })
         .join("")}</ol>`
     : `<p class="ds-life-empty">Tarihli bir kayıt eklendikçe bu şerit dolacak.</p>`;
-  pane.insertAdjacentHTML("afterbegin", `<section class="ds-life"><header><h2>Hayat şeridi</h2><span>${items.length ? items.length + " an" : ""}</span></header>${list}</section>`);
+  pane.insertAdjacentHTML(
+    "afterbegin",
+    `<section class="ds-life"><header><h2>Hayat şeridi</h2><span>${items.length ? items.length + " an" : ""}</span></header>${list}</section>`,
+  );
   hydrate();
 }
 
@@ -2007,7 +2091,8 @@ dmSend = async function (w) {
     body = field.value.trim();
   if (!body && !w.file) return;
   if (w.pending?.preview && w.pending.previewFile !== w.file) URL.revokeObjectURL(w.pending.preview);
-  const preview = w.pending && w.file && w.pending.previewFile === w.file ? w.pending.preview : w.file?.type.startsWith("image/") ? URL.createObjectURL(w.file) : null;
+  const preview =
+    w.pending && w.file && w.pending.previewFile === w.file ? w.pending.preview : w.file?.type.startsWith("image/") ? URL.createObjectURL(w.file) : null;
   w.pending = { state: "sending", body, preview, previewFile: w.file, voice: w.file?.type.startsWith("audio") ? w.voiceSeconds || 0 : 0 };
   uiDmPendingBubble(w);
   // Marks the attempt so a failure before the base sender signs it still counts as failed.
@@ -2109,7 +2194,10 @@ function uiVoicePlayer(audio) {
   audio.dataset.ds = "1";
   audio.removeAttribute("controls");
   audio.preload = "metadata";
-  audio.insertAdjacentHTML("afterend", `<div class="ds-voice"><button type="button" class="ds-voice-play" aria-label="Sesli mesajı oynat">${icon("play")}</button><canvas class="ds-voice-wave" aria-hidden="true"></canvas><span class="ds-voice-time">0:00</span></div>`);
+  audio.insertAdjacentHTML(
+    "afterend",
+    `<div class="ds-voice"><button type="button" class="ds-voice-play" aria-label="Sesli mesajı oynat">${icon("play")}</button><canvas class="ds-voice-wave" aria-hidden="true"></canvas><span class="ds-voice-time">0:00</span></div>`,
+  );
   const box = audio.nextElementSibling,
     btn = $(".ds-voice-play", box),
     canvas = $("canvas", box),
@@ -2171,7 +2259,10 @@ dmRecord = async function (w) {
   if (wasRecording || !w.recording) return;
   const compose = $(".dm-compose", w.el);
   compose.classList.add("is-recording");
-  compose.insertAdjacentHTML("afterbegin", `<div class="ds-rec" role="status"><i class="ds-rec-dot"></i><span class="ds-rec-time">0:00</span><canvas aria-hidden="true"></canvas><small>Bitirmek için mikrofona dokun</small></div>`);
+  compose.insertAdjacentHTML(
+    "afterbegin",
+    `<div class="ds-rec" role="status"><i class="ds-rec-dot"></i><span class="ds-rec-time">0:00</span><canvas aria-hidden="true"></canvas><small>Bitirmek için mikrofona dokun</small></div>`,
+  );
   const rec = $(".ds-rec", compose),
     canvas = $("canvas", rec),
     start = performance.now(),
@@ -2205,7 +2296,6 @@ dmRecord = async function (w) {
   };
   tick();
 };
-
 
 const uiBaseDmOpen = dmOpen;
 dmOpen = async function (kind, id) {
@@ -2260,7 +2350,9 @@ async function uiPhotoPerfCard() {
   try {
     const r = await hmApi("/variants/missing");
     if (!$("#ds-perf-text")) return;
-    $("#ds-perf-text").textContent = r.total ? `${r.total} fotoğrafın telefon için küçük kopyası yok. Hazırlama bu tarayıcıda yapılır; orijinaller değişmez.` : "Bütün fotoğrafların küçük kopyaları hazır.";
+    $("#ds-perf-text").textContent = r.total
+      ? `${r.total} fotoğrafın telefon için küçük kopyası yok. Hazırlama bu tarayıcıda yapılır; orijinaller değişmez.`
+      : "Bütün fotoğrafların küçük kopyaları hazır.";
     $('[data-ui="backfill"]').hidden = !r.total;
   } catch (e) {
     if ($("#ds-perf-text")) $("#ds-perf-text").textContent = e.message;

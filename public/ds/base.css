@@ -150,9 +150,7 @@ em {
   font: 500 38px/1 var(--font-serif);
   letter-spacing: -0.02em;
   color: var(--forest);
-  background:
-    radial-gradient(60% 50% at 50% 40%, var(--pistachio-wash), transparent 70%),
-    var(--bg);
+  background: radial-gradient(60% 50% at 50% 40%, var(--pistachio-wash), transparent 70%), var(--bg);
 }
 .loading span {
   font: 500 var(--fs-sm) var(--font-sans);

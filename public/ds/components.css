@@ -45,7 +45,9 @@
   --btn-bg: var(--forest);
   --btn-fg: var(--on-dark);
   --btn-bd: var(--forest);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 6px 16px -8px rgba(34, 58, 41, 0.6);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 6px 16px -8px rgba(34, 58, 41, 0.6);
 }
 .btn.primary:hover {
   --btn-bg: var(--forest-2);
@@ -127,7 +129,10 @@
   background: transparent;
   color: var(--ink-2);
   cursor: pointer;
-  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  transition:
+    background var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
 }
 .icon-btn:hover {
   background: var(--bg-sunken);
@@ -224,7 +229,10 @@
   white-space: nowrap;
   box-shadow: none;
   cursor: pointer;
-  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  transition:
+    background var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
 }
 .tab:hover,
 .ff-filters > button:hover,
@@ -241,7 +249,9 @@
   background: var(--surface);
   color: var(--ink);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(29, 43, 34, 0.08), 0 0 0 1px rgba(29, 43, 34, 0.04);
+  box-shadow:
+    0 1px 2px rgba(29, 43, 34, 0.08),
+    0 0 0 1px rgba(29, 43, 34, 0.04);
 }
 .kn-view-switch > .btn svg.lucide {
   width: 16px;
@@ -270,11 +280,26 @@
   text-transform: uppercase;
   user-select: none;
 }
-.avatar[data-tone="2"] { background: var(--tone-2-bg); color: var(--tone-2-fg); }
-.avatar[data-tone="3"] { background: var(--tone-3-bg); color: var(--tone-3-fg); }
-.avatar[data-tone="4"] { background: var(--tone-4-bg); color: var(--tone-4-fg); }
-.avatar[data-tone="5"] { background: var(--tone-5-bg); color: var(--tone-5-fg); }
-.avatar[data-tone="6"] { background: var(--tone-6-bg); color: var(--tone-6-fg); }
+.avatar[data-tone="2"] {
+  background: var(--tone-2-bg);
+  color: var(--tone-2-fg);
+}
+.avatar[data-tone="3"] {
+  background: var(--tone-3-bg);
+  color: var(--tone-3-fg);
+}
+.avatar[data-tone="4"] {
+  background: var(--tone-4-bg);
+  color: var(--tone-4-fg);
+}
+.avatar[data-tone="5"] {
+  background: var(--tone-5-bg);
+  color: var(--tone-5-fg);
+}
+.avatar[data-tone="6"] {
+  background: var(--tone-6-bg);
+  color: var(--tone-6-fg);
+}
 .avatar.large {
   --av: 104px;
   font-weight: 600;
@@ -298,7 +323,9 @@
   border-radius: var(--r-full);
   background: var(--surface);
   color: var(--muted);
-  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  transition:
+    border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
 }
 .search svg.lucide {
   width: 18px;
@@ -376,7 +403,10 @@ dialog :where(textarea) {
   color: var(--ink);
   font-size: var(--fs-base);
   line-height: 1.45;
-  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+  transition:
+    border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease);
 }
 .field textarea,
 dialog :where(textarea) {
@@ -475,7 +505,9 @@ input[type="radio"] {
   font-weight: 500;
   color: var(--ink-2);
   cursor: pointer;
-  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  transition:
+    background var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease);
 }
 .tags-picker label:has(input:checked) {
   background: var(--pistachio-soft);
@@ -749,7 +781,9 @@ input[type="radio"] {
   opacity: 0;
   pointer-events: none;
   transform: translate(-50%, 16px) scale(0.98);
-  transition: opacity var(--t) var(--ease), transform var(--t) var(--ease-out);
+  transition:
+    opacity var(--t) var(--ease),
+    transform var(--t) var(--ease-out);
 }
 #toast.show {
   opacity: 1;
@@ -1073,7 +1107,10 @@ body.kn-easy .ds-node-sur {
   background: var(--surface);
   text-align: left;
   cursor: pointer;
-  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  transition:
+    background var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
 }
 .ds-menu-tile:hover {
   background: var(--surface-2);

@@ -1,9 +1,9 @@
-import { DatabaseSync } from 'node:sqlite';
-import { readFileSync, mkdirSync } from 'node:fs';
-import { resolve } from 'node:path';
-export const dataDir=resolve(process.env.DATA_DIR || 'data');
-mkdirSync(dataDir,{recursive:true});
-export const db=new DatabaseSync(resolve(dataDir,'family.sqlite'));
+import { DatabaseSync } from "node:sqlite";
+import { readFileSync, mkdirSync } from "node:fs";
+import { resolve } from "node:path";
+export const dataDir = resolve(process.env.DATA_DIR || "data");
+mkdirSync(dataDir, { recursive: true });
+export const db = new DatabaseSync(resolve(dataDir, "family.sqlite"));
 db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
 CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,name TEXT NOT NULL,email TEXT UNIQUE NOT NULL,password TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('owner','moderator','member')),active INTEGER NOT NULL DEFAULT 1,createdAt TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,userId TEXT REFERENCES users(id) ON DELETE CASCADE,csrf TEXT NOT NULL,expires INTEGER NOT NULL);
@@ -27,29 +27,84 @@ INSERT OR IGNORE INTO settings VALUES ('familyTitle','Sarıçiçek');
 INSERT OR IGNORE INTO settings VALUES ('familyStory','Bir aile, birbirine anlatılan hikâyelerle yaşar. Köklerimizi, anılarımızı ve bizi bir arada tutan bağları birlikte koruyoruz.');
 INSERT OR IGNORE INTO settings VALUES ('mailDomain','');
 `);
-export const all=(sql,...args)=>db.prepare(sql).all(...args);
-export const one=(sql,...args)=>db.prepare(sql).get(...args);
-export const run=(sql,...args)=>db.prepare(sql).run(...args);
-export const transaction=fn=>{db.exec('BEGIN IMMEDIATE');try{const r=fn();db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}};
-export const audit=(user,action,id='')=>run('INSERT INTO audit(userId,action,entityId,createdAt) VALUES(?,?,?,?)',user,action,id,new Date().toISOString());
+export const all = (sql, ...args) => db.prepare(sql).all(...args);
+export const one = (sql, ...args) => db.prepare(sql).get(...args);
+export const run = (sql, ...args) => db.prepare(sql).run(...args);
+export const transaction = (fn) => {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const r = fn();
+    db.exec("COMMIT");
+    return r;
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
+};
+export const audit = (user, action, id = "") =>
+  run("INSERT INTO audit(userId,action,entityId,createdAt) VALUES(?,?,?,?)", user, action, id, new Date().toISOString());
 
 // Shared community schema uses the same generated migration in both runtimes.
-db.exec('CREATE TABLE IF NOT EXISTS local_migrations(name TEXT PRIMARY KEY)');
-if(!one('SELECT name FROM local_migrations WHERE name=?','0001_stormy_husk'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0001_stormy_husk.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0001_stormy_husk');});
+db.exec("CREATE TABLE IF NOT EXISTS local_migrations(name TEXT PRIMARY KEY)");
+if (!one("SELECT name FROM local_migrations WHERE name=?", "0001_stormy_husk"))
+  transaction(() => {
+    db.exec(readFileSync(new URL("../drizzle/0001_stormy_husk.sql", import.meta.url), "utf8"));
+    run("INSERT INTO local_migrations VALUES(?)", "0001_stormy_husk");
+  });
 
-if(!one('SELECT name FROM local_migrations WHERE name=?','0002_tan_sheva_callister'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0002_tan_sheva_callister.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0002_tan_sheva_callister');});
+if (!one("SELECT name FROM local_migrations WHERE name=?", "0002_tan_sheva_callister"))
+  transaction(() => {
+    db.exec(readFileSync(new URL("../drizzle/0002_tan_sheva_callister.sql", import.meta.url), "utf8"));
+    run("INSERT INTO local_migrations VALUES(?)", "0002_tan_sheva_callister");
+  });
 
-if(!one('SELECT name FROM local_migrations WHERE name=?','0003_heavy_betty_ross'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0003_heavy_betty_ross.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0003_heavy_betty_ross');});
+if (!one("SELECT name FROM local_migrations WHERE name=?", "0003_heavy_betty_ross"))
+  transaction(() => {
+    db.exec(readFileSync(new URL("../drizzle/0003_heavy_betty_ross.sql", import.meta.url), "utf8"));
+    run("INSERT INTO local_migrations VALUES(?)", "0003_heavy_betty_ross");
+  });
 
-if(!one('SELECT name FROM local_migrations WHERE name=?','0004_broad_karma'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0004_broad_karma.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0004_broad_karma');});
+if (!one("SELECT name FROM local_migrations WHERE name=?", "0004_broad_karma"))
+  transaction(() => {
+    db.exec(readFileSync(new URL("../drizzle/0004_broad_karma.sql", import.meta.url), "utf8"));
+    run("INSERT INTO local_migrations VALUES(?)", "0004_broad_karma");
+  });
 
-if(!one('SELECT name FROM local_migrations WHERE name=?','0005_curly_omega_red'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0005_curly_omega_red.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0005_curly_omega_red');});
+if (!one("SELECT name FROM local_migrations WHERE name=?", "0005_curly_omega_red"))
+  transaction(() => {
+    db.exec(readFileSync(new URL("../drizzle/0005_curly_omega_red.sql", import.meta.url), "utf8"));
+    run("INSERT INTO local_migrations VALUES(?)", "0005_curly_omega_red");
+  });
 
-if(!one('SELECT name FROM local_migrations WHERE name=?','0006_search_index'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0006_search_index.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0006_search_index');});
-if(!one('SELECT name FROM local_migrations WHERE name=?','0007_greedy_kinsey_walden'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0007_greedy_kinsey_walden.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0007_greedy_kinsey_walden');});
+if (!one("SELECT name FROM local_migrations WHERE name=?", "0006_search_index"))
+  transaction(() => {
+    db.exec(readFileSync(new URL("../drizzle/0006_search_index.sql", import.meta.url), "utf8"));
+    run("INSERT INTO local_migrations VALUES(?)", "0006_search_index");
+  });
+if (!one("SELECT name FROM local_migrations WHERE name=?", "0007_greedy_kinsey_walden"))
+  transaction(() => {
+    db.exec(readFileSync(new URL("../drizzle/0007_greedy_kinsey_walden.sql", import.meta.url), "utf8"));
+    run("INSERT INTO local_migrations VALUES(?)", "0007_greedy_kinsey_walden");
+  });
 
-if(!one('SELECT name FROM local_migrations WHERE name=?','0008_aberrant_genesis'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0008_aberrant_genesis.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0008_aberrant_genesis');});
+if (!one("SELECT name FROM local_migrations WHERE name=?", "0008_aberrant_genesis"))
+  transaction(() => {
+    db.exec(readFileSync(new URL("../drizzle/0008_aberrant_genesis.sql", import.meta.url), "utf8"));
+    run("INSERT INTO local_migrations VALUES(?)", "0008_aberrant_genesis");
+  });
 
-if(!one('SELECT name FROM local_migrations WHERE name=?','0009_fearless_iron_fist'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0009_fearless_iron_fist.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0009_fearless_iron_fist');});
-if(!one('SELECT name FROM local_migrations WHERE name=?','0010_happy_kronos'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0010_happy_kronos.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0010_happy_kronos');});
-if(!one('SELECT name FROM local_migrations WHERE name=?','0011_ui_live_media'))transaction(()=>{db.exec(readFileSync(new URL('../drizzle/0011_ui_live_media.sql',import.meta.url),'utf8'));run('INSERT INTO local_migrations VALUES(?)','0011_ui_live_media');})
+if (!one("SELECT name FROM local_migrations WHERE name=?", "0009_fearless_iron_fist"))
+  transaction(() => {
+    db.exec(readFileSync(new URL("../drizzle/0009_fearless_iron_fist.sql", import.meta.url), "utf8"));
+    run("INSERT INTO local_migrations VALUES(?)", "0009_fearless_iron_fist");
+  });
+if (!one("SELECT name FROM local_migrations WHERE name=?", "0010_happy_kronos"))
+  transaction(() => {
+    db.exec(readFileSync(new URL("../drizzle/0010_happy_kronos.sql", import.meta.url), "utf8"));
+    run("INSERT INTO local_migrations VALUES(?)", "0010_happy_kronos");
+  });
+if (!one("SELECT name FROM local_migrations WHERE name=?", "0011_ui_live_media"))
+  transaction(() => {
+    db.exec(readFileSync(new URL("../drizzle/0011_ui_live_media.sql", import.meta.url), "utf8"));
+    run("INSERT INTO local_migrations VALUES(?)", "0011_ui_live_media");
+  });
