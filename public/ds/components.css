@@ -398,7 +398,8 @@ dialog :where(input, select, textarea):focus {
   box-shadow: var(--ring);
 }
 .field select,
-dialog :where(select) {
+dialog :where(select),
+.data-table select {
   appearance: none;
   padding-right: 40px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%237a8171' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
@@ -703,10 +704,21 @@ input[type="radio"] {
 }
 .data-table select {
   min-height: 36px;
-  padding: 6px 10px;
+  padding: 6px 36px 6px 12px;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
-  background: var(--surface-2);
+  background-color: var(--surface-2);
+}
+
+/* Row actions sit apart, never glued together. */
+.data-table td:has(> .btn) {
+  white-space: nowrap;
+}
+.data-table td > .btn + .btn {
+  margin-left: 6px;
 }
 
 .pagination {

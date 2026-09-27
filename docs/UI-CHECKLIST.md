@@ -10,7 +10,7 @@ Durum: [ ] bekliyor · [~] sürüyor · [x] bitti · [!] dış engel
 6. [x] Avlu açılış animasyonu, gerçek yükleme ilerlemesi, hata sonrası yeniden deneme
 7. [x] Gece modu (açık/koyu/sistem), geçişler, hareket azaltma
 8. [x] Erişilebilirlik, Kolay görünüm, klavye/güvenli alan/geri tuşu (emülasyon) + telefon kontrol listesi
-9. [ ] Hayat şeridi, Bugün geçmişte bildirimleri, takvim/arşiv/yönetim kontrolleri
+9. [x] Hayat şeridi, Bugün geçmişte bildirimleri, takvim/arşiv/yönetim kontrolleri
 10. [ ] Testler, güvenlik incelemesi, yedek uyumu, kılavuz/belge, tek dosya HTML, commit/push
 
 Notlar
@@ -23,3 +23,6 @@ Notlar
 - Gece modu: Hesabım → Görünüm (Açık/Koyu/Sistem), bu cihazda hatırlanır; 13 sayfa + 10 pencere koyu temada taranıp parlak yüzey/düşük kontrast düzeltildi (kalanlar bilinçli açık yeşil ana düğmeler).
 - Erişilebilirlik: açık temada --muted 3,6:1 → ≥4,5:1 (#646b5c); etiketsiz simge düğmesi düzeltildi; tepki menüsü ok tuşlarıyla gezilir; Kolay görünüm daha koyu ikincil metin ve 48 px dokunma alanı verir.
 - Emülasyon (390×844, klavye için 480 px yükseklik): yorum ve mesaj alanında klavye algılandı, alt menü gizlendi. Hata bulundu ve düzeltildi: Android'de klavye açılınca mesaj penceresi yeniden eklenip odağı kaybediyordu. Geri hareketi önce lightbox'ı, sonra görüntüleyiciyi kapatıyor. Güvenli alanlar 47/34 px ile doğru. Gerçek cihaz testleri docs/PHONE-CHECKLIST.md'de bekliyor.
+- Hayat şeridi: profil "Hayat hikâyesi" sekmesinde doğum, tarihi kayıtlı evlilik, çocukların doğumu, kişinin olayları, etiketli tarihli fotoğraflar, vefat; tarihsiz kayıt gösterilmez, yıl/ay kesinliği korunur. Telefonda sayfa taşması yok.
+- Bugün geçmişte: yalnızca günü kesin kayıtlar (yalnız yılı bilinen 1 Ocak fotoğrafı sayılmaz — denendi). Bildirimlerde ayrı grup; "Bugün geçmişte" tercihi kapatılınca gizlenir (denendi).
+- Yönetim: yetki seçimi tasarımdaki açılır liste biçiminde, satır düğmeleri ayrık, İnceleme merkezi aralıkları düzeltildi. Takvim ve Arşiv zaten uyumluydu.

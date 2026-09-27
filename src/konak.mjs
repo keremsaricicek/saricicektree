@@ -1,7 +1,7 @@
 import {assert,clean} from './domain.mjs';
 import {folded} from './search.mjs';
 import {visiblePhoto} from './archive.mjs';
-const categories=['messages','tags','comments','birthdays','events','weekly'];
+const categories=['messages','tags','comments','birthdays','events','weekly','memories'];
 export async function konak(ctx){
  const {path,method,url,u,read,one,all,run}=ctx;
  const reply=x=>new Response(JSON.stringify(x),{headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});

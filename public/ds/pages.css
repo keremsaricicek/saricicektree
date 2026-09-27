@@ -1054,3 +1054,134 @@ button.event-row:hover {
 .world-map-card {
   background: var(--surface);
 }
+
+/* Profile: hayat şeridi (dated moments, left to right) */
+.ds-life {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0 0 24px;
+}
+.ds-life header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.ds-life h2 {
+  margin: 0;
+  font: 500 var(--fs-xl) / 1.2 var(--font-serif);
+}
+.ds-life header span,
+.ds-life-empty {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.ds-life-list {
+  display: flex;
+  gap: 0;
+  margin: 0;
+  padding: 4px 2px 14px;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.ds-life-list:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--r-md);
+}
+.ds-life-list > li {
+  position: relative;
+  flex: 0 0 168px;
+  scroll-snap-align: start;
+}
+/* The line that joins the moments */
+.ds-life-list > li::before {
+  content: "";
+  position: absolute;
+  top: 43px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--edge-parent);
+  opacity: 0.5;
+}
+.ds-life-list > li:first-child::before {
+  left: 50%;
+}
+.ds-life-list > li:last-child::before {
+  right: 50%;
+}
+.ds-life-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 0;
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  text-align: center;
+  font: inherit;
+}
+button.ds-life-item {
+  cursor: pointer;
+  border-radius: var(--r-md);
+}
+button.ds-life-item:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.ds-life-item time {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ds-life-dot {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--pistachio-soft);
+  color: var(--pistachio-ink);
+  box-shadow: 0 0 0 4px var(--bg);
+}
+.ds-life-dot svg.lucide {
+  width: 17px;
+  height: 17px;
+}
+.ds-life-item strong {
+  font-size: var(--fs-sm);
+  line-height: 1.3;
+}
+.ds-life-item small {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+/* Yönetim: review centre spacing */
+.kn-review {
+  display: grid;
+  gap: 14px;
+}
+.kn-review > h2 {
+  margin: 0;
+}
+.kn-review > div:not(.row) {
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.kn-review > div:not(.row) :is(h3, strong):first-child {
+  display: block;
+  margin: 0 0 4px;
+  color: var(--ink);
+  font: 600 var(--fs-md) / 1.4 var(--font-sans);
+}

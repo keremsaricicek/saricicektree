@@ -546,19 +546,36 @@ home = function () {
     .join("")}</nav></div><button id="ff-new" class="ff-new ds-new-posts" data-feed="new" hidden>${icon("arrow-up")} Yeni paylaşımlar</button><div id="ff-posts" aria-live="polite">${ff.loaded ? ffListMarkup() : uiSkeletonPosts()}</div><div id="ff-more">${ff.more ? ffAction("Daha eski paylaşımlar", "more", "", "btn") : ""}</div></div>${ffSide()}</div>`;
 };
 
+/* "Bugün geçmişte": records whose exact day matches today in an earlier year.
+   Photos dated only by year or month never count; a year-only photo is stored as
+   1 January, so without a stored precision that date is treated as uncertain too. */
+function uiExactDay(date, precision) {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(date || "")) return false;
+  if (precision) return precision === "day";
+  return !String(date).slice(5, 10).startsWith("01-01");
+}
+function uiOnThisDay() {
+  const today = exDate(),
+    md = today.slice(5),
+    seen = new Set(),
+    out = [];
+  const photos = [...(hm.items || []), ...state.photos].filter((p) => p.id && !seen.has(p.id) && seen.add(p.id));
+  for (const p of photos)
+    if (p.url && p.status !== "rejected" && uiExactDay(p.date, p.datePrecision) && p.date.slice(5, 10) === md && p.date < today)
+      out.push({ title: p.title || "Bir fotoğraf", id: p.id, action: "photo", date: p.date, url: p.url });
+  for (const e of state.events)
+    if (e.status === "approved" && !["birthday", "gathering"].includes(e.type) && uiExactDay(e.date) && e.date.slice(5, 10) === md && e.date < today)
+      out.push({ title: e.title, id: e.id, action: "event-detail", date: e.date });
+  for (const e of typeof archiveItems === "undefined" ? [] : archiveItems)
+    if (!e.locked && uiExactDay(e.data?.date) && e.data.date.slice(5, 10) === md && e.data.date < today) out.push({ title: e.title, id: e.id, action: "ar-open", date: e.data.date });
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
 ffSide = function () {
   const next = uiAgenda().slice(0, 4),
     gather = state.events
       .filter((e) => e.type === "gathering" && e.status === "approved" && e.date >= exDate())
       .sort((a, b) => a.date.localeCompare(b.date))[0],
-    today = exDate().slice(5),
-    memory =
-      state.photos
-        .filter((p) => p.date?.slice(5) === today && p.date < exDate() && p.url)
-        .map((p) => ({ title: p.title, id: p.id, action: "photo", date: p.date, url: p.url }))[0] ||
-      archiveItems
-        .filter((e) => !e.locked && e.data?.date?.slice(5) === today && e.data.date < exDate())
-        .map((e) => ({ title: e.title, id: e.id, action: "ar-open", date: e.data.date }))[0],
+    memory = uiOnThisDay()[0],
     levels = generationMap(),
     gens = levels.size ? Math.max(...levels.values()) + 1 : 0,
     countries = new Set(state.people.map((p) => p.country).filter(Boolean)).size;
@@ -1181,11 +1198,26 @@ function uiGrowOpen() {
 }
 
 /* Notifications: upcoming days read like the side column. */
+knNoticeLabels.memories = "Bugün geçmişte";
 const uiBaseNotifications = knNotifications;
 knNotifications = async function () {
   await uiBaseNotifications();
+  // "Bugün geçmişte" group, only when the person keeps it switched on.
+  const prefs = await Promise.resolve(knPrefs()).catch(() => ({}));
+  const body = $(".dialog-body", dialog);
+  if (body && $("#dialog-title")?.textContent === "Bildirimler" && prefs.notifications?.memories !== false && !$(".ds-notice-memories", body)) {
+    const items = uiOnThisDay();
+    const years = (d) => Number(exDate().slice(0, 4)) - Number(d.slice(0, 4));
+    const group = `<section class="kn-notice-group ds-notice-memories"><h3>${icon("history")} Bugün geçmişte</h3>${
+      items.map((x) => button(`${uiDayTile(x.date)}<span><strong>${esc(x.title)}</strong><small>${years(x.date)} yıl önce bugün · ${esc(x.date.slice(0, 4))}</small></span>`, x.action, null, "search-result ds-memory-row", `data-id="${esc(x.id)}"`)).join("") ||
+      "<p>Bugüne denk gelen, günü kesin bilinen bir hatıra yok.</p>"
+    }</section>`;
+    const first = $(".kn-notice-group", body);
+    first ? first.insertAdjacentHTML("beforebegin", group) : body.insertAdjacentHTML("beforeend", group);
+    hydrate();
+  }
   const days = new Map(upcoming().map((e) => [String(e.id), e]));
-  for (const b of $$('.kn-notice-group .search-result[data-action="event-detail"]', dialog)) {
+  for (const b of $$('.kn-notice-group .search-result[data-action="event-detail"]:not(.ds-memory-row)', dialog)) {
     const e = days.get(b.dataset.id);
     if (e) b.innerHTML = `${uiDayTile(e.date)}<span><strong>${esc(e.title)}</strong><small>${esc(types[e.type] || "")}${e.years ? " · " + e.years + ". yıl" : ""}</small></span>`;
   }
@@ -1840,7 +1872,67 @@ const uiBaseMountProfile = ffMountProfile;
 ffMountProfile = async function () {
   await uiBaseMountProfile();
   await uiProfileHero();
+  await uiLifeStrip();
 };
+
+/* ---------- Profile: hayat şeridi ----------
+   Built only from records that already carry a date: birth and death, marriages with a
+   recorded date, children's births, the person's events and dated photos they appear in.
+   A date is shown only as precisely as it was entered (year, month or day). */
+function uiLifeDate(d, precision) {
+  if (!d) return null;
+  d = String(d);
+  const p = precision || (d.length <= 4 ? "year" : d.length <= 7 ? "month" : "day");
+  if (!/^\d{4}/.test(d)) return null;
+  if (p === "year") return { key: d.slice(0, 4), text: d.slice(0, 4) };
+  if (p === "month") return { key: d.slice(0, 7), text: dateText(d.slice(0, 7) + "-15", { month: "long", year: "numeric" }) };
+  return { key: d.slice(0, 10), text: dateText(d.slice(0, 10)) };
+}
+async function uiLifeStrip() {
+  const pane = $("[data-ff-pane=story]"),
+    id = personId,
+    p = uiPerson(id);
+  if (!pane || !p) return;
+  const items = [],
+    add = (date, precision, title, detail, icon_, attrs = "") => {
+      const d = uiLifeDate(date, precision);
+      if (d) items.push({ ...d, title, detail, icon: icon_, attrs });
+    },
+    name = (pid) => uiPerson(pid)?.name || "";
+  add(p.birthDate, null, "Doğdu", p.birthPlace || "", "baby");
+  for (const r of state.relations) {
+    if (r.type === "spouse" && (r.personA === id || r.personB === id)) add(r.date, null, "Evlendi", name(r.personA === id ? r.personB : r.personA), "heart");
+    if (r.type !== "spouse" && r.personA === id) {
+      const c = uiPerson(r.personB);
+      if (c) add(c.birthDate, null, (r.type === "adoptive" ? "Ailesine katıldı: " : "Çocuğu doğdu: ") + c.name.split(" ")[0], "", "sprout", `data-action="profile" data-id="${esc(c.id)}"`);
+    }
+  }
+  for (const e of state.events || [])
+    if (e.personId === id && e.status === "approved" && !["birthday"].includes(e.type)) add(e.date, null, e.title, e.place || "", "calendar-days", `data-action="event-detail" data-id="${esc(e.id)}"`);
+  let photos = [];
+  try {
+    photos = (await hmApi("?person=" + encodeURIComponent(id))).items || [];
+  } catch {
+    photos = state.photos.filter((x) => (x.peopleIds || []).includes(id));
+  }
+  if (personId !== id) return;
+  for (const x of photos.filter((x) => x.status !== "rejected").slice(0, 24))
+    // Without a stored precision a 1 January date is treated as "year only".
+    add(x.date, x.datePrecision || (String(x.date).endsWith("-01-01") ? "year" : null), x.title || "Fotoğraf", x.place || "", "image", `data-hm="open" data-id="${esc(x.id)}"`);
+  add(p.deathDate, null, "Aramızdan ayrıldı", "", "flower-2");
+  items.sort((a, b) => a.key.localeCompare(b.key));
+  $(".ds-life", pane)?.remove();
+  const list = items.length
+    ? `<ol class="ds-life-list" tabindex="0" aria-label="${esc(p.name)} hayat şeridi">${items
+        .map((x) => {
+          const tag = x.attrs ? "button" : "div";
+          return `<li><${tag} class="ds-life-item"${x.attrs ? ` type="button" ${x.attrs}` : ""}><time>${esc(x.text)}</time><span class="ds-life-dot">${icon(x.icon)}</span><strong>${esc(x.title)}</strong>${x.detail ? `<small>${esc(x.detail)}</small>` : ""}</${tag}></li>`;
+        })
+        .join("")}</ol>`
+    : `<p class="ds-life-empty">Tarihli bir kayıt eklendikçe bu şerit dolacak.</p>`;
+  pane.insertAdjacentHTML("afterbegin", `<section class="ds-life"><header><h2>Hayat şeridi</h2><span>${items.length ? items.length + " an" : ""}</span></header>${list}</section>`);
+  hydrate();
+}
 
 /* ---------- Messages ---------- */
 function uiDmChrome(w) {
