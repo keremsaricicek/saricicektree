@@ -92,6 +92,7 @@ async function familyPushSettings() {
     modal("Telefon bildirimleri", "<p>Bildirimler gerçek hesabınla canlı siteden açılır. Önizleme bildirim göndermez.</p>");
     return;
   }
+  if (window.FamilyNative?.available && window.FamilyNative.push) return familyNativePushSettings();
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     modal(
       "Telefon bildirimleri",
@@ -135,6 +136,70 @@ async function familyPushSettings() {
     }
   };
 }
+// Phone app (Android/iOS): native notifications for messages, tags and comments.
+const nativePushKey = "sf-native-push";
+function nativePushSaved() {
+  try {
+    return JSON.parse(localStorage.getItem(nativePushKey) || "null");
+  } catch {
+    return null; // storage unavailable: treated as not enabled
+  }
+}
+function familyNativePushSettings() {
+  const platform = window.FamilyNative.push.platform,
+    ready = window.sfConfig?.nativePush?.[platform];
+  const saved = nativePushSaved();
+  modal(
+    "Telefon bildirimleri",
+    html`<p>
+        Yeni mesaj, bir paylaşımda etiketlenme ve paylaşımına gelen yorum için bildirim gelir. Kilit ekranında ad, mesaj metni ya da paylaşım içeriği görünmez;
+        bildirime dokununca ilgili sayfa açılır.
+      </p>
+      ${ready ? "" : html`<div class="notice">Bu sunucuda ${platform === "ios" ? "iPhone" : "Android"} bildirimleri henüz kurulmadı. Aile yöneticisi bildirim hesabını bağladığında buradan açabilirsin.</div>`}
+      <p class="muted">Hangi bildirimleri alacağını Hesabım → Bildirim tercihleri’nden seçebilirsin.</p>
+      <div class="form-actions">
+        <button class="btn primary" id="push-enable" ${ready ? "" : "disabled"}>Bu telefonda aç</button
+        ><button class="btn" id="push-disable">Bu telefonda kapat</button>
+      </div>
+      <p id="push-state" role="status">${saved?.userId === state?.user?.id ? "Bu telefonda bildirimler açık." : "Bu telefonda bildirimler kapalı."}</p>`,
+  );
+  $("#push-enable").onclick = async () => {
+    const target = $("#push-state");
+    target.textContent = "Açılıyor…";
+    try {
+      const device = await window.FamilyNative.push.enable();
+      await api("/api/notifications/device", "POST", device);
+      localStorage.setItem(nativePushKey, JSON.stringify({ ...device, userId: state.user.id }));
+      target.textContent = "Bu telefonda bildirimler açık.";
+    } catch (e) {
+      target.textContent = e.message;
+    }
+  };
+  $("#push-disable").onclick = async () => {
+    try {
+      await familyNativePushOff();
+      $("#push-state").textContent = "Bu telefonda bildirimler kapalı.";
+    } catch (e) {
+      $("#push-state").textContent = e.message;
+    }
+  };
+}
+/** Removes this phone from the account (also on sign-out, so the next person gets no one else's notifications). */
+async function familyNativePushOff() {
+  const saved = nativePushSaved();
+  if (!saved) return;
+  localStorage.removeItem(nativePushKey);
+  await api("/api/notifications/device", "DELETE", { token: saved.token, platform: saved.platform }).catch(() => {}); // signed out already: the server drops it on the next sign-in elsewhere
+  await window.FamilyNative?.push?.disable().catch(() => {});
+}
+// The phone's token can change; re-register it for the account that enabled notifications here.
+window.addEventListener("family-push-token", (e) => {
+  const saved = nativePushSaved();
+  if (!saved || !state?.user || saved.userId !== state.user.id || saved.token === e.detail.token) return;
+  api("/api/notifications/device", "POST", e.detail)
+    .then(() => localStorage.setItem(nativePushKey, JSON.stringify({ ...e.detail, userId: saved.userId })))
+    .catch((err) => window.uiReportError?.("push.token_refresh_failed", err));
+});
 document.addEventListener("click", (e) => {
   if (e.target.closest('[data-action="push-settings"]')) familyPushSettings();
 });

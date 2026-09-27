@@ -8,7 +8,7 @@ import { assert, clean } from "./domain.mjs";
 import { hiddenPeople } from "./privacy.mjs";
 import { visiblePhoto } from "./archive.mjs";
 import { publishChange } from "./realtime.mjs";
-import { sendPush } from "./notifications.mjs";
+import { sendPush, notify } from "./notifications.mjs";
 const now = () => new Date().toISOString();
 export async function experience(ctx) {
   if (["/api/experience/preferences", "/api/experience/message-search", "/api/experience/review"].includes(ctx.path)) return konak(ctx);
@@ -264,6 +264,7 @@ export async function experience(ctx) {
         if (defer) defer(task);
         else await task;
       }
+      await notify(ctx, ids, "message", "#chat");
       return reply({ ok: true }, 201);
     }
   }

@@ -1,6 +1,7 @@
 import { assert } from "./domain.mjs";
 import { log } from "./log.mjs";
 import { crypt } from "./security.mjs";
+import { validToken } from "./native-push.mjs";
 const enc = new TextEncoder(),
   b64 = (b) =>
     btoa(String.fromCharCode(...new Uint8Array(b)))
@@ -52,7 +53,44 @@ export async function notifications({ path, method, u, read, one, run, limit, ke
     }
     return reply({ ok: true });
   }
+  // Native app devices (Android FCM / iOS APNs). A device follows the account that signed in on it last.
+  if (path === "/api/notifications/device" && ["POST", "DELETE"].includes(method)) {
+    const b = await read(5000);
+    assert(["android", "ios"].includes(b.platform) && validToken(b.platform, b.token), 400, "Cihaz bildirim kimliği geçersiz.");
+    if (method === "DELETE") await run("DELETE FROM push_devices WHERE token=? AND userId=?", b.token, u.id);
+    else {
+      await limit("push-device:" + u.id, 20, 3600000);
+      const existing = await one("SELECT userId FROM push_devices WHERE token=?", b.token);
+      assert(
+        (await one("SELECT COUNT(*) n FROM push_devices WHERE userId=?", u.id)).n < 10 || existing?.userId === u.id,
+        400,
+        "En fazla 10 cihaz bağlanabilir.",
+      );
+      const now = new Date().toISOString();
+      await run(
+        "INSERT INTO push_devices(token,userId,platform,createdAt,lastSeenAt) VALUES(?,?,?,?,?) ON CONFLICT(token) DO UPDATE SET userId=excluded.userId,platform=excluded.platform,lastSeenAt=excluded.lastSeenAt",
+        b.token,
+        u.id,
+        b.platform,
+        now,
+        now,
+      );
+    }
+    return reply({ ok: true });
+  }
   assert(false, 404, "Bildirim işlemi bulunamadı.");
+}
+
+/**
+ * Native notification to these accounts (never to the author). Runs after the response when the
+ * runtime can defer work, so a slow push service never delays the page.
+ */
+export async function notify(ctx, userIds, kind, url) {
+  const ids = [...new Set(userIds)].filter((id) => id && id !== ctx.u?.id);
+  if (!ids.length || !ctx.nativePush) return;
+  const task = ctx.nativePush.send(ctx, ids, kind, url).catch((e) => log("warn", "push.native_failed", { message: e?.message }));
+  if (ctx.defer) ctx.defer(task);
+  else await task;
 }
 export async function sendPush({ userId, one, all, run, keyText, origin, transport = fetch }) {
   const preferences = JSON.parse((await one("SELECT data FROM user_preferences WHERE userId=?", userId))?.data || "{}");

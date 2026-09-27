@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin, CapacitorHttp } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { App } from "@capacitor/app";
+import { PushNotifications } from "@capacitor/push-notifications";
 const BackgroundGeolocation = registerPlugin("BackgroundGeolocation");
 let watcher = null,
   starting = false;
@@ -79,7 +80,45 @@ window.FamilyNative = {
     });
   },
 };
+// Native notifications (FCM on Android, APNs on iOS). The token is handed to the page, which registers
+// it with the server for the signed-in account; tapping a notification opens its page.
+let pushToken = null,
+  pushWaiter = null;
+window.FamilyNative.push = {
+  platform: Capacitor.getPlatform(),
+  async enable() {
+    const permission = await PushNotifications.requestPermissions();
+    if (permission.receive !== "granted") throw Error("Bildirim izni verilmedi. İzni telefonun ayarlarından açabilirsin.");
+    if (pushToken) return { token: pushToken, platform: Capacitor.getPlatform() };
+    const token = new Promise((resolve, reject) => {
+      pushWaiter = { resolve, reject };
+      setTimeout(() => reject(Error("Telefon bildirim servisine ulaşılamadı. Bağlantını kontrol edip yeniden dene.")), 20000);
+    });
+    await PushNotifications.register();
+    return { token: await token, platform: Capacitor.getPlatform() };
+  },
+  async disable() {
+    pushToken = null;
+    await PushNotifications.unregister();
+  },
+};
 if (Capacitor.isNativePlatform()) {
+  PushNotifications.addListener("registration", ({ value }) => {
+    pushToken = value;
+    pushWaiter?.resolve(value);
+    pushWaiter = null;
+    // A token can also change later; the page re-registers it for the signed-in account.
+    window.dispatchEvent(new CustomEvent("family-push-token", { detail: { token: value, platform: Capacitor.getPlatform() } }));
+  });
+  PushNotifications.addListener("registrationError", (e) => {
+    pushWaiter?.reject(Error("Bildirim kaydı yapılamadı: " + (e?.error || "bilinmeyen hata")));
+    pushWaiter = null;
+  });
+  PushNotifications.addListener("pushNotificationActionPerformed", ({ notification }) => {
+    const url = String(notification?.data?.url || "");
+    // Only in-app pages such as "#chat" or "#post/12".
+    if (/^#[a-z]+(\/[\w-]+)?$/.test(url)) location.hash = url.slice(1);
+  });
   // Android back button uses the same history as the browser's back gesture: it closes the top
   // window first (see public/ui/navigation.js), then goes back through pages.
   App.addListener("backButton", ({ canGoBack }) => {

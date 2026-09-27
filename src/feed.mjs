@@ -5,6 +5,7 @@ import { assert, clean, validDate } from "./domain.mjs";
 import { photoVisibleSQL, visiblePhoto } from "./archive.mjs";
 import { hiddenPeople } from "./privacy.mjs";
 import { folded } from "./search.mjs";
+import { notify } from "./notifications.mjs";
 const now = () => new Date().toISOString();
 export const FEED_EMOJI = ["🌿", "😂", "🥹", "🙏", "👏"];
 // Who may see a post, as SQL over `p` (feed_posts) and `v` (the viewer). Removal is checked
@@ -17,6 +18,17 @@ const postAudienceSQL = `(p.createdBy=v.uid OR p.visibility='family' OR (p.visib
 export const viewerParams = (u) => [u.id, u.role, u.id, u.id, u.id];
 /** SQL (bind viewerParams) for the latest feed activity on posts this person may see or saw before removal. */
 export const feedCursorSQL = `(WITH v AS(SELECT ? uid,? role) SELECT COALESCE(MAX(a.id),0) FROM feed_activity a JOIN feed_posts p ON p.id=a.postId CROSS JOIN v WHERE ${postAudienceSQL})`;
+/** Whether this account may see the post now (used before notifying anyone about it). */
+export async function canSeePost(one, viewer, postId) {
+  const [uid, role, ...rest] = viewerParams(viewer);
+  return !!(await one(
+    `WITH v AS(SELECT ? uid,? role) SELECT p.id FROM feed_posts p CROSS JOIN v WHERE p.id=? AND p.deletedAt IS NULL AND ${postAudienceSQL}`,
+    uid,
+    role,
+    postId,
+    ...rest,
+  ));
+}
 export async function feedCursor(one, u) {
   return (await one(`SELECT ${feedCursorSQL} n`, ...viewerParams(u))).n;
 }
@@ -137,6 +149,21 @@ export async function feed(ctx) {
       u.id,
     );
     if (rows.length) await batch(rows.map((x) => ["INSERT OR IGNORE INTO feed_notifications(postId,userId) VALUES(?,?)", id, x.userId]));
+    await notifyReaders(
+      rows.map((x) => x.userId),
+      "tag",
+      id,
+    );
+    return rows.map((x) => x.userId);
+  }
+  // Phone notification only to accounts that may see the post (a tag must not reveal a hidden post).
+  async function notifyReaders(userIds, kind, postId) {
+    const allowed = [];
+    for (const id of new Set(userIds)) {
+      const viewer = await one("SELECT id,role FROM users WHERE id=? AND active=1", id);
+      if (viewer && (await canSeePost(one, viewer, postId))) allowed.push(id);
+    }
+    await notify(ctx, allowed, kind, "#post/" + postId);
   }
   if (path === "/api/experience/feed" && method === "GET") {
     const before = Math.max(0, Number(url.searchParams.get("before")) || 0),
@@ -405,8 +432,15 @@ export async function feed(ctx) {
         now(),
         tagged.peopleIds,
       );
-      await mentions(id, tagged);
+      const taggedUsers = await mentions(id, tagged);
       await touch(id, "comment");
+      // The post's author and, for a reply, the answered comment's author (tagged people already got a notice).
+      const parent = b.parentId ? await one("SELECT createdBy FROM feed_comments WHERE id=?", b.parentId) : null;
+      await notifyReaders(
+        [p.createdBy, parent?.createdBy].filter((x) => x && !(taggedUsers || []).includes(x)),
+        "comment",
+        id,
+      );
       return reply({ ok: true }, 201);
     }
     if (action === "reaction" && ["PUT", "DELETE"].includes(method)) {

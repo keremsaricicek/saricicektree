@@ -9,6 +9,7 @@ import { archive, archivePath } from "../src/archive.mjs";
 import { assert, clean } from "../src/domain.mjs";
 import { community, communityPath } from "../src/community.mjs";
 import { coreApi } from "../src/core-api.mjs";
+import { createNativePush } from "../src/native-push.mjs";
 import { log } from "../src/log.mjs";
 import { recordError } from "../src/ops.mjs";
 import { assets } from "./assets.mjs";
@@ -85,6 +86,7 @@ export default {
           mediaOptimizer: "client",
           operatorName: env.SITE_OPERATOR_NAME || null,
           supportEmail: env.SUPPORT_EMAIL || null,
+          nativePush: createNativePush(env).available,
         });
       if (!path.startsWith("/api/") && !path.startsWith("/media/") && !path.startsWith("/document/") && !path.startsWith("/archive-media/")) {
         assert(["GET", "HEAD"].includes(method), 405, "Yöntem desteklenmiyor.");
@@ -218,6 +220,7 @@ export default {
           hosted: true,
           keyText: env.CSRF_SECRET,
           defer: ctx?.waitUntil ? (task) => ctx.waitUntil(task) : null,
+          nativePush: createNativePush(env), // Android only; see src/native-push.mjs
         });
       res.hidden = await hiddenPeople(all, u);
       return await coreApi({

@@ -677,3 +677,16 @@ export const mail_queue = sqliteTable(
   },
   (t) => [index("mail_queue_due").on(t.status, t.nextAttemptAt), index("mail_queue_ref").on(t.refId)],
 );
+// Phones and tablets that receive native notifications (Android: FCM token, iOS: APNs device token).
+// A device belongs to the account that last signed in on it; signing out removes it.
+export const push_devices = sqliteTable(
+  "push_devices",
+  {
+    token: text("token").primaryKey(),
+    userId: text("userId").notNull(),
+    platform: text("platform").notNull(),
+    createdAt: text("createdAt").notNull(),
+    lastSeenAt: text("lastSeenAt").notNull(),
+  },
+  (t) => [index("push_devices_user").on(t.userId)],
+);

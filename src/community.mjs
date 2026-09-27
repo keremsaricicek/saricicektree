@@ -1,6 +1,6 @@
 import { experience } from "./experience.mjs";
 import { publishChange } from "./realtime.mjs";
-import { sendPush } from "./notifications.mjs";
+import { sendPush, notify } from "./notifications.mjs";
 import { hiddenPeople } from "./privacy.mjs";
 import { assert, clean } from "./domain.mjs";
 const now = () => new Date().toISOString(),
@@ -25,9 +25,10 @@ export async function community({
   mediaJobs = null,
   onAccountDeleted = null,
   opsInfo = {},
+  nativePush = null,
 }) {
   if (path.startsWith("/api/experience/"))
-    return experience({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted, keyText, defer, mediaJobs, opsInfo });
+    return experience({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted, keyText, defer, mediaJobs, opsInfo, nativePush });
   const reply = (data, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
   const staff = () => assert(u.role !== "member", 403, "Moderatör yetkisi gerekiyor.");
@@ -122,6 +123,7 @@ export async function community({
         const task = sendPush({ userId: id, one, all, run, keyText, origin: url.origin });
         if (defer) defer(task);
         else await task;
+        await notify({ u, all, one, run, defer, nativePush }, [id], "message", "#chat");
       }
       return reply({ item }, 201);
     }
@@ -399,6 +401,7 @@ export async function community({
       ["DELETE FROM security_factors WHERE userId=?", u.id],
       ["DELETE FROM security_recovery WHERE userId=?", u.id],
       ["DELETE FROM push_subscriptions WHERE userId=?", u.id],
+      ["DELETE FROM push_devices WHERE userId=?", u.id],
       ["DELETE FROM group_members WHERE userId=?", u.id],
       ["UPDATE feed_posts SET deletedAt=?,pinned=0 WHERE createdBy=? AND visibility='private'", now(), u.id],
       ["DELETE FROM feed_notifications WHERE userId=?", u.id],

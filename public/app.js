@@ -927,6 +927,7 @@ async function handle(action, el) {
       break;
     case "logout":
       sessionStorage.removeItem("sf-factor");
+      await familyNativePushOff();
       await familyStopLocation(false).catch(() => {});
       window.familyEnhancements?.cleanup();
       if (hostedAuth) {

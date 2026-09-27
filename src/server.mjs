@@ -12,7 +12,9 @@ import { coreApi } from "./core-api.mjs";
 import { log } from "./log.mjs";
 import { backupDue } from "./offsite-backup.mjs";
 import { createMailer } from "./mail.mjs";
+import { createNativePush } from "./native-push.mjs";
 import { spawn } from "node:child_process";
+import { connect as connectHttp2 } from "node:http2";
 import { fileURLToPath } from "node:url";
 import { recordError } from "./ops.mjs";
 import http from "node:http";
@@ -50,6 +52,7 @@ const localStorageAdapter = {
 // Smaller photo copies are made here in the background (MEDIA_JOBS=off disables it, e.g. for tools).
 const mediaJobs = process.env.MEDIA_JOBS === "off" ? null : startMediaJobs({ all, one, run, storage: localStorageAdapter });
 const mailer = (await createMailer({ all, one, run })).start();
+const nativePush = createNativePush(process.env, { http2Connect: connectHttp2 });
 const now = () => new Date().toISOString(),
   publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: u.active });
 // Logged as a JSON line and kept in error_log for the admin panel; never with request bodies.
@@ -248,6 +251,7 @@ async function handler(req, res) {
         operatorName: process.env.SITE_OPERATOR_NAME || null,
         supportEmail: process.env.SUPPORT_EMAIL || null,
         mail: mailer.enabled,
+        nativePush: nativePush.available,
       });
     if (path.startsWith("/api/") || path.startsWith("/media/") || path.startsWith("/document/") || path.startsWith("/archive-media/")) {
       const { u, session } = authorize(req);
@@ -318,6 +322,7 @@ async function handler(req, res) {
           limit,
           mediaJobs,
           opsInfo,
+          nativePush,
           // Node keeps its own sign-in data; the shared code removes everything else.
           onAccountDeleted: (id) =>
             transaction(() => {

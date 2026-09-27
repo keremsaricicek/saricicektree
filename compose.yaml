@@ -10,6 +10,13 @@ services:
       # Invite and password-reset e-mails (docs/OPERATIONS.md). Empty SMTP_URL turns e-mail off.
       SMTP_URL: ${SMTP_URL:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      # Phone notifications (docs/OPERATIONS.md). Empty values turn them off.
+      FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT:-}
+      APNS_KEY: ${APNS_KEY:-}
+      APNS_KEY_ID: ${APNS_KEY_ID:-}
+      APNS_TEAM_ID: ${APNS_TEAM_ID:-}
+      APNS_TOPIC: ${APNS_TOPIC:-}
+      APNS_ENV: ${APNS_ENV:-}
       # Shown on the public privacy, support and account-deletion pages.
       SITE_OPERATOR_NAME: ${SITE_OPERATOR_NAME:-}
       SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
