@@ -56,13 +56,20 @@ jobs:
           api-level: 34
           arch: x86_64
           target: google_apis
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          profile: pixel_6
+          cores: 4
+          ram-size: 4096M
+          heap-size: 576M
+          disk-size: 4096M
+          emulator-options: -no-window -no-snapshot-save -gpu swiftshader_indirect -noaudio -no-boot-anim -memory 4096
           disable-animations: true
           script: |
             adb install -r Saricicek-Android-demo.apk
+            adb logcat -c
             adb shell am start -n com.saricicek.family/.MainActivity
-            for i in $(seq 1 60); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml > ui.xml; grep -q 'Hayat' ui.xml && break; sleep 2; done
+            for i in $(seq 1 60); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml > ui.xml 2>/dev/null; grep -q 'Hayat' ui.xml && break; sleep 3; done
             adb exec-out screencap -p > android-home.png
+            adb logcat -d -t 2000 > logcat.txt || true
             grep -q 'Hayat' ui.xml
             adb shell input keyevent KEYCODE_BACK
             adb exec-out screencap -p > android-after-back.png
@@ -73,6 +80,7 @@ jobs:
           path: |
             android-*.png
             ui.xml
+            logcat.txt
 
   ios:
     runs-on: macos-latest
