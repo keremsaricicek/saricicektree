@@ -1,13 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
-import { readFileSync, readdirSync } from "node:fs";
-import worker from "../worker/index.mjs";
-import { totp, base32 } from "../src/security.mjs";
+
 import { fixture } from "./support/worker-fixture.mjs";
 const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5L8AAAAASUVORK5CYII=";
 test("floating chat API isolates files and replies, persists receipts, typing and deduplicated group sends", async () => {
-  const { call, member, db } = fixture();
+  const { call, member } = fixture();
   const a = await member("a@test.invalid"),
     b = await member("b@test.invalid"),
     c = await member("c@test.invalid");

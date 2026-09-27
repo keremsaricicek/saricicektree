@@ -26,7 +26,9 @@
       try {
         if (choice === "system") localStorage.removeItem(KEY);
         else localStorage.setItem(KEY, choice);
-      } catch (e) {}
+      } catch (e) {
+        /* storage blocked: the choice applies to this visit only */
+      }
       apply();
     },
   };

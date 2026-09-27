@@ -913,8 +913,7 @@ function knUndo(label, undo) {
 }
 const knOptions = ffHandle;
 ffHandle = async function (action, el) {
-  const id = Number(el.dataset.id),
-    p = ffFind(id);
+  const id = Number(el.dataset.id);
   if (action === "options") {
     await knOptions(action, el);
     $(".ff-options")?.insertAdjacentHTML("beforeend", knButton(icon("link") + " Bağlantıyı kopyala", "copy-post", `data-id="${id}"`));

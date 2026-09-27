@@ -38,7 +38,9 @@ async function exApi(path, method = "GET", data) {
       let profiles = {};
       try {
         profiles = JSON.parse(localStorage.getItem("sf-profiles-preview-v1")) || {};
-      } catch {}
+      } catch {
+        /* storage blocked (private mode) or unreadable: the preview starts fresh */
+      }
       const id = path.split("/").pop();
       if (method === "PUT") {
         profiles[id] = { ...profiles[id], ...data };
@@ -51,7 +53,9 @@ async function exApi(path, method = "GET", data) {
       let profiles = {};
       try {
         profiles = JSON.parse(localStorage.getItem("sf-profiles-preview-v1")) || {};
-      } catch {}
+      } catch {
+        /* storage blocked (private mode) or unreadable: the preview starts fresh */
+      }
       return { personId: Object.keys(profiles).find((id) => profiles[id].userId === state.user.id) };
     }
     if (method !== "GET") throw Error("Bu işlem canlı sitede, hesabınla kullanılabilir.");
@@ -506,7 +510,8 @@ setInterval(async () => {
   try {
     await Promise.all([...dm.windows.values()].filter((w) => !dmMobile() || (route === "chat" && dm.active === w.key)).map((w) => dmLoad(w)));
     if (dm.inbox || route === "chat") await dmThreads();
-  } catch {
+  } catch (e) {
+    reportBackgroundError("messages.refresh_failed", e); // the next tick tries again
   } finally {
     dm.busy = false;
   }

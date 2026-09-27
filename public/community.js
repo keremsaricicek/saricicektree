@@ -623,7 +623,9 @@ setInterval(async () => {
       await refresh();
       window.scrollTo(0, y);
     }
-  } catch {}
+  } catch (e) {
+    reportBackgroundError("family.refresh_failed", e); // retried in 20 s
+  }
 }, 20000);
 
 async function familyStartStream() {

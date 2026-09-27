@@ -15,3 +15,10 @@ drizzle/meta
 package-lock.json
 *.md
 public/*.html
+*.json
+*.yml
+*.yaml
+public/*.webmanifest
+Caddyfile
+.claude
+capacitor.config.json

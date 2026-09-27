@@ -1,9 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
-import { readFileSync, readdirSync } from "node:fs";
-import worker from "../worker/index.mjs";
-import { totp, base32 } from "../src/security.mjs";
+
 import { fixture } from "./support/worker-fixture.mjs";
 const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5L8AAAAASUVORK5CYII=";
 test("Konak search includes untagged posts, folds Turkish and preserves privacy and literal wildcards", async () => {

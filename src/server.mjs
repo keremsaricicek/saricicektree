@@ -11,10 +11,10 @@ import { backups, makeBackup } from "./backups.mjs";
 import { archive, archivePath, photoVisibleSQL, visiblePhoto } from "./archive.mjs";
 import { community, communityPath } from "./community.mjs";
 import http from "node:http";
-import { readFile, writeFile, mkdir, stat, unlink } from "node:fs/promises";
-import { resolve, extname, basename } from "node:path";
+import { readFile, writeFile, mkdir, unlink } from "node:fs/promises";
+import { resolve, extname } from "node:path";
 import { randomUUID } from "node:crypto";
-import { db, all, one, run, transaction, audit, dataDir } from "./db.mjs";
+import { all, one, run, transaction, audit, dataDir } from "./db.mjs";
 import { token, hash, passwordHash, passwordVerify, cookie } from "./auth.mjs";
 import { assert, clean, validDate, personInput, validateRelation } from "./domain.mjs";
 const argPort = process.argv.indexOf("--port");
@@ -193,7 +193,6 @@ async function handler(req, res) {
       }
       if (communityPath(path) || archivePath(path) || path.startsWith("/api/security/") || path.startsWith("/api/notifications/")) {
         const storage = localStorageAdapter;
-        const batch = (items) => transaction(() => items.map(([sql, ...args]) => run(sql, ...args)));
         let keyText = process.env.SECURITY_KEY || one("SELECT value FROM settings WHERE key='localSecurityKey'")?.value;
         if (!keyText) {
           keyText = token();

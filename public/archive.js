@@ -35,14 +35,18 @@ const aButton = (label, action, id = "", cls = "") => button(label, "ar-" + acti
 function archiveDemoSave() {
   try {
     localStorage.setItem("sf-archive-preview-v1", JSON.stringify(archiveDemo));
-  } catch {}
+  } catch {
+    /* storage blocked (private mode) or unreadable: the preview starts fresh */
+  }
 }
 async function archiveApi(path, method = "GET", b) {
   if (!demoMode) return api("/api/archive" + path, method, b);
   if (!archiveDemo) {
     try {
       archiveDemo = JSON.parse(localStorage.getItem("sf-archive-preview-v1"));
-    } catch {}
+    } catch {
+      /* storage blocked (private mode) or unreadable: the preview starts fresh */
+    }
     if (!archiveDemo) {
       const p = state.people[0],
         ph = state.photos[0],
@@ -805,8 +809,7 @@ function archiveProfileExtras(id) {
   return `<section class="card ar-section"><div class="section-head"><h2>${p.deathDate ? "Hatırasını birlikte yaşatıyoruz" : "Hayatının dönüm noktaları"}</h2>${aButton(p.deathDate ? "Bir hatıra bırak" : "Bir başarı paylaş", p.deathDate ? "profile-memorial" : "profile-achievement", id)}</div><div class="ar-grid">${list.map(archiveCard).join("") || "<p>Bu hayatın hikâyesine bir kayıt daha ekleyebiliriz.</p>"}</div><div class="row ar-section">${aButton("Bilgi / düzeltme öner", "profile-source", id)}${aButton("Akrabalık yolunu bul", "kin-person", id)}</div></section>`;
 }
 function archiveToday() {
-  const today = new Date().toLocaleDateString("en-CA"),
-    week = Date.now() - 7 * 86400000,
+  const week = Date.now() - 7 * 86400000,
     list = archiveItems
       .filter((e) => e.kind === "achievement" || Date.parse(e.createdAt) >= week)
       .filter((e) => e.status === "approved")

@@ -462,8 +462,6 @@ function settingsPage() {
 }
 function render() {
   if (!state) return;
-  const current = navItems.find((x) => x[0] === route)?.[2] || { profile: "Aile profili", admin: "Yönetim", settings: "Aile ayarları" }[route] || "Hayat";
-  const pending = state.photos.filter((p) => p.status === "pending").length + state.events.filter((p) => p.status === "pending").length;
   $("#app").innerHTML =
     `<div class="shell"><header class="topbar social-topbar"><a class="brand" href="#home"><img src="assets/mark.svg" alt="Sarıçiçek"><span><strong>Sarıçiçek Konağı</strong></span></a><nav class="desktop-links" aria-label="Ana menü">${navItems
       .filter((n) => ["home", "gallery", "tree", "history", "places"].includes(n[0]))
@@ -1219,6 +1217,14 @@ function hostedLoginScreen(error = "") {
     }
   });
 }
+/* Background refreshes are retried by their timers, so a dropped connection is ignored. Any other
+   failure is reported once per page load (see uiReportError) instead of disappearing. */
+const backgroundErrorsSeen = new Set();
+function reportBackgroundError(event, e) {
+  if (!navigator.onLine || e instanceof TypeError || backgroundErrorsSeen.has(event)) return;
+  backgroundErrorsSeen.add(event);
+  window.uiReportError?.(event, e);
+}
 async function boot() {
   if (demo) {
     readRoute();
@@ -1286,6 +1292,8 @@ if (document.modelContext?.registerTool) {
         },
         { signal: lifecycle.signal },
       ),
-    ).catch(() => {});
-  } catch {}
+    ).catch(() => {}); // optional browser integration: the app works the same without it
+  } catch {
+    /* not supported by this browser */
+  }
 }

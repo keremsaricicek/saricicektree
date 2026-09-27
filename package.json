@@ -24,7 +24,10 @@
     "build:html": "node src/build-html.mjs",
     "prestart": "node src/build-client.mjs",
     "predev": "node src/build-client.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@capacitor-community/background-geolocation": "^1.2.26",

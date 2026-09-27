@@ -249,6 +249,12 @@ function uiReportError(event, err) {
     /* the reporter itself failed; nothing more to do */
   }
 }
+window.uiReportError = uiReportError;
+// Unexpected script errors are reported too (at most five per page load, no stack or content).
+let uiUncaught = 0;
+const uiOnUncaught = (err) => uiUncaught++ < 5 && uiReportError("script.error", err);
+addEventListener("error", (e) => e.error && uiOnUncaught(e.error));
+addEventListener("unhandledrejection", (e) => uiOnUncaught(e.reason));
 const uiServerCopies = () => window.sfConfig?.mediaOptimizer === "server";
 const uiPerson = (id) => state.people.find((x) => x.id === id);
 const uiIcon = (name, cls = "") => icon(name).replace("<i ", `<i class="${cls}" `);
@@ -449,7 +455,8 @@ async function uiFeedChanges() {
     for (const id of r.removed || []) uiRemovePost(id);
     for (const id of ids) await uiRefreshPost(id);
     if (r.fresh && route === "home" && $("#ff-new")) $("#ff-new").hidden = false;
-  } catch {
+  } catch (e) {
+    reportBackgroundError("feed.live_failed", e); // the next stream event tries again
   } finally {
     ui.feedBusy = false;
   }
@@ -486,7 +493,9 @@ dmStream = async function () {
             let rev = {};
             try {
               rev = JSON.parse(event.split("\ndata: ")[1] || "{}");
-            } catch {}
+            } catch {
+              /* malformed event: treated as "nothing changed" */
+            }
             const chat = JSON.stringify([rev.lastId, rev.unread, rev.receipts, rev.groupId]);
             if (chat !== chatRev) {
               chatRev = chat;
@@ -1899,7 +1908,9 @@ function uiUploadWithProgress(path, body) {
       let r = {};
       try {
         r = JSON.parse(x.responseText || "{}");
-      } catch {}
+      } catch {
+        /* not JSON (e.g. a proxy error page): the status code below decides */
+      }
       if (x.status === 428) {
         try {
           await archiveFactorPrompt();
@@ -2328,7 +2339,9 @@ dmRecord = async function (w) {
     analyser = ctx.createAnalyser();
     analyser.fftSize = 256;
     ctx.createMediaStreamSource(w.stream).connect(analyser);
-  } catch {}
+  } catch {
+    /* no audio analysis in this browser: the recording works, only the level bars stay still */
+  }
   const buf = new Uint8Array(128);
   const tick = () => {
     if (!w.recording) {

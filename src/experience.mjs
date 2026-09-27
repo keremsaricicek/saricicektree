@@ -7,7 +7,6 @@ import { feed } from "./feed.mjs";
 import { assert, clean } from "./domain.mjs";
 import { hiddenPeople } from "./privacy.mjs";
 import { visiblePhoto } from "./archive.mjs";
-import { audienceAllows } from "./audience.mjs";
 import { publishChange } from "./realtime.mjs";
 import { sendPush } from "./notifications.mjs";
 const now = () => new Date().toISOString();
@@ -105,7 +104,7 @@ export async function experience(ctx) {
     return reply({ personId: (await one("SELECT personId FROM profile_details WHERE userId=?", u.id))?.personId || null });
   const aud = path.match(/^\/api\/experience\/audience\/(photo|archive)\/([\w-]+)$/);
   if (aud) {
-    const [_, kind, id] = aud,
+    const [, kind, id] = aud,
       p = kind === "photo" ? await visiblePhoto(one, u, id) : await one("SELECT * FROM archive_entries WHERE id=? AND deletedAt IS NULL", id);
     assert(p && p.createdBy === u.id, 403, "Görünürlüğü yalnızca paylaşımın sahibi değiştirebilir.");
     if (method === "GET")

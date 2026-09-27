@@ -146,7 +146,9 @@ window.makeDemo = function () {
   try {
     const saved = JSON.parse(localStorage.getItem("sf-demo-v1"));
     if (saved?.people && saved?.users) data = saved;
-  } catch {}
+  } catch {
+    /* storage blocked (private mode) or unreadable: the preview starts fresh */
+  }
   function persist() {
     try {
       localStorage.setItem("sf-demo-v1", JSON.stringify(data));

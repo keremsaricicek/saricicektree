@@ -420,20 +420,26 @@ setInterval(async () => {
   try {
     const r = await ffApi("?" + ffQuery());
     if (route === "home" && r.head > ff.head) $("#ff-new").hidden = false;
-  } catch {}
+  } catch (e) {
+    reportBackgroundError("feed.poll_failed", e); // retried in 30 s
+  }
 }, 30000);
 let ffDemo = null;
 function ffDemoSave() {
   try {
     localStorage.setItem("sf-feed-preview-v1", JSON.stringify(ffDemo));
-  } catch {}
+  } catch {
+    /* storage blocked (private mode) or unreadable: the preview starts fresh */
+  }
 }
 async function ffApi(suffix = "", method = "GET", body) {
   if (!demoMode) return api("/api/experience/feed" + suffix, method, body);
   if (!ffDemo) {
     try {
       ffDemo = JSON.parse(localStorage.getItem("sf-feed-preview-v1"));
-    } catch {}
+    } catch {
+      /* storage blocked (private mode) or unreadable: the preview starts fresh */
+    }
     if (!ffDemo) {
       const people = state.people,
         time = new Date().toISOString();
@@ -579,7 +585,7 @@ async function ffApi(suffix = "", method = "GET", body) {
   throw Error("Önizlemede bu işlem kullanılamıyor.");
 }
 function ffProfileTab() {
-  for (const [k, label] of [
+  for (const [k] of [
     ["posts", "Paylaşımları"],
     ["story", "Hayat hikâyesi"],
     ["family", "Aile bağları"],

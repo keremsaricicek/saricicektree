@@ -1,24 +1,13 @@
 // Live Hayat updates, reactions, photo copies and message retry.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
-import { readFileSync, readdirSync } from "node:fs";
-import worker from "../worker/index.mjs";
+
+import { readFileSync } from "node:fs";
+
 import { fixture } from "./support/worker-fixture.mjs";
 const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5L8AAAAASUVORK5CYII=";
 const meta = { date: "1985-06-19", place: "Gaziantep", description: "Aile buluşması", outsiders: "Aile dostumuz", peopleIds: [] };
-const webp = (n = 64) => {
-  const b = new Uint8Array(n);
-  b.set(
-    [..."RIFF"].map((c) => c.charCodeAt(0)),
-    0,
-  );
-  b.set(
-    [..."WEBP"].map((c) => c.charCodeAt(0)),
-    8,
-  );
-  return "data:image/webp;base64," + Buffer.from(b).toString("base64");
-};
+
 const post = async (call, body, email) => (await call("/api/experience/feed", "POST", { clientId: crypto.randomUUID(), ...body }, email)).body.id;
 
 test("emoji reactions: fixed set, one per person, counted on the card and hidden from people who cannot see the post", async () => {

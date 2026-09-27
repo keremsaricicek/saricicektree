@@ -113,7 +113,7 @@ export async function incompletePhotos({ all }) {
 }
 
 export async function variantRoutes(ctx) {
-  const { path, method, u, read, one, all, run } = ctx;
+  const { path, method, u, read, one, run } = ctx;
   const reply = (data, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
   if (path === "/api/experience/memories/variants/missing" && method === "GET") {

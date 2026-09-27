@@ -32,7 +32,9 @@ export function eventStream({ u, one, authorize, signal, intervalMs = 5000, life
         signal?.removeEventListener("abort", stop);
         try {
           controller.close();
-        } catch {}
+        } catch {
+          /* already closed by the client */
+        }
       };
       async function check() {
         if (closed || busy) return;

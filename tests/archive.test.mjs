@@ -2,9 +2,7 @@ import { sendPush } from "../src/notifications.mjs";
 import { eventStream, publishChange } from "../src/realtime.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
-import { readFileSync, readdirSync } from "node:fs";
-import worker from "../worker/index.mjs";
+
 import { totp, base32 } from "../src/security.mjs";
 import { fixture } from "./support/worker-fixture.mjs";
 const newEntry = (kind = "story", extra = {}) => ({
@@ -183,7 +181,7 @@ test("recovery codes are hashed, single-use and isolated per account", async () 
   assert.equal((await call("/api/security/recover", "POST", { code }, a.email)).status, 403);
 });
 test("protected child is removed from graph, events, residences and server search", async () => {
-  const { call, member, db } = fixture();
+  const { call, member } = fixture();
   const a = await member("guardian@test.invalid"),
     b = await member("outsider@test.invalid");
   const child = (await call("/api/people", "POST", { name: "Gizli Çocuk", birthDate: "2020-01-01" })).body.id;
@@ -202,7 +200,7 @@ test("protected child is removed from graph, events, residences and server searc
   assert.ok((await call("/api/bootstrap", "GET", null, a.email)).body.people.some((p) => p.id === child));
 });
 test("server search covers older rows and respects private, pending and sealed records", async () => {
-  const { call, member, db } = fixture();
+  const { call, member } = fixture();
   const a = await member("search@test.invalid");
   for (let i = 0; i < 260; i++) await call("/api/people", "POST", { name: "Geçmiş Kişi " + i });
   const r = await call("/api/search?q=Gecmis%20Kisi%20259", "GET", null, a.email);
@@ -213,14 +211,13 @@ test("server search covers older rows and respects private, pending and sealed r
   assert.equal((await call("/api/search?q=SecretWord", "GET", null, a.email)).body.items.length, 0);
 });
 test("full media backup repairs missing bytes and rejects corrupted copies", async () => {
-  const { call, files, db } = fixture();
+  const { call, files } = fixture();
   await call("/api/me");
-  const id = (
-    await call("/api/photos", "POST", {
-      title: "Media backup",
-      data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5L8AAAAASUVORK5CYII=",
-    })
-  ).body.id;
+  const uploaded = await call("/api/photos", "POST", {
+    title: "Media backup",
+    data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5L8AAAAASUVORK5CYII=",
+  });
+  assert.ok(uploaded.status < 300, "photo stored");
   const backup = (await call("/api/archive/backups", "POST", {})).body.id;
   const manifest = (await call("/api/archive/backups/" + backup)).body;
   assert.equal(manifest.version, 3);
