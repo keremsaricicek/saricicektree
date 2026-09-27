@@ -25,6 +25,7 @@ export default [
       "android/**",
       "ios/**",
       "native-www/**",
+      "native-demo/**",
       "public/assets/**",
       "public/min/**",
       "worker/assets.mjs",

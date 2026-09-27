@@ -1,11 +1,18 @@
 name: Mobile build checks
 on:
   push:
-    paths: ['mobile/**', 'ios/**', 'android/**', 'public/**', 'capacitor.config.json', '.github/workflows/mobile.yml', 'package-lock.json']
+    paths: ['mobile/**', 'ios/**', 'android/**', 'public/**', 'scripts/build-mobile-demo.mjs', 'src/build-*.mjs', 'capacitor.config.json', '.github/workflows/mobile.yml', 'package-lock.json']
   workflow_dispatch:
+# Two variants of each app:
+#   live - the app as published: opens the family site (server.url in capacitor.config.json).
+#   demo - test build with bundled sample data (scripts/build-mobile-demo.mjs); never contacts the live
+#          site, so it is safe for simulators, Appetize and testers without an account.
 jobs:
   android:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant: [live, demo]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,16 +25,60 @@ jobs:
           java-version: '21'
       - run: npm ci
       - run: npm run build:client
+      - if: matrix.variant == 'demo'
+        run: node scripts/build-mobile-demo.mjs --write-config
       - run: npx cap sync android
       - run: chmod +x android/gradlew
       - run: ./gradlew :app:assembleDebug
         working-directory: android
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk Saricicek-Android-${{ matrix.variant }}.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Saricicek-Android-Debug
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: Saricicek-Android-${{ matrix.variant }}
+          path: Saricicek-Android-${{ matrix.variant }}.apk
+
+  # Installs the demo APK on an Android emulator, opens it and checks that the app's first screen is
+  # drawn (the "Hayat" page text appears in the accessibility tree). Screenshots are kept.
+  android-emulator:
+    needs: android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Saricicek-Android-demo
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            adb install -r Saricicek-Android-demo.apk
+            adb shell am start -n com.saricicek.family/.MainActivity
+            for i in $(seq 1 60); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml > ui.xml; grep -q 'Hayat' ui.xml && break; sleep 2; done
+            adb exec-out screencap -p > android-home.png
+            grep -q 'Hayat' ui.xml
+            adb shell input keyevent KEYCODE_BACK
+            adb exec-out screencap -p > android-after-back.png
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Saricicek-Android-emulator-screens
+          path: |
+            android-*.png
+            ui.xml
+
   ios:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        variant: [live, demo]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,11 +87,28 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:client
+      - if: matrix.variant == 'demo'
+        run: node scripts/build-mobile-demo.mjs --write-config
       - run: npx cap sync ios
       - run: xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath ios-build CODE_SIGNING_ALLOWED=NO build
       # Zipped .app: installable with `xcrun simctl install booted App.app` and accepted by Appetize.
-      - run: cd ios-build/Build/Products/Debug-iphonesimulator && ditto -c -k --sequesterRsrc --keepParent App.app "$GITHUB_WORKSPACE/Saricicek-iOS-Simulator.zip"
+      - run: cd ios-build/Build/Products/Debug-iphonesimulator && ditto -c -k --sequesterRsrc --keepParent App.app "$GITHUB_WORKSPACE/Saricicek-iOS-Simulator-${{ matrix.variant }}.zip"
       - uses: actions/upload-artifact@v4
         with:
-          name: Saricicek-iOS-Simulator
-          path: Saricicek-iOS-Simulator.zip
+          name: Saricicek-iOS-Simulator-${{ matrix.variant }}
+          path: Saricicek-iOS-Simulator-${{ matrix.variant }}.zip
+      # Demo only: boot an iPhone simulator, install and open the app, keep a screenshot.
+      - if: matrix.variant == 'demo'
+        run: |
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" ios-build/Build/Products/Debug-iphonesimulator/App.app
+          xcrun simctl launch "$DEVICE" com.saricicek.family
+          sleep 20 # screenshot evidence only; not a pass/fail check
+          xcrun simctl io "$DEVICE" screenshot ios-home.png
+      - if: matrix.variant == 'demo'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Saricicek-iOS-simulator-screens
+          path: ios-home.png
