@@ -6,10 +6,7 @@ import globals from "globals";
 import { readFileSync, readdirSync } from "node:fs";
 import * as espree from "espree";
 
-const scriptFiles = [
-  ...readdirSync("public").filter((f) => f.endsWith(".js") && f !== "sw.js"),
-  ...readdirSync("public/ui").map((f) => "ui/" + f),
-];
+const scriptFiles = [...readdirSync("public").filter((f) => f.endsWith(".js") && f !== "sw.js"), ...readdirSync("public/ui").map((f) => "ui/" + f)];
 const appGlobals = {};
 for (const f of scriptFiles) {
   const ast = espree.parse(readFileSync("public/" + f, "utf8"), { ecmaVersion: "latest", sourceType: "script" });
