@@ -1,3 +1,4 @@
+import { feedCursorSQL, viewerParams } from "./feed.mjs";
 // Immediate wakeups in one process, plus bounded DB reconciliation across Worker instances.
 const listeners = new Map();
 export function publishChange(id) {
@@ -39,12 +40,14 @@ export function eventStream({ u, one, authorize, signal, intervalMs = 5000, life
         try {
           await authorize();
           const revision = await one(
-            "SELECT (SELECT COALESCE(MAX(id),0) FROM messages WHERE senderId=? OR recipientId=?) lastId,(SELECT COUNT(*) FROM messages WHERE recipientId=? AND readAt IS NULL) unread,(SELECT COUNT(*) FROM messages WHERE senderId=? AND readAt IS NOT NULL) receipts,(SELECT COALESCE(MAX(id),0) FROM group_messages WHERE groupId IN(SELECT groupId FROM group_members WHERE userId=?)) groupId,(SELECT COALESCE(MAX(id),0) FROM feed_activity) feed",
+            // The feed position only counts posts this person may see (feedCursorSQL).
+            `SELECT (SELECT COALESCE(MAX(id),0) FROM messages WHERE senderId=? OR recipientId=?) lastId,(SELECT COUNT(*) FROM messages WHERE recipientId=? AND readAt IS NULL) unread,(SELECT COUNT(*) FROM messages WHERE senderId=? AND readAt IS NOT NULL) receipts,(SELECT COALESCE(MAX(id),0) FROM group_messages WHERE groupId IN(SELECT groupId FROM group_members WHERE userId=?)) groupId,${feedCursorSQL} feed`,
             u.id,
             u.id,
             u.id,
             u.id,
             u.id,
+            ...viewerParams(u),
           );
           const encoded = JSON.stringify(revision);
           if (!closed) {

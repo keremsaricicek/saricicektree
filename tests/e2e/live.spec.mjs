@@ -1,8 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { authFile, openApp, apiAs } from "./helpers.mjs";
 
-// Known bug until the feed change list reports deletions: remove test.fail when fixed.
-test.fail(true, "deleted posts stay on other readers’ screens");
 test("comments arrive live, the reader keeps a half-written draft, and deletions reach other readers", async ({ browser }) => {
   const ayse = await apiAs("ayse");
   const text = `Canlı akış testi ${Date.now()}`;

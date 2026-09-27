@@ -408,6 +408,16 @@ document.addEventListener("focusout", () =>
     }
   }, 400),
 );
+/* A post removed by its author disappears from every open feed; a draft being typed in it is lost with it. */
+function uiRemovePost(id) {
+  for (const arr of [ff.items, ff.pinned, ff.profileItems || []]) {
+    const i = arr.findIndex((x) => x.id === id);
+    if (i >= 0) arr.splice(i, 1);
+  }
+  ui.expanded?.delete(id);
+  ui.pendingRefresh.delete(id);
+  for (const c of $$(`[data-feed-card="${id}"]`)) c.remove();
+}
 async function uiFeedChanges() {
   if (ui.feedBusy || !state || !["home", "profile"].includes(route)) return;
   ui.feedBusy = true;
@@ -417,6 +427,7 @@ async function uiFeedChanges() {
     if (first) return void (ui.feedCursor = r.cursor);
     ui.feedCursor = r.cursor;
     const ids = r.reset ? [...new Set($$("[data-feed-card]").map((c) => Number(c.dataset.feedCard)))] : r.posts;
+    for (const id of r.removed || []) uiRemovePost(id);
     for (const id of ids) await uiRefreshPost(id);
     if (r.fresh && route === "home" && $("#ff-new")) $("#ff-new").hidden = false;
   } catch {

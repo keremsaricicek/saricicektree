@@ -247,3 +247,35 @@ test("tree portraits follow both the profile field audience and the photo audien
   assert.deepEqual(await seen(b.email), [], "hidden photo and hidden field both stay private");
   assert.deepEqual(await seen(), [p1, p2].sort());
 });
+
+test("live cursor only moves for posts the reader may see, so private activity is not revealed", async () => {
+  const { call, member } = fixture();
+  const a = await member("a@test.invalid");
+  const start = (await call("/api/experience/feed/changes", "GET", null, a.email)).body.cursor;
+  const secret = await post(call, { body: "Özel not", visibility: "private" });
+  await call("/api/experience/feed/" + secret + "/reaction", "PUT", { emoji: "🌿" });
+  const after = (await call("/api/experience/feed/changes", "GET", null, a.email)).body.cursor;
+  assert.equal(after, start, "someone else's private activity must not move my cursor");
+  const open = await post(call, { body: "Herkese", visibility: "family" });
+  const moved = (await call("/api/experience/feed/changes?after=" + after, "GET", null, a.email)).body;
+  assert.ok(moved.cursor > after);
+  assert.deepEqual(moved.posts, [open]);
+});
+
+test("deleting and restoring a post reaches the readers who could see it, and only them", async () => {
+  const { call, member } = fixture();
+  const a = await member("a@test.invalid"),
+    b = await member("b@test.invalid");
+  const shared = await post(call, { body: "Sadece A", visibility: "selected", userIds: [a.id] });
+  const ca = (await call("/api/experience/feed/changes", "GET", null, a.email)).body.cursor;
+  const cb = (await call("/api/experience/feed/changes", "GET", null, b.email)).body.cursor;
+  assert.equal((await call("/api/experience/feed/" + shared, "DELETE", {})).status, 200);
+  const forA = (await call("/api/experience/feed/changes?after=" + ca, "GET", null, a.email)).body;
+  assert.deepEqual(forA.removed, [shared]);
+  assert.deepEqual(forA.posts, []);
+  const forB = (await call("/api/experience/feed/changes?after=" + cb, "GET", null, b.email)).body;
+  assert.deepEqual([forB.cursor, forB.removed || []], [cb, []], "B never saw the post and learns nothing");
+  assert.equal((await call("/api/experience/feed/" + shared + "/restore", "POST", {})).status, 200);
+  const back = (await call("/api/experience/feed/changes?after=" + forA.cursor, "GET", null, a.email)).body;
+  assert.deepEqual([back.posts, back.fresh], [[shared], true]);
+});

@@ -7,16 +7,26 @@ import { hiddenPeople } from "./privacy.mjs";
 import { folded } from "./search.mjs";
 const now = () => new Date().toISOString();
 export const FEED_EMOJI = ["🌿", "😂", "🥹", "🙏", "👏"];
-export async function feed(ctx) {
-  const { path, method, url, u, read, all, one, run, batch, storage, limit } = ctx;
-  const reply = (data, status = 200) =>
-    new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
-  const params = [u.id, u.role, u.id, u.id, u.id];
-  const access = `p.deletedAt IS NULL AND (p.createdBy=v.uid OR p.visibility='family' OR (p.visibility='selected' AND EXISTS(SELECT 1 FROM json_each(p.userIds) WHERE value=v.uid)) OR (p.visibility='group' AND EXISTS(SELECT 1 FROM group_members WHERE groupId=p.groupId AND userId=v.uid)))
+// Who may see a post, as SQL over `p` (feed_posts) and `v` (the viewer). Removal is checked
+// separately, so the live change list can still tell earlier readers that a post went away.
+const postAudienceSQL = `(p.createdBy=v.uid OR p.visibility='family' OR (p.visibility='selected' AND EXISTS(SELECT 1 FROM json_each(p.userIds) WHERE value=v.uid)) OR (p.visibility='group' AND EXISTS(SELECT 1 FROM group_members WHERE groupId=p.groupId AND userId=v.uid)))
  AND (v.role='owner' OR NOT EXISTS(SELECT 1 FROM json_each(p.peopleIds) j JOIN person_guardians g ON g.personId=j.value WHERE g.userId!=v.uid))
  AND (v.role='owner' OR NOT EXISTS(SELECT 1 FROM profile_details d JOIN person_guardians g ON g.personId=d.personId WHERE d.userId=p.createdBy AND g.userId!=v.uid))
  AND (p.photoId IS NULL OR EXISTS(SELECT 1 FROM photos WHERE id=p.photoId AND deletedAt IS NULL AND (status='approved' OR createdBy=v.uid OR v.role!='member') AND ${photoVisibleSQL}))
  AND (p.eventId IS NULL OR EXISTS(SELECT 1 FROM events e WHERE e.id=p.eventId AND e.deletedAt IS NULL AND (e.status='approved' OR e.createdBy=v.uid OR v.role!='member') AND (v.role='owner' OR NOT EXISTS(SELECT 1 FROM person_guardians g WHERE g.personId=e.personId AND g.userId!=v.uid))))`;
+export const viewerParams = (u) => [u.id, u.role, u.id, u.id, u.id];
+/** SQL (bind viewerParams) for the latest feed activity on posts this person may see or saw before removal. */
+export const feedCursorSQL = `(WITH v AS(SELECT ? uid,? role) SELECT COALESCE(MAX(a.id),0) FROM feed_activity a JOIN feed_posts p ON p.id=a.postId CROSS JOIN v WHERE ${postAudienceSQL})`;
+export async function feedCursor(one, u) {
+  return (await one(`SELECT ${feedCursorSQL} n`, ...viewerParams(u))).n;
+}
+
+export async function feed(ctx) {
+  const { path, method, url, u, read, all, one, run, batch, storage, limit } = ctx;
+  const reply = (data, status = 200) =>
+    new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  const params = viewerParams(u);
+  const access = `p.deletedAt IS NULL AND ${postAudienceSQL}`;
   const base = `WITH v AS(SELECT ? uid,? role) SELECT p.*,u.name author,(SELECT personId FROM profile_details WHERE userId=p.createdBy LIMIT 1) authorPersonId,(SELECT COUNT(*) FROM feed_reactions WHERE postId=p.id) likes,(SELECT COUNT(*) FROM feed_comments WHERE postId=p.id AND deletedAt IS NULL) comments,EXISTS(SELECT 1 FROM feed_reactions WHERE postId=p.id AND userId=v.uid) liked,EXISTS(SELECT 1 FROM feed_saved WHERE postId=p.id AND userId=v.uid) saved,(SELECT json_group_object(emoji,n) FROM (SELECT emoji,COUNT(*) n FROM feed_emoji WHERE postId=p.id GROUP BY emoji)) reactionCounts,(SELECT emoji FROM feed_emoji WHERE postId=p.id AND userId=v.uid) myReaction FROM feed_posts p JOIN users u ON u.id=p.createdBy CROSS JOIN v WHERE ${access}`;
   const touch = async (postId, kind) => {
     await run("INSERT INTO feed_activity(postId,kind,createdAt) VALUES(?,?,?)", postId, kind, now());
@@ -323,6 +333,7 @@ export async function feed(ctx) {
     assert(p && (p.createdBy === u.id || u.role !== "member"), 404, "Paylaşım bulunamadı.");
     assert(Date.now() - Date.parse(p.deletedAt) < 300000, 409, "Geri alma süresi doldu.");
     await run("UPDATE feed_posts SET deletedAt=NULL WHERE id=?", p.id);
+    await touch(p.id, "restore");
     return reply({ ok: true });
   }
   const match = path.match(/^\/api\/experience\/feed\/(\d+)(?:\/(comments|like|save|pin|reaction))?$/);
@@ -359,6 +370,7 @@ export async function feed(ctx) {
     if (!action && method === "DELETE") {
       assert(p.createdBy === u.id || u.role !== "member", 403, "Bu paylaşımı kaldıramazsın.");
       await run("UPDATE feed_posts SET deletedAt=?,pinned=0 WHERE id=?", now(), id);
+      await touch(id, "delete");
       return reply({ ok: true });
     }
     if (["like", "save"].includes(action) && ["PUT", "DELETE"].includes(method)) {
@@ -460,20 +472,27 @@ export async function feed(ctx) {
     return reply({ ok: true });
   }
   if (path === "/api/experience/feed/changes" && method === "GET") {
+    // The cursor moves only with activity on posts this reader may see, so it reveals nothing
+    // about other people's private posts. after=0 is a real cursor (a family with no activity yet).
     const raw = url.searchParams.get("after"),
       after = Math.max(0, Number(raw) || 0),
-      cursor = (await one("SELECT COALESCE(MAX(id),0) n FROM feed_activity")).n; // No cursor yet: hand one out. after=0 is a real cursor (a family with no activity so far).
-    if (raw === null || raw === "" || after >= cursor) return reply({ cursor, posts: [], fresh: false });
-    const rows = await all("SELECT postId,MAX(kind='post') fresh FROM feed_activity WHERE id>? AND id<=? GROUP BY postId LIMIT 201", after, cursor);
-    if (rows.length > 200) return reply({ cursor, reset: true, posts: [] });
-    const ids = rows.map((r) => r.postId);
-    const visible = ids.length ? await all(base + " AND p.id IN(" + ids.map(() => "?").join(",") + ")", ...params, ...ids) : [];
-    const seen = new Map(visible.map((p) => [p.id, p]));
+      cursor = await feedCursor(one, u);
+    if (raw === null || raw === "" || after >= cursor) return reply({ cursor, posts: [], removed: [], fresh: false });
+    const rows = await all(
+      `WITH v AS(SELECT ? uid,? role) SELECT a.postId, MAX(a.kind IN ('post','restore')) fresh, p.deletedAt deleted, p.createdBy author FROM feed_activity a JOIN feed_posts p ON p.id=a.postId CROSS JOIN v WHERE ${postAudienceSQL} AND a.id>? AND a.id<=? GROUP BY a.postId LIMIT 201`,
+      ...params,
+      after,
+      cursor,
+    );
+    if (rows.length > 200) return reply({ cursor, reset: true, posts: [], removed: [] });
+    const live = rows.filter((r) => !r.deleted);
     return reply({
       cursor,
-      posts: ids.filter((id) => seen.has(id)),
-      fresh: rows.some((r) => r.fresh && seen.has(r.postId) && seen.get(r.postId).createdBy !== u.id),
+      posts: live.map((r) => r.postId),
+      removed: rows.filter((r) => r.deleted).map((r) => r.postId),
+      fresh: live.some((r) => r.fresh && r.author !== u.id),
     });
   }
+
   return reply({ error: "İşlem bulunamadı." }, 404);
 }
