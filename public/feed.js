@@ -557,9 +557,12 @@ async function ffApi(suffix = "", method = "GET", body) {
     if (m[2] === "pin") p.pinned = body.pinned;
     if (m[2] === "comments") {
       if (method === "GET") return { items: ffDemo.comments.filter((c) => c.postId === p.id && !c.deletedAt) };
-      if (!body.body.trim()) throw Error("Yorum yaz.");
+      if (!body.body.trim() && !body.audio) throw Error("Yorum yaz.");
+      const { audio, ...rest } = body;
       ffDemo.comments.push({
-        ...body,
+        ...rest,
+        // Preview only: the recording plays from this browser session and is not stored.
+        audio: audio ? { url: audio.url, seconds: audio.seconds } : null,
         id: ffDemo.comments.length + 1,
         postId: p.id,
         createdBy: state.user.id,

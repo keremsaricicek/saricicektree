@@ -421,7 +421,7 @@ function uiComment(c, postId, replyTo) {
           ${c.likes ? html`<span class="ds-comment-likes" aria-label="${c.likes} beğeni">${raw(icon("heart"))}${c.likes}</span>` : ""}<strong
             >${raw(uiNameHtml(c.author))}</strong
           >
-          <p>${replyTo ? html`<span class="ds-reply-to">@${uiName(replyTo).name}</span> ` : ""}${c.body}</p>
+          ${c.body || replyTo ? html`<p>${replyTo ? html`<span class="ds-reply-to">@${uiName(replyTo).name}</span> ` : ""}${c.body}</p>` : ""}${raw(uiCommentVoice(c))}
         </div>
         ${raw(uiCommentPeople(c))}
         <div class="ds-comment-meta">
@@ -483,7 +483,7 @@ function uiThread(p) {
   }
   const reply = t?.reply && t.items?.find((c) => c.id === t.reply),
     draft = ui.drafts.get(p.id) || "";
-  return `<section class="ds-thread ${open ? "is-open" : ""}" data-thread="${p.id}" aria-label="${q ? "Cevaplar" : "Yorumlar"}">${head}<div class="ds-thread-list">${body}</div><form class="ds-comment-form ${draft.trim() ? "has-text" : ""}" data-post="${p.id}">${avatar(state.user)}<div class="ds-comment-input">${reply ? `<div class="ds-replying">${icon("corner-down-right")}<span><b>${esc(uiName(reply.author).name)}</b> kişisine cevap</span><button type="button" data-ui="reply-cancel" data-post="${p.id}" aria-label="Cevabı iptal et">${icon("x")}</button></div>` : ""}<textarea name="body" rows="1" maxlength="4000" placeholder="${q ? "Cevabını yaz…" : "Yorum yaz…"}" aria-label="${q ? "Cevabını yaz" : "Yorumunu yaz"}">${esc(draft)}</textarea><button type="submit" class="ds-send" aria-label="Gönder">${icon("arrow-up")}</button></div><small class="ds-comment-error" role="alert"></small></form></section>`;
+  return `<section class="ds-thread ${open ? "is-open" : ""}" data-thread="${p.id}" aria-label="${q ? "Cevaplar" : "Yorumlar"}">${head}<div class="ds-thread-list">${body}</div><form class="ds-comment-form ${draft.trim() ? "has-text" : ""} ${uiVoice.has(p.id) ? "has-voice" : ""}" data-post="${p.id}">${avatar(state.user)}${uiVoiceBar(p.id)}<div class="ds-comment-input">${reply ? `<div class="ds-replying">${icon("corner-down-right")}<span><b>${esc(uiName(reply.author).name)}</b> kişisine cevap</span><button type="button" data-ui="reply-cancel" data-post="${p.id}" aria-label="Cevabı iptal et">${icon("x")}</button></div>` : ""}<textarea name="body" rows="1" maxlength="4000" placeholder="${q ? "Cevabını yaz…" : "Yorum yaz…"}" aria-label="${q ? "Cevabını yaz" : "Yorumunu yaz"}">${esc(draft)}</textarea><button type="button" class="ds-mic" data-ui="voice-start" data-post="${p.id}" aria-label="Sesli yorum kaydet">${icon("mic")}</button><button type="submit" class="ds-send" aria-label="Gönder">${icon("arrow-up")}</button></div><small class="ds-comment-error" role="alert"></small></form></section>`;
 }
 async function uiLoadThread(id, more = false) {
   const t = ui.threads.get(id) || { items: [], reply: null };
@@ -526,15 +526,18 @@ async function uiSendComment(form) {
   const id = Number(form.dataset.post),
     ta = form.elements.body,
     body = ta.value.trim(),
-    err = $(".ds-comment-error", form);
-  if (!body || form.classList.contains("is-sending")) return;
+    err = $(".ds-comment-error", form),
+    hasVoice = uiVoice.get(id)?.state === "ready";
+  if ((!body && !hasVoice) || form.classList.contains("is-sending")) return;
   const t = ui.threads.get(id) || { items: [], reply: null };
   ui.threads.set(id, t);
   form.classList.add("is-sending");
   err.textContent = "";
   try {
-    await ffApi("/" + id + "/comments", "POST", { body, parentId: t.reply || null, peopleIds: form.dsPeople || [] });
+    const audio = hasVoice ? await uiVoicePayload(id) : null;
+    await ffApi("/" + id + "/comments", "POST", { body, parentId: t.reply || null, peopleIds: form.dsPeople || [], ...(audio ? { audio } : {}) });
     ui.drafts.delete(id);
+    uiVoiceClear(id);
     t.reply = null;
     ui.expanded.add(id);
     await uiLoadThread(id);
@@ -542,7 +545,7 @@ async function uiSendComment(form) {
     uiFocusComment(id);
   } catch (e) {
     form.classList.remove("is-sending");
-    err.textContent = e.message + " Yazdığın korunuyor.";
+    err.textContent = e.message + (hasVoice ? " Yazdığın ve ses kaydın korunuyor; yeniden gönderebilirsin." : " Yazdığın korunuyor.");
   }
 }
 document.addEventListener("submit", (e) => {
@@ -621,6 +624,15 @@ async function uiAction(action, el) {
       uiRedrawCard(post);
       return uiFocusComment(post);
     }
+    case "voice-start":
+      return uiVoiceStart(Number(el.dataset.post));
+    case "voice-stop":
+      return uiVoiceStop(Number(el.dataset.post));
+    case "voice-cancel":
+      uiVoiceClear(Number(el.dataset.post));
+      uiVoiceRedraw(Number(el.dataset.post));
+      $(`[data-feed-card="${el.dataset.post}"] .ds-mic`)?.focus();
+      return;
     case "reply-cancel": {
       const t = ui.threads.get(Number(el.dataset.post));
       if (t) t.reply = null;

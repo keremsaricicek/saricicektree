@@ -6,6 +6,7 @@ import { photoVisibleSQL, visiblePhoto } from "./archive.mjs";
 import { hiddenPeople } from "./privacy.mjs";
 import { folded } from "./search.mjs";
 import { notify } from "./notifications.mjs";
+import { decodeUpload, sniffAudio } from "./media-check.mjs";
 const now = () => new Date().toISOString();
 export const FEED_EMOJI = ["🌿", "😂", "🥹", "🙏", "👏"];
 // Who may see a post, as SQL over `p` (feed_posts) and `v` (the viewer). Removal is checked
@@ -18,6 +19,23 @@ const postAudienceSQL = `(p.createdBy=v.uid OR p.visibility='family' OR (p.visib
 export const viewerParams = (u) => [u.id, u.role, u.id, u.id, u.id];
 /** SQL (bind viewerParams) for the latest feed activity on posts this person may see or saw before removal. */
 export const feedCursorSQL = `(WITH v AS(SELECT ? uid,? role) SELECT COALESCE(MAX(a.id),0) FROM feed_activity a JOIN feed_posts p ON p.id=a.postId CROSS JOIN v WHERE ${postAudienceSQL})`;
+/** A comment as the page receives it: the stored audio file name is replaced by a playback address. */
+export const publicComment = ({ audioFile, audioMime, audioSeconds, ...c }) => ({
+  ...c,
+  audio: audioFile ? { url: "/api/experience/feed/comments/" + c.id + "/audio", seconds: audioSeconds || null } : null,
+});
+export const VOICE_MAX_SECONDS = 180;
+const VOICE_MAX_BYTES = 3 * 1024 * 1024;
+const b64Size = (bytes) => Math.ceil(bytes / 3) * 4 + 100;
+/** A recorded voice comment: real audio (checked from the bytes), at most 3 MB and 3 minutes. */
+function checkVoice(audio) {
+  const bytes = decodeUpload(audio.data, VOICE_MAX_BYTES, "Ses kaydı");
+  const mime = sniffAudio(bytes, audio.mime);
+  assert(mime, 400, "Ses kaydı okunamadı; desteklenen bir ses biçimi değil.");
+  const seconds = Math.round(Number(audio.seconds));
+  assert(Number.isFinite(seconds) && seconds >= 1 && seconds <= VOICE_MAX_SECONDS, 400, "Sesli yorum 1 saniye ile 3 dakika arasında olmalı.");
+  return { bytes, mime, seconds };
+}
 /** Whether this account may see the post now (used before notifying anyone about it). */
 export async function canSeePost(one, viewer, postId) {
   const [uid, role, ...rest] = viewerParams(viewer);
@@ -64,7 +82,8 @@ export async function feed(ctx) {
       )
     )
       .filter((c) => !JSON.parse(c.peopleIds || "[]").some((id) => hidden.has(id)))
-      .reverse();
+      .reverse()
+      .map(publicComment);
     const wall = url.searchParams.get("wall");
     let wallComments = [];
     if (wall) {
@@ -406,32 +425,50 @@ export async function feed(ctx) {
       );
       const hidden = await hiddenPeople(all, u);
       return reply({
-        items: rows.slice(0, 100).filter((c) => !JSON.parse(c.peopleIds || "[]").some((id) => hidden.has(id))),
+        items: rows
+          .slice(0, 100)
+          .filter((c) => !JSON.parse(c.peopleIds || "[]").some((id) => hidden.has(id)))
+          .map(publicComment),
         hasMore: rows.length > 100,
         after: rows[99]?.id || null,
       });
     }
     if (action === "comments" && method === "POST") {
       await limit("feed-comment:" + u.id, 60, 60000);
-      const b = await read(20000),
+      const b = await read(b64Size(VOICE_MAX_BYTES) + 20000),
         body = clean(b.body, 4001);
       const tagged = await validate({ body, peopleIds: b.peopleIds });
-      assert(body && body.length <= 4000, 400, "1–4.000 karakterlik bir cevap yaz.");
+      // A voice comment may have no text; otherwise 1–4,000 characters.
+      const voice = b.audio ? checkVoice(b.audio) : null;
+      assert((body || voice) && body.length <= 4000, 400, voice ? "Yazı en fazla 4.000 karakter olabilir." : "1–4.000 karakterlik bir cevap yaz.");
       if (b.parentId)
         assert(
           Number.isSafeInteger(b.parentId) && (await one("SELECT id FROM feed_comments WHERE id=? AND postId=? AND deletedAt IS NULL", b.parentId, id)),
           400,
           "Cevap verilen yorum bulunamadı.",
         );
-      await run(
-        "INSERT INTO feed_comments(postId,createdBy,parentId,body,createdAt,peopleIds) VALUES(?,?,?,?,?,?)",
-        id,
-        u.id,
-        b.parentId || null,
-        body,
-        now(),
-        tagged.peopleIds,
-      );
+      let audioFile = null;
+      if (voice) {
+        audioFile = "feed-audio/" + id + "/" + crypto.randomUUID();
+        await storage.put(audioFile, voice.bytes, { httpMetadata: { contentType: voice.mime } });
+      }
+      try {
+        await run(
+          "INSERT INTO feed_comments(postId,createdBy,parentId,body,createdAt,peopleIds,audioFile,audioMime,audioSeconds) VALUES(?,?,?,?,?,?,?,?,?)",
+          id,
+          u.id,
+          b.parentId || null,
+          body,
+          now(),
+          tagged.peopleIds,
+          audioFile,
+          voice?.mime || null,
+          voice?.seconds || null,
+        );
+      } catch (e) {
+        if (audioFile) await storage.delete(audioFile); // no orphan recording without its comment
+        throw e;
+      }
       const taggedUsers = await mentions(id, tagged);
       await touch(id, "comment");
       // The post's author and, for a reply, the answered comment's author (tagged people already got a notice).
@@ -468,6 +505,25 @@ export async function feed(ctx) {
     await run("UPDATE feed_comments SET deletedAt=? WHERE id=?", now(), c.id);
     await touch(c.postId, "comment");
     return reply({ ok: true });
+  }
+  // Voice comment playback: same visibility as the comment itself.
+  const voiceAudio = path.match(/^\/api\/experience\/feed\/comments\/(\d+)\/audio$/);
+  if (voiceAudio && method === "GET") {
+    const c = await one("SELECT * FROM feed_comments WHERE id=? AND deletedAt IS NULL AND audioFile IS NOT NULL", Number(voiceAudio[1]));
+    assert(c, 404, "Ses kaydı bulunamadı.");
+    await get(c.postId);
+    const hidden = await hiddenPeople(all, u);
+    assert(!JSON.parse(c.peopleIds || "[]").some((id) => hidden.has(id)), 404, "Ses kaydı bulunamadı.");
+    const f = await storage.get(c.audioFile);
+    assert(f, 404, "Ses kaydı bulunamadı.");
+    return new Response(f.body, {
+      headers: {
+        "Content-Type": c.audioMime,
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+      },
+    });
   }
   const commentLike = path.match(/^\/api\/experience\/feed\/comments\/(\d+)\/like$/);
   if (commentLike && ["PUT", "DELETE"].includes(method)) {

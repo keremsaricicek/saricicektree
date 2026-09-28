@@ -483,6 +483,10 @@ export const feed_comments = sqliteTable(
     body: text("body").notNull(),
     createdAt: text("createdAt").notNull(),
     deletedAt: text("deletedAt"),
+    // Voice comment (optional): stored file key, checked audio type and length in seconds.
+    audioFile: text("audioFile"),
+    audioMime: text("audioMime"),
+    audioSeconds: integer("audioSeconds"),
   },
   (t) => [index("feed_comment_post").on(t.postId, t.id)],
 );

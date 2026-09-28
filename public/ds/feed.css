@@ -1581,3 +1581,70 @@ html.ds-lock body {
     transform: translateX(-50%);
   }
 }
+
+/* Voice comments (public/ui/voice.js). */
+.ds-comment-form .ds-mic {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.ds-comment-form .ds-mic:hover,
+.ds-comment-form .ds-mic:focus-visible {
+  color: var(--forest);
+  background: var(--pistachio-wash);
+}
+.ds-comment-form.has-voice .ds-send {
+  opacity: 1;
+  pointer-events: auto;
+}
+.ds-voice {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--pistachio-wash);
+  margin-bottom: 6px;
+}
+.ds-voice audio,
+.ds-voice-comment audio {
+  height: 36px;
+  max-width: 100%;
+}
+.ds-voice-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--forest);
+}
+.ds-voice-note {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.ds-voice-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: ds-voice-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ds-voice-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-voice-dot {
+    animation: none;
+  }
+}
+.ds-voice-comment {
+  margin-top: 6px;
+}
