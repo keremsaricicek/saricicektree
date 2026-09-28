@@ -624,6 +624,12 @@ async function uiAction(action, el) {
       uiRedrawCard(post);
       return uiFocusComment(post);
     }
+    case "gedcom":
+      return uiGedcomDialog();
+    case "gedcom-export":
+      return uiGedcomExport();
+    case "gedcom-import":
+      return uiGedcomImport(el);
     case "voice-start":
       return uiVoiceStart(Number(el.dataset.post));
     case "voice-stop":

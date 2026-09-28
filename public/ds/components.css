@@ -1533,3 +1533,17 @@ dialog.is-search #server-results {
   margin: 0;
   padding-left: 18px;
 }
+
+/* GEDCOM preview (public/ui/gedcom.js). */
+.ds-gedcom {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.ds-gedcom h4 {
+  margin: 8px 0 0;
+}
+.ds-gedcom .field {
+  display: grid;
+  gap: 4px;
+}

@@ -1,4 +1,5 @@
 import { audienceSQL, audienceAllows } from "./audience.mjs";
+import { gedcom } from "./gedcom.mjs";
 import { assert, clean, validDate, validateRelation } from "./domain.mjs";
 const now = () => new Date().toISOString(),
   uuid = () => crypto.randomUUID();
@@ -18,6 +19,10 @@ export async function visiblePhoto(one, u, id) {
 }
 const kinds = ["story", "recipe", "question", "memory", "memorial", "achievement", "source", "migration", "capsule", "exhibition", "poll", "directory", "quiz"];
 export async function archive({ path, method, url, u, read, all, one, run, batch, storage, limit }) {
+  if (path.startsWith("/api/archive/gedcom/")) {
+    const r = await gedcom({ path, method, u, read, all, one, batch });
+    if (r) return r;
+  }
   const reply = (x, status = 200) =>
     new Response(JSON.stringify(x), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
   const staff = () => assert(u.role !== "member", 403, "Moderatör yetkisi gerekiyor.");
