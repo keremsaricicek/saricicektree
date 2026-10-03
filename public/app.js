@@ -83,16 +83,24 @@ const dialog = $("#dialog");
 async function api(path, method = "GET", data) {
   if (demo) return demo.request(path, method, data);
   const transport = window.FamilyNative?.available ? window.FamilyNative.request : fetch;
-  const res = await transport(path, {
-    method,
-    credentials: "same-origin",
-    headers: {
-      "Content-Type": "application/json",
-      ...(csrf ? { "X-CSRF-Token": csrf } : {}),
-      ...(sessionStorage.getItem("sf-factor") ? { "X-Family-Factor": sessionStorage.getItem("sf-factor") } : {}),
-    },
-    ...(data ? { body: JSON.stringify(data) } : {}),
-  });
+  let res;
+  try {
+    res = await transport(path, {
+      method,
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+        ...(sessionStorage.getItem("sf-factor") ? { "X-Family-Factor": sessionStorage.getItem("sf-factor") } : {}),
+      },
+      ...(data ? { body: JSON.stringify(data) } : {}),
+    });
+  } catch (e) {
+    // No connection: a read the member chose to keep on this device is answered from it (ui/offline.js).
+    const saved = method === "GET" ? await uiOfflineRead(path) : null;
+    if (saved) return saved;
+    throw e;
+  }
   let body;
   try {
     body = await res.json();
@@ -104,6 +112,7 @@ async function api(path, method = "GET", data) {
     return api(path, method, data);
   }
   if (!res.ok) throw Error(body.error || "İşlem tamamlanamadı.");
+  if (method === "GET") uiOfflineKeep(path, body);
   return body;
 }
 const isStaff = () => state && state.user.role !== "member",
@@ -922,11 +931,17 @@ async function handle(action, el) {
     case "account":
       modal(
         "Aile hesabın",
-        `<div class="row">${avatar(state.user, "large")}<div><h3>${esc(state.user.name)}</h3><p style="font-size:12px">${esc(state.user.email)}</p><span class="pill">${roleName[state.user.role]}</span></div></div><div class="form-actions">${aButton("İki aşamalı doğrulama", "security")}${aButton("Kolay görünüm", "simple")}${button("Oturumu kapat", "logout", "log-out")}${!isOwner() ? button("Hesabımı sil", "delete-account", "trash-2", "danger") : ""}</div>${demoMode ? `<div class="notice">Önizlemede yetkileri dene:</div><div class="row" style="flex-wrap:wrap">${["owner", "moderator", "member"].map((r) => button(roleName[r], "demo-role", null, "small", 'data-role="' + r + '"')).join("")}</div>` : ""}`,
+        `<div class="row">${avatar(state.user, "large")}<div><h3>${esc(state.user.name)}</h3><p style="font-size:12px">${esc(state.user.email)}</p><span class="pill">${roleName[state.user.role]}</span></div></div><div class="form-actions">${aButton("İki aşamalı doğrulama", "security")}${aButton("Kolay görünüm", "simple")}${demoMode ? "" : button("Çevrimdışı okuma", "offline", "wifi-off")}${button("Oturumu kapat", "logout", "log-out")}${!isOwner() ? button("Hesabımı sil", "delete-account", "trash-2", "danger") : ""}</div>${demoMode ? `<div class="notice">Önizlemede yetkileri dene:</div><div class="row" style="flex-wrap:wrap">${["owner", "moderator", "member"].map((r) => button(roleName[r], "demo-role", null, "small", 'data-role="' + r + '"')).join("")}</div>` : ""}`,
       );
       break;
+    case "offline":
+      return uiOfflineSettings();
+    case "offline-on":
+    case "offline-off":
+      return uiOfflineSwitch(action === "offline-on");
     case "logout":
       sessionStorage.removeItem("sf-factor");
+      await uiOfflineForget();
       await familyNativePushOff();
       await familyStopLocation(false).catch(() => {});
       window.familyEnhancements?.cleanup();

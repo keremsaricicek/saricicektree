@@ -622,6 +622,7 @@ async function familyHandle(action, el) {
       );
       submitWith(async (b) => {
         await familyApi("/api/account", "DELETE", b);
+        await uiOfflineForget();
         familyCleanup();
         await window.FamilyNative?.stopLocation?.();
         state = null;

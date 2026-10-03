@@ -1642,3 +1642,36 @@ dialog.is-search #server-results {
   height: 8px;
   accent-color: var(--forest);
 }
+
+/* ---------- Offline: notice while there is no connection, and the settings text ---------- */
+.ds-offline-bar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  border-bottom: 1px solid var(--line);
+}
+.ds-offline-bar svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+.ds-offline-info ul {
+  margin: 12px 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  color: var(--ink-2);
+}
+.ds-offline-state {
+  color: var(--forest);
+  font-weight: 600;
+}
