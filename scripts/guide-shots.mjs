@@ -1,4 +1,5 @@
 // Screenshots for the illustrated guide (public/guide.html), taken from the demo family (no real data).
+/* global document, hmUpload -- used inside page.evaluate, which runs in the browser */
 //   node src/build-client.mjs && node scripts/guide-shots.mjs
 import { chromium } from "@playwright/test";
 import { createServer } from "node:http";
