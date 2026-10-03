@@ -44,24 +44,28 @@ jobs:
           retention-days: 7
 
   docker:
-    # The production image built from scratch and started the way compose.yaml runs it.
+    # The production image built from scratch and started with compose.yaml as on a server: app + Caddy
+    # (Caddy gives "localhost" a certificate from its own local authority, hence curl -k).
     runs-on: ubuntu-latest
+    env:
+      SITE_DOMAIN: localhost
     steps:
       - uses: actions/checkout@v4
-      - run: docker build --no-cache --pull -t saricicek:ci .
-      - run: docker image ls saricicek:ci
-      - name: Start the image and check it answers
+      - run: docker compose build --no-cache --pull
+      - run: docker image ls
+      - run: docker compose up -d
+      - name: Check the running stack
         run: |
-          docker run -d --name app -p 3000:3000 -e APP_ORIGIN=http://localhost:3000 -e NODE_ENV=production saricicek:ci
-          for i in $(seq 1 60); do curl -fsS http://localhost:3000/health && break; sleep 1; done
-          docker exec -e ADMIN_EMAIL=owner@ci.test -e ADMIN_PASSWORD=ci-long-password-2026 -e ADMIN_NAME=CI app node src/admin.mjs
-          docker exec app ffmpeg -version | head -1
-          curl -fsS http://localhost:3000/api/config | tee config.json
+          for i in $(seq 1 60); do curl -kfsS https://localhost/health && break; sleep 1; done
+          docker compose exec -T -e ADMIN_EMAIL=owner@ci.test -e ADMIN_PASSWORD=ci-long-password-2026 -e ADMIN_NAME=CI app node src/admin.mjs
+          docker compose exec -T app ffmpeg -version | head -1
+          curl -kfsS https://localhost/api/config | tee config.json
           node -e 'const c=require("./config.json"); if(!c.video?.playbackCopies) { console.error("ffmpeg not found by the app"); process.exit(1) }'
-          curl -fsS -c jar -H 'origin: http://localhost:3000' -H 'content-type: application/json' -d '{"email":"owner@ci.test","password":"ci-long-password-2026"}' http://localhost:3000/api/login > /dev/null
-          curl -fsS -b jar http://localhost:3000/api/bootstrap > /dev/null
-          curl -fsS http://localhost:3000/ | grep -q '<title>'
-          docker exec app sh -c 'id -un; ls -ld /app/data'
-          echo "Image starts, serves the app, signs in, and has ffmpeg."
+          curl -kfsS -c jar -H 'origin: https://localhost' -H 'content-type: application/json' -d '{"email":"owner@ci.test","password":"ci-long-password-2026"}' https://localhost/api/login > /dev/null
+          curl -kfsS -b jar https://localhost/api/bootstrap > /dev/null
+          curl -kfsS https://localhost/ | grep -q '<title>'
+          curl -ksS -o /dev/null -w '%{http_code}\n' http://localhost/ | grep -q 308   # plain HTTP is sent to HTTPS
+          docker compose exec -T app sh -c 'id -un; ls -ld /app/data'
+          echo "Image builds from scratch, starts behind Caddy with HTTPS, serves the app, signs in, and has ffmpeg."
       - if: always()
-        run: docker logs app || true
+        run: docker compose logs --no-color
