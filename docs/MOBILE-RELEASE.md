@@ -13,7 +13,8 @@ Kaynak proje hazır; mağazaya yüklenmiş uygulama, imzalı IPA/AAB veya onayla
 - Arka plan ağ çağrıları CapacitorHttp üzerinden gider. SIWC/WebView ve native HTTP cookie paylaşımı gerçek iOS/Android cihazlarda doğrulanmalıdır. Google/Apple ile girişin gömülü tarayıcı kısıtları ve yönlendirmeleri mağaza yayınından önce çözülmelidir.
 - Uygulama zorla kapatıldığında, izin kaldırıldığında veya işletim sistemi durdurduğunda takip garantisi yoktur. Yerel testler bu durumları doğrulamaz.
 - Web sohbeti SSE olay akışına geçirildi; Node aynı süreçte anlık uyarım, Worker örnekleri arasında 5 saniyelik DB kontrolü var. Native istemcide mesajlaşma görünür ekranda 4 saniyede, harita 15 saniyede, diğer paylaşılan ekranlar 20 saniyede yenilenir. Bu WebSocket tabanlı anlık yayın değildir. Görünmeyen sekmeler sorgulamayı durdurur.
-- Cihaz hatırlatmaları yerel bildirimdir. Tarayıcı/PWA için genel Web Push bildirimi eklendi; gerçek telefona teslimat henüz doğrulanmadı. Native APNs/FCM mağaza yapılandırması hâlâ yoktur.
+- Cihaz hatırlatmaları yerel bildirimdir. Tarayıcı/PWA için Web Push var. Uygulama içi mesaj, etiket ve yorum bildirimleri FCM (Android) ve APNs (iOS) ile gönderilir (`src/native-push.mjs`, testleri yerel taklitlere karşı); gerçek Firebase/Apple hesabıyla teslimat henüz denenmedi, hesaplar ve anahtarlar gerekiyor.
+- Sürüm imzalama ve mağaza hesapları için yapılacaklar: `docs/RELEASE-DECISIONS.md`.
 
 ## Geliştirme
 

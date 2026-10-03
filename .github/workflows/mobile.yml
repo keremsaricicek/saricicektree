@@ -149,3 +149,43 @@ jobs:
         run: |
           node scripts/appetize-upload.mjs android Saricicek-Android-demo.apk | tee -a "$GITHUB_STEP_SUMMARY"
           node scripts/appetize-upload.mjs ios Saricicek-iOS-Simulator-demo.zip | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # Store bundle (Android App Bundle) for Google Play, built only on request ("Run workflow").
+  # Signed with the upload key when these repository secrets exist: ANDROID_KEYSTORE_BASE64 (the .jks file in
+  # base64), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD. Otherwise it is built unsigned,
+  # which proves the release build works but cannot be uploaded. Nothing is uploaded to Play from here.
+  android-release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm run build:client
+      - run: npx cap sync android
+      - if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+      - if: env.KEYSTORE_B64 == ''
+        run: echo "::notice::İmza anahtarı yok; AAB imzasız üretiliyor (Play'e yüklenemez). docs/MOBILE-RELEASE.md"
+      - run: chmod +x android/gradlew && ./gradlew :app:bundleRelease
+        working-directory: android
+      - run: cp android/app/build/outputs/bundle/release/app-release.aab Saricicek-Android-release.aab
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Saricicek-Android-release-aab
+          path: Saricicek-Android-release.aab
