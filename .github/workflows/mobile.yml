@@ -182,7 +182,7 @@ jobs:
           echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
       - if: env.KEYSTORE_B64 == ''
         run: echo "::notice::İmza anahtarı yok; AAB imzasız üretiliyor (Play'e yüklenemez). docs/MOBILE-RELEASE.md"
-      - run: chmod +x android/gradlew && ./gradlew :app:bundleRelease
+      - run: chmod +x gradlew && ./gradlew :app:bundleRelease
         working-directory: android
       - run: cp android/app/build/outputs/bundle/release/app-release.aab Saricicek-Android-release.aab
       - uses: actions/upload-artifact@v4
