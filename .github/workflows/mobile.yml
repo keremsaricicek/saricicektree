@@ -120,3 +120,32 @@ jobs:
         with:
           name: Saricicek-iOS-simulator-screens
           path: ios-home.png
+
+  # Browser simulator links for testers (Appetize). Needs an Appetize account: add its API token as the repository
+  # secret APPETIZE_API_TOKEN. Optional repository variables APPETIZE_ANDROID_KEY / APPETIZE_IOS_KEY (printed by
+  # the first upload) keep the links the same on later uploads. Only the demo builds are uploaded.
+  appetize:
+    needs: [android, ios]
+    runs-on: ubuntu-latest
+    env:
+      APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
+      APPETIZE_ANDROID_KEY: ${{ vars.APPETIZE_ANDROID_KEY }}
+      APPETIZE_IOS_KEY: ${{ vars.APPETIZE_IOS_KEY }}
+    steps:
+      - if: env.APPETIZE_API_TOKEN == ''
+        run: echo "::notice::Appetize yüklemesi atlandı - APPETIZE_API_TOKEN gizli anahtarı yok (docs/TEST-ENVIRONMENTS.md)."
+      - if: env.APPETIZE_API_TOKEN != ''
+        uses: actions/checkout@v4
+      - if: env.APPETIZE_API_TOKEN != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - if: env.APPETIZE_API_TOKEN != ''
+        uses: actions/download-artifact@v4
+        with:
+          pattern: Saricicek-*-demo
+          merge-multiple: true
+      - if: env.APPETIZE_API_TOKEN != ''
+        run: |
+          node scripts/appetize-upload.mjs android Saricicek-Android-demo.apk | tee -a "$GITHUB_STEP_SUMMARY"
+          node scripts/appetize-upload.mjs ios Saricicek-iOS-Simulator-demo.zip | tee -a "$GITHUB_STEP_SUMMARY"
