@@ -4,9 +4,14 @@ const listeners = new Map();
 export function publishChange(id) {
   for (const fn of listeners.get(id) || []) fn();
 }
-// Family feed activity concerns every open stream in this process.
+// Family feed activity concerns every open stream in this process. Activity arriving within 300 ms is answered by
+// one pass over the open streams, so a busy family does not make every stream re-check on every like and comment.
+let sweep = null;
 export function publishAll() {
-  for (const group of listeners.values()) for (const fn of group) fn();
+  sweep ||= setTimeout(() => {
+    sweep = null;
+    for (const group of listeners.values()) for (const fn of group) fn();
+  }, 300);
 }
 export function eventStream({ u, one, authorize, signal, intervalMs = 5000, lifetimeMs = 25000 }) {
   const key = u.id,

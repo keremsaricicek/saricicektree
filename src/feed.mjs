@@ -18,7 +18,9 @@ const postAudienceSQL = `(p.createdBy=v.uid OR p.visibility='family' OR (p.visib
  AND (p.eventId IS NULL OR EXISTS(SELECT 1 FROM events e WHERE e.id=p.eventId AND e.deletedAt IS NULL AND (e.status='approved' OR e.createdBy=v.uid OR v.role!='member') AND (v.role='owner' OR NOT EXISTS(SELECT 1 FROM person_guardians g WHERE g.personId=e.personId AND g.userId!=v.uid))))`;
 export const viewerParams = (u) => [u.id, u.role, u.id, u.id, u.id];
 /** SQL (bind viewerParams) for the latest feed activity on posts this person may see or saw before removal. */
-export const feedCursorSQL = `(WITH v AS(SELECT ? uid,? role) SELECT COALESCE(MAX(a.id),0) FROM feed_activity a JOIN feed_posts p ON p.id=a.postId CROSS JOIN v WHERE ${postAudienceSQL})`;
+// Walks the activity log from the newest entry and stops at the first one this person may see, so the cost does not
+// grow with the length of the log (the same number as MAX(a.id) over the visible rows).
+export const feedCursorSQL = `(WITH v AS(SELECT ? uid,? role) SELECT COALESCE((SELECT a.id FROM feed_activity a CROSS JOIN v JOIN feed_posts p ON p.id=a.postId WHERE ${postAudienceSQL} ORDER BY a.id DESC LIMIT 1),0))`;
 /** A comment as the page receives it: the stored audio file name is replaced by a playback address. */
 export const publicComment = ({ audioFile, audioMime, audioSeconds, ...c }) => ({
   ...c,

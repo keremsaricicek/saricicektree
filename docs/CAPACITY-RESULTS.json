@@ -1,0 +1,283 @@
+{
+  "date": "2026-10-03T14:32:34.166Z",
+  "environment": {
+    "node": "v22.22.2",
+    "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "logicalCPUs": 4,
+    "ramGB": 16,
+    "server": "Node + SQLite, one process",
+    "proxy": "none",
+    "generator": "same machine"
+  },
+  "fixture": {
+    "members": 1000,
+    "people": 1000,
+    "posts": 3000,
+    "messages": 20000
+  },
+  "secondsPerStage": 60,
+  "mix": {
+    "feed": 30,
+    "changes": 15,
+    "comments": 10,
+    "comment": 7,
+    "like": 7,
+    "thread": 12,
+    "send": 10,
+    "bootstrap": 6,
+    "upload": 3
+  },
+  "stages": [
+    {
+      "users": 100,
+      "openStreams": 100,
+      "requests": 2990,
+      "perSecond": 50,
+      "errors": 0,
+      "errorRate": 0,
+      "statuses": {},
+      "p50ms": 4,
+      "p95ms": 12,
+      "p99ms": 17,
+      "rssMB": 146,
+      "peakMB": 151,
+      "byAction": {
+        "changes": {
+          "n": 467,
+          "errors": 0,
+          "p95ms": 6
+        },
+        "feed": {
+          "n": 947,
+          "errors": 0,
+          "p95ms": 9
+        },
+        "thread": {
+          "n": 354,
+          "errors": 0,
+          "p95ms": 6
+        },
+        "comments": {
+          "n": 297,
+          "errors": 0,
+          "p95ms": 9
+        },
+        "upload": {
+          "n": 76,
+          "errors": 0,
+          "p95ms": 26
+        },
+        "like": {
+          "n": 184,
+          "errors": 0,
+          "p95ms": 8
+        },
+        "send": {
+          "n": 291,
+          "errors": 0,
+          "p95ms": 9
+        },
+        "comment": {
+          "n": 214,
+          "errors": 0,
+          "p95ms": 7
+        },
+        "bootstrap": {
+          "n": 160,
+          "errors": 0,
+          "p95ms": 16
+        }
+      }
+    },
+    {
+      "users": 250,
+      "openStreams": 150,
+      "requests": 7473,
+      "perSecond": 125,
+      "errors": 0,
+      "errorRate": 0,
+      "statuses": {},
+      "p50ms": 4,
+      "p95ms": 23,
+      "p99ms": 39,
+      "rssMB": 150,
+      "peakMB": 160,
+      "byAction": {
+        "feed": {
+          "n": 2264,
+          "errors": 0,
+          "p95ms": 21
+        },
+        "upload": {
+          "n": 236,
+          "errors": 0,
+          "p95ms": 55
+        },
+        "send": {
+          "n": 804,
+          "errors": 0,
+          "p95ms": 22
+        },
+        "changes": {
+          "n": 1096,
+          "errors": 0,
+          "p95ms": 18
+        },
+        "comments": {
+          "n": 751,
+          "errors": 0,
+          "p95ms": 20
+        },
+        "thread": {
+          "n": 879,
+          "errors": 0,
+          "p95ms": 22
+        },
+        "comment": {
+          "n": 523,
+          "errors": 0,
+          "p95ms": 23
+        },
+        "bootstrap": {
+          "n": 434,
+          "errors": 0,
+          "p95ms": 31
+        },
+        "like": {
+          "n": 486,
+          "errors": 0,
+          "p95ms": 20
+        }
+      }
+    },
+    {
+      "users": 500,
+      "openStreams": 350,
+      "requests": 14885,
+      "perSecond": 248,
+      "errors": 0,
+      "errorRate": 0,
+      "statuses": {},
+      "p50ms": 9,
+      "p95ms": 60,
+      "p99ms": 108,
+      "rssMB": 195,
+      "peakMB": 203,
+      "byAction": {
+        "feed": {
+          "n": 4450,
+          "errors": 0,
+          "p95ms": 58
+        },
+        "thread": {
+          "n": 1753,
+          "errors": 0,
+          "p95ms": 55
+        },
+        "like": {
+          "n": 1072,
+          "errors": 0,
+          "p95ms": 54
+        },
+        "send": {
+          "n": 1455,
+          "errors": 0,
+          "p95ms": 58
+        },
+        "changes": {
+          "n": 2280,
+          "errors": 0,
+          "p95ms": 57
+        },
+        "upload": {
+          "n": 457,
+          "errors": 0,
+          "p95ms": 177
+        },
+        "comments": {
+          "n": 1476,
+          "errors": 0,
+          "p95ms": 58
+        },
+        "bootstrap": {
+          "n": 902,
+          "errors": 0,
+          "p95ms": 65
+        },
+        "comment": {
+          "n": 1040,
+          "errors": 0,
+          "p95ms": 58
+        }
+      }
+    },
+    {
+      "users": 1000,
+      "openStreams": 749,
+      "requests": 19293,
+      "perSecond": 322,
+      "errors": 355,
+      "errorRate": 1.84,
+      "statuses": {
+        "0": 355
+      },
+      "p50ms": 236,
+      "p95ms": 1034,
+      "p99ms": 30001,
+      "rssMB": 238,
+      "peakMB": 250,
+      "byAction": {
+        "feed": {
+          "n": 5888,
+          "errors": 101,
+          "p95ms": 466
+        },
+        "like": {
+          "n": 1299,
+          "errors": 28,
+          "p95ms": 458
+        },
+        "thread": {
+          "n": 2317,
+          "errors": 36,
+          "p95ms": 459
+        },
+        "send": {
+          "n": 1979,
+          "errors": 42,
+          "p95ms": 480
+        },
+        "bootstrap": {
+          "n": 1158,
+          "errors": 26,
+          "p95ms": 471
+        },
+        "changes": {
+          "n": 2842,
+          "errors": 54,
+          "p95ms": 476
+        },
+        "comments": {
+          "n": 1902,
+          "errors": 34,
+          "p95ms": 479
+        },
+        "comment": {
+          "n": 1342,
+          "errors": 23,
+          "p95ms": 448
+        },
+        "upload": {
+          "n": 566,
+          "errors": 11,
+          "p95ms": 2456
+        }
+      }
+    }
+  ],
+  "integrity": "ok",
+  "foreignKeyErrors": 0,
+  "streamResponses": {
+    "200": 4950
+  }
+}

@@ -8,18 +8,27 @@ export const MAX_IMAGE_PIXELS = 60_000_000;
 
 /** Decodes a data URL or bare base64 string; rejects anything that is not base64 or too large. */
 export function decodeUpload(data, maxBytes, what = "Dosya") {
+  let text = String(data || "")
+    .split(",")
+    .pop()
+    .replace(/\s+/g, "");
+  // atob also accepted base64 without its closing "=" padding; keep accepting it.
+  if (text.length % 4 > 1 && !text.endsWith("=")) text += "=".repeat(4 - (text.length % 4));
+  // Too large is known from the length alone, before any decoding work.
+  assert(
+    Math.floor((text.length * 3) / 4) - (text.match(/=*$/)?.[0].length || 0) <= maxBytes,
+    413,
+    `${what} en fazla ${Math.round(maxBytes / 1024 / 1024)} MB olabilir.`,
+  );
+  assert(text.length % 4 === 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(text), 400, `${what} okunamadı.`);
   let bytes;
-  try {
-    bytes = Uint8Array.from(
-      atob(
-        String(data || "")
-          .split(",")
-          .pop(),
-      ),
-      (c) => c.charCodeAt(0),
-    );
-  } catch {
-    assert(false, 400, `${what} okunamadı.`);
+  const B = /** @type {any} */ (globalThis).Buffer;
+  if (typeof (/** @type {any} */ (Uint8Array).fromBase64) === "function") bytes = /** @type {any} */ (Uint8Array).fromBase64(text);
+  else if (B) bytes = new Uint8Array(B.from(text, "base64"));
+  else {
+    const raw = atob(text);
+    bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
   }
   assert(bytes.length > 0, 400, `${what} boş.`);
   assert(bytes.length <= maxBytes, 413, `${what} en fazla ${Math.round(maxBytes / 1024 / 1024)} MB olabilir.`);

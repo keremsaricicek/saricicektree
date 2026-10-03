@@ -1,5 +1,7 @@
 # Kontrollü stres testi
 
+> Güncel ve daha gerçekçi ölçüm (kademeli, karışık iş yükü, önce/sonra): [CAPACITY.md](CAPACITY.md).
+
 2026-09-19T12:10:31.302Z
 
 1000 ayrı oturum, 5000 kişi, 5000 arşiv kaydı ve 20000 başlangıç mesajı. Yalnızca yerel, geçici test verisi kullanıldı. Her aşama iki paralel istek dalgasıdır; sürekli 1000 aktif kullanıcı SLA testi değildir.
