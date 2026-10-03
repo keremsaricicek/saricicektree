@@ -1675,3 +1675,31 @@ dialog.is-search #server-results {
   color: var(--forest);
   font-weight: 600;
 }
+
+/* ---------- Device checks (tests/e2e/devices.spec.mjs) ---------- */
+/* Writing a post: the card shows the same focus ring as the comment field when the keyboard is in it. */
+.ff-composer.ds-composer:has(#ff-body:focus-visible) {
+  box-shadow: var(--ring), var(--sh-2);
+}
+/* Names in a post header and its "with" line stay text-sized but get a 24 px tall target (WCAG 2.5.8). */
+.ds-author,
+.ds-with-name {
+  min-height: 24px;
+}
+.ds-with-name {
+  display: inline-flex;
+  align-items: center;
+}
+/* Icon-only "details" button on the history timeline. */
+.timeline-item .text-btn {
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  min-height: 32px;
+}
+/* 320 px wide (very small phones, or 400 % zoom): the brand keeps its mark and family name so the actions fit. */
+@media (max-width: 359px) {
+  .social-topbar .brand em {
+    display: none;
+  }
+}
