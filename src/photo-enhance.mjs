@@ -49,7 +49,7 @@ export async function photoEnhance({ u, method, read, one, all, batch, storage, 
   try {
     await batch([
       [
-        "INSERT INTO photos VALUES(?,?,?,?,?,?,?,?,?,?,NULL)",
+        "INSERT INTO photos VALUES(?,?,?,?,?,?,?,?,?,?,NULL,NULL)",
         id,
         p.title + " · Yapay zekâ ile " + (b.mode === "restore" ? "iyileştirilmiş" : "renklendirilmiş"),
         p.date,

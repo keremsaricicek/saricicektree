@@ -17,6 +17,10 @@ services:
       APNS_TEAM_ID: ${APNS_TEAM_ID:-}
       APNS_TOPIC: ${APNS_TOPIC:-}
       APNS_ENV: ${APNS_ENV:-}
+      # Video limits (docs/OPERATIONS.md); VIDEOS=off turns video off.
+      VIDEOS: ${VIDEOS:-}
+      VIDEO_MAX_MB: ${VIDEO_MAX_MB:-200}
+      VIDEO_MAX_SECONDS: ${VIDEO_MAX_SECONDS:-180}
       # Shown on the public privacy, support and account-deletion pages.
       SITE_OPERATOR_NAME: ${SITE_OPERATOR_NAME:-}
       SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}

@@ -148,6 +148,7 @@ function uiNameHtml(n) {
   return `${esc(x.name)}${x.note ? `<span class="ds-name-note">${esc(x.note)}</span>` : ""}`;
 }
 function uiImages(p) {
-  if (p.images?.length) return p.images.map((x) => ({ url: x.url, id: x.id, title: x.title || "", media: x.media || uiPhotoMedia(x.id) }));
+  if (p.images?.length)
+    return p.images.map((x) => ({ url: x.url, id: x.id, title: x.title || "", media: x.media || uiPhotoMedia(x.id), video: x.video || null }));
   return p.image ? [{ url: p.image, id: p.photoId || null, title: "", media: uiPhotoMedia(p.photoId) }] : [];
 }

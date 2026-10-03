@@ -439,7 +439,7 @@ hmUpload = function (share = false) {
   knUploadStep = 1;
   modal(
     "Fotoğraf ekle",
-    `<nav class="kn-upload-steps" aria-label="Yükleme adımları"><span data-step="1">1 <b>Fotoğraf</b></span><span data-step="2">2 <b>Hikâyesi</b></span><span data-step="3">3 <b>Kaydet</b></span></nav><div id="kn-resume-photo"></div><div class="hm-upload-layout kn-upload" data-step="1"><section class="hm-upload-stage"><label class="hm-file-zone">${icon("image-plus")}<strong>Birlikte saklayacağımız kareler.</strong><span>Fotoğrafları buraya bırak veya seç<br>En fazla 8 fotoğraf · Her biri en fazla 8 MB</span><input id="hm-files" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="Fotoğrafları seç"></label><div id="hm-thumbs"></div><div id="hm-marker-tools"></div><div id="hm-stage"></div><div id="hm-duplicates"></div></section><form id="hm-upload-form" novalidate><div id="hm-fields"></div><div id="kn-batch-meta">${knButton("Bu bilgileri diğer fotoğraflara uygula", "batch-meta", "", "btn")}</div><section class="hm-publish"><h3>Avlu’da kalacak.</h3><p>Fotoğrafın tarihi, yeri, kişileri ve hikâyesi birlikte saklanır.</p><label class="hm-check"><input type="checkbox" id="hm-share" ${share ? "checked" : ""}> Hayat’ta da paylaş</label><div id="kn-share-copy"><label class="field">Hayat paylaşımına bir şey yaz<textarea id="kn-photo-body" name="body" maxlength="6000" rows="3" placeholder="Bu fotoğrafı paylaşırken ne söylemek istersin?">${esc(share ? ff.draft.body : "")}</textarea></label><small>Bu yazı ve altına yazılacak yorumlar yalnızca Hayat’ta görünür; Avlu’daki hatırayı değiştirmez.</small></div><p id="hm-summary" class="hm-summary"></p></section><div class="form-error" role="alert"></div><div class="kn-upload-footer">${knButton(icon("arrow-left") + " Geri", "upload-back", "", "btn")}<small id="kn-photo-draft" role="status"></small>${knButton("Devam " + icon("arrow-right"), "upload-next", "", "btn primary")}<button class="btn primary" id="kn-upload-submit" type="submit" hidden>Avlu’ya kaydet</button></div></form></div>`,
+    `<nav class="kn-upload-steps" aria-label="Yükleme adımları"><span data-step="1">1 <b>Fotoğraf</b></span><span data-step="2">2 <b>Hikâyesi</b></span><span data-step="3">3 <b>Kaydet</b></span></nav><div id="kn-resume-photo"></div><div class="hm-upload-layout kn-upload" data-step="1"><section class="hm-upload-stage"><label class="hm-file-zone">${icon("image-plus")}<strong>Birlikte saklayacağımız kareler.</strong><span>${uiVideoOn() ? `Fotoğraf ya da video bırak veya seç<br>En fazla 8 dosya · Fotoğraf 8 MB · Video ${window.sfConfig.video.maxMb} MB ve ${Math.round(window.sfConfig.video.maxSeconds / 60)} dakika` : "Fotoğrafları buraya bırak veya seç<br>En fazla 8 fotoğraf · Her biri en fazla 8 MB"}</span><input id="hm-files" type="file" accept="${uiVideoAccept()}" multiple aria-label="${uiVideoOn() ? "Fotoğraf veya video seç" : "Fotoğrafları seç"}"></label><div id="hm-thumbs"></div><div id="hm-marker-tools"></div><div id="hm-stage"></div><div id="hm-duplicates"></div></section><form id="hm-upload-form" novalidate><div id="hm-fields"></div><div id="kn-batch-meta">${knButton("Bu bilgileri diğer fotoğraflara uygula", "batch-meta", "", "btn")}</div><section class="hm-publish"><h3>Avlu’da kalacak.</h3><p>Fotoğrafın tarihi, yeri, kişileri ve hikâyesi birlikte saklanır.</p><label class="hm-check"><input type="checkbox" id="hm-share" ${share ? "checked" : ""}> Hayat’ta da paylaş</label><div id="kn-share-copy"><label class="field">Hayat paylaşımına bir şey yaz<textarea id="kn-photo-body" name="body" maxlength="6000" rows="3" placeholder="Bu fotoğrafı paylaşırken ne söylemek istersin?">${esc(share ? ff.draft.body : "")}</textarea></label><small>Bu yazı ve altına yazılacak yorumlar yalnızca Hayat’ta görünür; Avlu’daki hatırayı değiştirmez.</small></div><p id="hm-summary" class="hm-summary"></p></section><div class="form-error" role="alert"></div><div class="kn-upload-footer">${knButton(icon("arrow-left") + " Geri", "upload-back", "", "btn")}<small id="kn-photo-draft" role="status"></small>${knButton("Devam " + icon("arrow-right"), "upload-next", "", "btn primary")}<button class="btn primary" id="kn-upload-submit" type="submit" hidden>Avlu’ya kaydet</button></div></form></div>`,
     true,
   );
   const f = $("#hm-upload-form");
@@ -461,15 +461,16 @@ hmUpload = function (share = false) {
       files = [...files];
       if (files.length + hm.uploads.length > 8) throw Error("En fazla 8 fotoğraf seçebilirsin.");
       for (const file of files) {
-        const data = await ffImage(file);
-        hm.uploads.push({ data, peopleIds: [], positions: [], datePrecision: "day", title: "", date: "", place: "", description: "", outsiders: "" });
+        const video = uiVideoOn() && uiIsVideo(file) ? await uiVideoPrepare(file) : null,
+          data = video ? video.poster : await ffImage(file);
+        hm.uploads.push({ data, video, peopleIds: [], positions: [], datePrecision: "day", title: "", date: "", place: "", description: "", outsiders: "" });
       }
       hm.index = 0;
       hmShowUpload();
       knUploadGo(2);
       knSavePhotos();
       for (const p of hm.uploads) {
-        if (!crypto.subtle) continue;
+        if (!crypto.subtle || p.video) continue;
         const bytes = Uint8Array.from(atob(p.data.split(",")[1]), (c) => c.charCodeAt(0)),
           digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)))
             .map((x) => x.toString(16).padStart(2, "0"))
@@ -528,9 +529,21 @@ hmUpload = function (share = false) {
         throw Error("Bağlantı yok. Taslağı saklayıp bağlanınca Kaydet’e dokun.");
       }
       const share = $("#hm-share").checked;
+      // Videos go up first, in pieces with progress; a failure keeps what arrived, and saving again resumes it.
+      const videos = hm.uploads.filter((p) => p.video && !p.videoId);
+      for (let i = 0; i < videos.length; i++) {
+        const label = videos.length > 1 ? `${i + 1}/${videos.length}. ` : "";
+        videos[i].videoId = (
+          await uiVideoUpload(videos[i].video, (sent, total) => {
+            if (!$("#kn-video-progress")) $(".form-error", f)?.insertAdjacentHTML("beforebegin", '<div id="kn-video-progress"></div>');
+            $("#kn-video-progress").innerHTML = uiVideoProgress(sent, total, label);
+          })
+        ).id;
+        knSavePhotos();
+      }
       const saved = await hmApi("", "POST", {
         clientId: hm.clientId,
-        photos: hm.uploads,
+        photos: hm.uploads.map(({ video, ...p }) => p),
         share,
         body: share ? $("#kn-photo-body").value : "",
         visibility: "family",

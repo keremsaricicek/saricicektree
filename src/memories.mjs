@@ -1,7 +1,7 @@
 import { assert, clean, validDate } from "./domain.mjs";
 import { photoVisibleSQL, visiblePhoto } from "./archive.mjs";
 import { hiddenPeople } from "./privacy.mjs";
-import { variantRoutes, mediaInfo } from "./variants.mjs";
+import { variantRoutes, mediaInfo, videoInfo } from "./variants.mjs";
 import { decodeUpload, inspectImage } from "./media-check.mjs";
 const now = () => new Date().toISOString(),
   uuid = () => crypto.randomUUID();
@@ -58,7 +58,7 @@ async function importLegacy({ all, batch, u }) {
     const id = "legacy-feed-" + p.id;
     await batch([
       [
-        "INSERT OR IGNORE INTO photos VALUES(?,?,?,?,?,?,?,?,?,?,NULL)",
+        "INSERT OR IGNORE INTO photos VALUES(?,?,?,?,?,?,?,?,?,?,NULL,NULL)",
         id,
         "Hayat’tan bir fotoğraf",
         p.date,
@@ -103,6 +103,7 @@ export async function memories(ctx) {
       positions: JSON.parse(details?.positions || "[]"),
       albumId: details?.albumId || null,
       media: await mediaInfo(one, all, p.id),
+      video: await videoInfo(one, p.videoId),
     };
   }
   if (path === root && method === "GET") {
@@ -177,7 +178,14 @@ export async function memories(ctx) {
       const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)))
         .map((x) => x.toString(16).padStart(2, "0"))
         .join("");
-      items.push({ ...m, id: uuid(), filename: "memories/" + uuid(), mime, width, height, bytes, digest });
+      // A video is stored as a photo whose image is the video's cover frame, so albums, tags, privacy and Hayat work unchanged.
+      let videoId = null;
+      if (v.videoId) {
+        assert(ctx.videos, 400, "Video yükleme bu sunucuda kapalı.");
+        assert(!items.some((x) => x.videoId === v.videoId), 400, "Aynı video iki kez eklenemez.");
+        videoId = (await ctx.videos.claim(u, String(v.videoId))).id;
+      }
+      items.push({ ...m, id: uuid(), filename: "memories/" + uuid(), mime, width, height, bytes, digest, videoId });
     }
     const statements = [],
       time = now(),
@@ -185,7 +193,20 @@ export async function memories(ctx) {
     for (let i = 0; i < items.length; i++) {
       const p = items[i];
       statements.push(
-        ["INSERT INTO photos VALUES(?,?,?,?,?,?,?,?,?,?,NULL)", p.id, p.title, p.date, p.place, p.description, p.filename, p.mime, u.id, status, time],
+        [
+          "INSERT INTO photos VALUES(?,?,?,?,?,?,?,?,?,?,NULL,?)",
+          p.id,
+          p.title,
+          p.date,
+          p.place,
+          p.description,
+          p.filename,
+          p.mime,
+          u.id,
+          status,
+          time,
+          p.videoId,
+        ],
         [
           "INSERT INTO photo_details VALUES(?,?,?,?,?,?,?,?,?,?)",
           p.id,

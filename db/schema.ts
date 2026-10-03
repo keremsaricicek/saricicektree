@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, unique, check, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index, uniqueIndex, unique, check, primaryKey } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 export const users = sqliteTable(
   "users",
@@ -76,8 +76,15 @@ export const photos = sqliteTable(
     status: text("status").notNull(),
     createdAt: text("createdAt").notNull(),
     deletedAt: text("deletedAt"),
+    videoId: text("videoId"),
   },
-  (t) => [check("photos_status_valid", sql`status IN ('pending','approved','rejected')`), index("photos_status").on(t.status, t.createdAt)],
+  (t) => [
+    check("photos_status_valid", sql`status IN ('pending','approved','rejected')`),
+    index("photos_status").on(t.status, t.createdAt),
+    uniqueIndex("photos_video")
+      .on(t.videoId)
+      .where(sql`videoId IS NOT NULL`),
+  ],
 );
 export const photo_people = sqliteTable(
   "photo_people",
@@ -694,3 +701,35 @@ export const push_devices = sqliteTable(
   },
   (t) => [index("push_devices_user").on(t.userId)],
 );
+// Videos (Node): the original, a playback copy (H.264 MP4, made with ffmpeg when available) and a poster.
+export const videos = sqliteTable(
+  "videos",
+  {
+    id: text("id").primaryKey(),
+    createdBy: text("createdBy").notNull(),
+    status: text("status").notNull().default("processing"),
+    originalMime: text("originalMime").notNull(),
+    bytes: integer("bytes").notNull(),
+    seconds: integer("seconds").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    hasPlayback: integer("hasPlayback").notNull().default(0),
+    hasPoster: integer("hasPoster").notNull().default(0),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: text("nextAttemptAt"),
+    lastError: text("lastError"),
+    createdAt: text("createdAt").notNull(),
+    updatedAt: text("updatedAt").notNull(),
+  },
+  (t) => [index("videos_status").on(t.status, t.nextAttemptAt)],
+);
+// Resumable video uploads: bytes arrive in chunks into a temporary file.
+export const upload_sessions = sqliteTable("upload_sessions", {
+  id: text("id").primaryKey(),
+  userId: text("userId").notNull(),
+  size: integer("size").notNull(),
+  received: integer("received").notNull().default(0),
+  mime: text("mime").notNull(),
+  createdAt: text("createdAt").notNull(),
+  expiresAt: text("expiresAt").notNull(),
+});

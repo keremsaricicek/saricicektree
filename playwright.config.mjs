@@ -1,5 +1,6 @@
 // Browser tests against a Node server with an empty, throw-away database.
 import { defineConfig, devices } from "@playwright/test";
+import ffmpeg from "ffmpeg-static";
 
 const port = 3998;
 export default defineConfig({
@@ -21,7 +22,8 @@ export default defineConfig({
       command: "node scripts/test-server.mjs",
       url: `http://localhost:${port}/health`,
       reuseExistingServer: false,
-      env: { PORT: String(port) },
+      // Video playback copies use a real ffmpeg (the npm build, used for tests only).
+      env: { PORT: String(port), FFMPEG_PATH: String(ffmpeg) },
       timeout: 60_000,
     },
     {

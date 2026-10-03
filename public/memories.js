@@ -355,7 +355,7 @@ photoDetail = async function (id) {
     hm.current = p;
     modal(
       p.title,
-      `<div class="hm-viewer"><div class="hm-view-photo"><div class="hm-marker-image"><img src="${esc(p.url)}" alt="${esc(p.title)}">${(p.positions || []).map((pos) => `<button class="hm-pin" style="left:${pos.x}%;top:${pos.y}%" data-action="profile" data-id="${esc(pos.personId)}">${esc(state.people.find((x) => x.id === pos.personId)?.name || "Kişi")}</button>`).join("")}</div><div id="hm-album-strip"></div></div><aside class="hm-view-story"><span class="eyebrow">${esc(hmDate(p))}</span><h2>${esc(p.title)}</h2><p class="hm-location">${icon("map-pin")}${esc(p.place)}</p><p class="hm-story">${esc(p.description)}</p><div class="hm-person-tags">${(
+      `<div class="hm-viewer"><div class="hm-view-photo">${p.video ? uiVideoPlayer(p.video, p.url, p.title) : `<div class="hm-marker-image"><img src="${esc(p.url)}" alt="${esc(p.title)}">${(p.positions || []).map((pos) => `<button class="hm-pin" style="left:${pos.x}%;top:${pos.y}%" data-action="profile" data-id="${esc(pos.personId)}">${esc(state.people.find((x) => x.id === pos.personId)?.name || "Kişi")}</button>`).join("")}</div>`}<div id="hm-album-strip"></div></div><aside class="hm-view-story"><span class="eyebrow">${esc(hmDate(p))}</span><h2>${esc(p.title)}</h2><p class="hm-location">${icon("map-pin")}${esc(p.place)}</p><p class="hm-story">${esc(p.description)}</p><div class="hm-person-tags">${(
         p.peopleIds || []
       )
         .map((id) => state.people.find((x) => x.id === id))

@@ -26,9 +26,10 @@ export async function community({
   onAccountDeleted = null,
   opsInfo = {},
   nativePush = null,
+  videos = null,
 }) {
   if (path.startsWith("/api/experience/"))
-    return experience({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted, keyText, defer, mediaJobs, opsInfo, nativePush });
+    return experience({ path, method, url, u, read, all, one, run, batch, storage, limit, hosted, keyText, defer, mediaJobs, opsInfo, nativePush, videos });
   const reply = (data, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
   const staff = () => assert(u.role !== "member", 403, "Moderatör yetkisi gerekiyor.");

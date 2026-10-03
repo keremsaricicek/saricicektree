@@ -9,12 +9,13 @@ function uiViewer(items, start = 0, meta = {}) {
     lb = document.createElement("dialog");
   lb.className = "ds-lightbox";
   lb.setAttribute("aria-label", "Fotoğraf görüntüleyici");
-  lb.innerHTML = `<div class="ds-lb-bg"></div><div class="ds-lb-top"><span class="ds-lb-count" aria-live="polite"></span><div class="ds-lb-tools"><button type="button" class="ds-lb-btn ds-lb-story" hidden>${icon("book-open-text")}<span>Hikâyesi</span></button><button type="button" class="ds-lb-btn ds-lb-zoom" aria-label="Yakınlaştır">${icon("zoom-in")}</button><button type="button" class="ds-lb-btn ds-lb-close" aria-label="Kapat">${icon("x")}</button></div></div><div class="ds-lb-stage"><div class="ds-lb-track">${items.map((x, i) => `<figure class="ds-lb-slide"><img src="${esc(x.url)}" alt="${esc(x.alt || "")}" draggable="false" ${Math.abs(i - start) > 1 ? 'loading="lazy"' : ""}></figure>`).join("")}</div>${items.length > 1 ? `<button type="button" class="ds-lb-nav is-prev" aria-label="Önceki fotoğraf">${icon("chevron-left")}</button><button type="button" class="ds-lb-nav is-next" aria-label="Sonraki fotoğraf">${icon("chevron-right")}</button>` : ""}</div><div class="ds-lb-foot">${meta.caption ? `<div class="ds-lb-caption">${meta.caption}</div>` : ""}${items.length > 1 ? `<div class="ds-lb-dots">${items.map(() => "<i></i>").join("")}</div>` : ""}</div>`;
+  lb.innerHTML = `<div class="ds-lb-bg"></div><div class="ds-lb-top"><span class="ds-lb-count" aria-live="polite"></span><div class="ds-lb-tools"><button type="button" class="ds-lb-btn ds-lb-story" hidden>${icon("book-open-text")}<span>Hikâyesi</span></button><button type="button" class="ds-lb-btn ds-lb-zoom" aria-label="Yakınlaştır">${icon("zoom-in")}</button><button type="button" class="ds-lb-btn ds-lb-close" aria-label="Kapat">${icon("x")}</button></div></div><div class="ds-lb-stage"><div class="ds-lb-track">${items.map((x, i) => `<figure class="ds-lb-slide">${x.video ? uiVideoPlayer(x.video, x.url, x.alt) : `<img src="${esc(x.url)}" alt="${esc(x.alt || "")}" draggable="false" ${Math.abs(i - start) > 1 ? 'loading="lazy"' : ""}>`}</figure>`).join("")}</div>${items.length > 1 ? `<button type="button" class="ds-lb-nav is-prev" aria-label="Önceki fotoğraf">${icon("chevron-left")}</button><button type="button" class="ds-lb-nav is-next" aria-label="Sonraki fotoğraf">${icon("chevron-right")}</button>` : ""}</div><div class="ds-lb-foot">${meta.caption ? `<div class="ds-lb-caption">${meta.caption}</div>` : ""}${items.length > 1 ? `<div class="ds-lb-dots">${items.map(() => "<i></i>").join("")}</div>` : ""}</div>`;
   document.body.append(lb);
   hydrate();
   const stage = $(".ds-lb-stage", lb),
     track = $(".ds-lb-track", lb),
-    slides = $$(".ds-lb-slide img", lb);
+    // One element per slide: the photo, or the video's frame; zoom and drag gestures stay off videos so their controls work.
+    slides = $$(".ds-lb-slide > :first-child", lb);
   let index = start,
     scale = 1,
     tx = 0,
@@ -50,6 +51,8 @@ function uiViewer(items, start = 0, meta = {}) {
     track.style.transform = `translate3d(${-index * 100}%,0,0)`;
     $(".ds-lb-count", lb).textContent = items.length > 1 ? `${index + 1} / ${items.length}` : "";
     $$(".ds-lb-dots i", lb).forEach((d, i) => d.classList.toggle("on", i === index));
+    $$("video", lb).forEach((v) => v.closest(".ds-lb-slide") !== slides[index].closest(".ds-lb-slide") && v.pause());
+    $(".ds-lb-zoom", lb).hidden = !!items[index].video;
     const story = $(".ds-lb-story", lb);
     story.hidden = !(items[index].id && meta.story);
     $(".ds-lb-nav.is-prev", lb)?.toggleAttribute("disabled", index === 0);
@@ -92,7 +95,7 @@ function uiViewer(items, start = 0, meta = {}) {
   });
 
   stage.addEventListener("pointerdown", (e) => {
-    if (e.target.closest("button")) return;
+    if (e.target.closest("button, .ds-video")) return;
     stage.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size === 2) {
@@ -170,7 +173,7 @@ function uiViewer(items, start = 0, meta = {}) {
   stage.addEventListener("pointerup", end);
   stage.addEventListener("pointercancel", end);
   stage.addEventListener("dblclick", (e) => {
-    if (!e.target.closest("button")) zoomAt(scale > 1 ? 1 : 2.5, e.clientX, e.clientY);
+    if (!e.target.closest("button, .ds-video")) zoomAt(scale > 1 ? 1 : 2.5, e.clientX, e.clientY);
   });
   stage.addEventListener(
     "wheel",
@@ -221,7 +224,7 @@ function uiLightbox(postId, index = 0) {
   if (!p) return;
   const imgs = uiImages(p);
   uiViewer(
-    imgs.map((x) => ({ url: uiBigUrl(x.url, x.media), id: x.id, alt: x.title || p.body?.slice(0, 100) || "Aile fotoğrafı" })),
+    imgs.map((x) => ({ url: uiBigUrl(x.url, x.media), id: x.id, video: x.video, alt: x.title || p.body?.slice(0, 100) || "Aile fotoğrafı" })),
     index,
     {
       story: true,

@@ -1,5 +1,5 @@
 import { memories } from "./memories.mjs";
-import { mediaInfo } from "./variants.mjs";
+import { mediaInfo, videoInfo } from "./variants.mjs";
 import { publishAll } from "./realtime.mjs";
 import { assert, clean, validDate } from "./domain.mjs";
 import { photoVisibleSQL, visiblePhoto } from "./archive.mjs";
@@ -70,7 +70,14 @@ export async function feed(ctx) {
       const rows = album?.albumId ? await all("SELECT photoId id FROM photo_details WHERE albumId=? ORDER BY clientId", album.albumId) : [{ id: p.photoId }];
       for (const x of rows) {
         const photo = await visiblePhoto(one, u, x.id);
-        if (photo) images.push({ id: x.id, url: "/media/" + x.id, title: photo.title, media: await mediaInfo(one, all, x.id) });
+        if (photo)
+          images.push({
+            id: x.id,
+            url: "/media/" + x.id,
+            title: photo.title,
+            media: await mediaInfo(one, all, x.id),
+            video: await videoInfo(one, photo.videoId),
+          });
       }
     }
     const hidden = await hiddenPeople(all, u);

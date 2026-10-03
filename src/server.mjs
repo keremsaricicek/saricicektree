@@ -13,6 +13,8 @@ import { log } from "./log.mjs";
 import { backupDue } from "./offsite-backup.mjs";
 import { createMailer } from "./mail.mjs";
 import { createNativePush } from "./native-push.mjs";
+import { createVideos, findFfmpeg, streamFile } from "./video.mjs";
+import { visiblePhoto } from "./archive.mjs";
 import { spawn } from "node:child_process";
 import { connect as connectHttp2 } from "node:http2";
 import { fileURLToPath } from "node:url";
@@ -53,6 +55,8 @@ const localStorageAdapter = {
 const mediaJobs = process.env.MEDIA_JOBS === "off" ? null : startMediaJobs({ all, one, run, storage: localStorageAdapter });
 const mailer = (await createMailer({ all, one, run })).start();
 const nativePush = createNativePush(process.env, { http2Connect: connectHttp2 });
+// Videos need the file system (chunked upload, streaming); ffmpeg makes playback copies when present.
+const videos = process.env.VIDEOS === "off" ? null : createVideos({ all, one, run }, { dataDir, ffmpeg: await findFfmpeg() }).start();
 const now = () => new Date().toISOString(),
   publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: u.active });
 // Logged as a JSON line and kept in error_log for the admin panel; never with request bodies.
@@ -178,7 +182,9 @@ async function handler(req, res) {
     if (path === "/health") return json(res, 200, { ok: true });
     if (path.startsWith("/api/") && !["GET", "HEAD"].includes(method)) {
       assert(req.headers.origin === origin, 403, "İstek kaynağı doğrulanamadı.");
-      assert((req.headers["content-type"] || "").startsWith("application/json"), 415, "JSON içerik gerekiyor.");
+      // Video chunks are raw bytes; every other write is JSON. Origin and the session's CSRF token are checked for both.
+      const chunk = method === "PUT" && /^\/api\/experience\/videos\/uploads\/[\w-]+$/.test(path);
+      assert((req.headers["content-type"] || "").startsWith(chunk ? "application/octet-stream" : "application/json"), 415, "JSON içerik gerekiyor.");
     }
     if (path === "/api/login" && method === "POST") {
       limit("login-ip:" + clientAddress(req), 40);
@@ -252,10 +258,35 @@ async function handler(req, res) {
         supportEmail: process.env.SUPPORT_EMAIL || null,
         mail: mailer.enabled,
         nativePush: nativePush.available,
+        video: videos ? { maxMb: Math.round(videos.limits.bytes / 1048576), maxSeconds: videos.limits.seconds, playbackCopies: videos.ffmpeg } : null,
       });
     if (path.startsWith("/api/") || path.startsWith("/media/") || path.startsWith("/document/") || path.startsWith("/archive-media/")) {
       const { u, session } = authorize(req);
       await securityGate({ u, path, token: req.headers["x-family-factor"] || cookie(req.headers.cookie).sf_factor, one });
+      const videoUpload = path.match(/^\/api\/experience\/videos\/uploads(?:\/([\w-]+))?(\/complete)?$/);
+      if (videoUpload) {
+        assert(videos, 404, "Bu kurulumda video yüklenemez.");
+        const [, id, done] = videoUpload;
+        if (!id && method === "POST") {
+          limit("video-new:" + u.id, 30, 3600000);
+          return json(res, 201, await videos.createUpload(u, await body(req, 2000)));
+        }
+        if (id && !done && method === "GET") return json(res, 200, await videos.uploadState(u, id));
+        if (id && !done && method === "PUT") {
+          limit("video-chunk:" + u.id, 3000, 3600000);
+          const r = await videos.writeChunk(u, id, Number(url.searchParams.get("offset")), req, Number(req.headers["content-length"]));
+          return json(res, r.status, r.body);
+        }
+        if (id && done && method === "POST") return json(res, 201, await videos.complete(u, id, await body(req, 3 * 1024 * 1024)));
+        assert(false, 405, "İşlem desteklenmiyor.");
+      }
+      const videoFile = path.match(/^\/api\/experience\/videos\/([\w-]+)(?:\/(play|poster))?$/);
+      if (videoFile && ["GET", "HEAD"].includes(method)) {
+        assert(videos, 404, "Video bulunamadı.");
+        const helpers = { visiblePhoto };
+        if (!videoFile[2]) return json(res, 200, await videos.info(u, videoFile[1], helpers));
+        return streamFile(req, res, await videos.file(u, videoFile[1], videoFile[2], helpers));
+      }
       if (path === "/api/chat/stream" && method === "GET") {
         const controller = new AbortController();
         res.on("close", () => controller.abort());
@@ -323,13 +354,16 @@ async function handler(req, res) {
           mediaJobs,
           opsInfo,
           nativePush,
+          videos,
           // Node keeps its own sign-in data; the shared code removes everything else.
-          onAccountDeleted: (id) =>
+          onAccountDeleted: async (id) => {
             transaction(() => {
               run("DELETE FROM sessions WHERE userId=?", id);
               run("DELETE FROM resets WHERE userId=?", id);
               run("UPDATE users SET password=? WHERE id=?", "deleted:" + "0".repeat(128), id);
-            }),
+            });
+            await videos?.forgetUser(id);
+          },
         });
         res.writeHead(r.status, Object.fromEntries(r.headers));
         return res.end(Buffer.from(await r.arrayBuffer()));

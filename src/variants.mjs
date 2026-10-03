@@ -39,6 +39,23 @@ export async function mediaInfo(one, all, photoId) {
   };
 }
 
+/** Playback state of a photo that is a video's cover frame, or null. Access is checked by the photo that carries it. */
+export async function videoInfo(one, videoId) {
+  if (!videoId) return null;
+  const v = await one("SELECT id,status,seconds,width,height,hasPoster FROM videos WHERE id=?", videoId);
+  if (!v) return null;
+  const base = "/api/experience/videos/" + v.id;
+  return {
+    id: v.id,
+    status: v.status,
+    seconds: v.seconds,
+    width: v.width,
+    height: v.height,
+    play: base + "/play",
+    poster: v.hasPoster ? base + "/poster" : null,
+  };
+}
+
 /** Real size of the stored original, recorded in photo_media on first use. */
 export async function originalSize({ one, run, storage }, photo) {
   const m = await one("SELECT width,height FROM photo_media WHERE photoId=?", photo.id);

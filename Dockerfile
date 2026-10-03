@@ -1,7 +1,8 @@
 FROM node:24-bookworm-slim AS client
 WORKDIR /build
 COPY package.json package-lock.json ./
-RUN npm ci
+# Install scripts are not needed to build the client (and would download the test-only ffmpeg).
+RUN npm ci --ignore-scripts
 COPY src/build-client.mjs ./src/build-client.mjs
 COPY mobile ./mobile
 COPY public ./public
@@ -9,6 +10,8 @@ RUN node src/build-client.mjs
 
 FROM node:24-bookworm-slim
 WORKDIR /app
+# ffmpeg makes the playable copy and cover of uploaded videos (VIDEOS=off turns video off).
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 # Runtime dependencies only (sharp makes the smaller photo copies).
 COPY --chown=node:node package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
