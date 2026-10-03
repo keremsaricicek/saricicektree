@@ -204,18 +204,36 @@ export function signS3({ method, url, headers = {}, payloadHash, accessKeyId, se
   };
 }
 
+/** Address and keys for an object in the S3-compatible store named by an s3://bucket/key location. */
+function s3Object(location, env) {
+  const [bucket, ...rest] = location.slice(5).split("/");
+  const key = rest.filter(Boolean).join("/");
+  const endpoint = (env.BACKUP_S3_ENDPOINT || `https://s3.${env.BACKUP_S3_REGION || "us-east-1"}.amazonaws.com`).replace(/\/$/, "");
+  const url = `${endpoint}/${bucket}/${key.split("/").map(encodeURIComponent).join("/")}`;
+  const creds = { accessKeyId: env.BACKUP_S3_ACCESS_KEY_ID, secretAccessKey: env.BACKUP_S3_SECRET_ACCESS_KEY, region: env.BACKUP_S3_REGION || "us-east-1" };
+  if (!creds.accessKeyId || !creds.secretAccessKey) throw Error("BACKUP_S3_ACCESS_KEY_ID and BACKUP_S3_SECRET_ACCESS_KEY are required for an s3:// target.");
+  return { bucket, key, url, creds };
+}
+
+/** Downloads a backup from s3://bucket/key into `file` (used by scripts/restore.mjs before restoring). */
+export async function fetchBackup(location, file, env = process.env) {
+  const { url, creds } = s3Object(location, env);
+  const empty = createHash("sha256").update("").digest("hex");
+  const res = await fetch(url, { headers: signS3({ method: "GET", url, payloadHash: empty, ...creds }) });
+  if (!res.ok || !res.body) throw Error(`S3 download failed: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+  await pipeline(Readable.fromWeb(/** @type {any} */ (res.body)), createWriteStream(file));
+  const expected = Number(res.headers.get("content-length"));
+  if (expected && (await stat(file)).size !== expected) throw Error("S3 download was cut off; try again.");
+  return file;
+}
+
 /** Sends a finished backup file to BACKUP_TARGET: a folder path or s3://bucket/prefix. */
 export async function sendBackup(file, sha256, env = process.env) {
   const target = env.BACKUP_TARGET || "";
   const name = basename(file);
   if (target.startsWith("s3://")) {
-    const [bucket, ...prefix] = target.slice(5).split("/");
-    const key = [...prefix.filter(Boolean), name].join("/");
-    const endpoint = (env.BACKUP_S3_ENDPOINT || `https://s3.${env.BACKUP_S3_REGION || "us-east-1"}.amazonaws.com`).replace(/\/$/, "");
-    const url = `${endpoint}/${bucket}/${key.split("/").map(encodeURIComponent).join("/")}`;
+    const { bucket, key, url, creds } = s3Object(target.replace(/\/?$/, "/") + name, env);
     const { size } = await stat(file);
-    const creds = { accessKeyId: env.BACKUP_S3_ACCESS_KEY_ID, secretAccessKey: env.BACKUP_S3_SECRET_ACCESS_KEY, region: env.BACKUP_S3_REGION || "us-east-1" };
-    if (!creds.accessKeyId || !creds.secretAccessKey) throw Error("BACKUP_S3_ACCESS_KEY_ID and BACKUP_S3_SECRET_ACCESS_KEY are required for an s3:// target.");
     const headers = signS3({ method: "PUT", url, headers: { "content-length": size }, payloadHash: sha256, ...creds });
     // Streamed upload; `duplex` is required by Node's fetch for a stream body (not yet in the DOM types).
     const upload = /** @type {RequestInit} */ ({ method: "PUT", headers, body: Readable.toWeb(createReadStream(file)), duplex: "half" });

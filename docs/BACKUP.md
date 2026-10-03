@@ -57,10 +57,13 @@ docker compose exec app node scripts/backup.mjs
 ## Geri yükleme (boş bir ortama)
 
 ```sh
-# 1. Yedeği indirin (S3'ten ya da yedek klasöründen) ve boş bir birime geri yükleyin:
+# 1. Boş bir birime geri yükleyin. Kaynak bir dosya ya da doğrudan S3 adresi olabilir
+#    (S3 için BACKUP_S3_* ayarları da verilir; yedek önce indirilir):
 docker volume create aile_geri
 docker run --rm -v aile_geri:/app/data -v "$PWD:/yedek" -e BACKUP_PASSPHRASE=... \
   <imaj> node scripts/restore.mjs /yedek/saricicek-....sfbk /app/data
+docker run --rm -v aile_geri:/app/data --env-file .env \
+  <imaj> node scripts/restore.mjs s3://aile-yedek/saricicek/saricicek-....sfbk /app/data
 # 2. Uygulamayı bu birimle başlatın (compose.yaml'daki family_data yerine aile_geri).
 ```
 
@@ -85,7 +88,13 @@ Dosyalar önce hedefin içindeki geçici bir klasöre çıkarılır ve ancak hep
   - Çalışan kapsayıcıda `node scripts/backup.mjs` ile yedek alındı (6 dosya, 0,4 MB).
   - Yedek, ayrı bir kapsayıcıda boş bir Docker birimine geri yüklendi.
   - Bu birimle başlatılan yeni kapsayıcı aynı kişileri ve aynı fotoğrafı sundu; SHA-256 özeti aynıydı.
-- **Denenmedi.** Gerçek bir S3/R2/B2 hesabına yükleme yapılmadı; hesap ve anahtar gerekiyor. İmza, resmî imzalayıcıyla karşılaştırılarak doğrulandı.
+- **S3 döngüsü (`tests/backup.test.mjs`).** Yerel bir S3 taklidine yedek yüklendi (PUT, ardından boyut kontrolü için
+  HEAD), oradan indirilip boş klasöre geri yüklendi; fotoğraf baytı ve hesap aynı çıktı. Taklit her isteğin imzasını
+  AWS'nin resmî imzalayıcısıyla yeniden hesaplayıp karşılaştırır; yanlış anahtar 403 aldı ve hiçbir şey yazılmadı.
+- **Denenmedi (açık engel).** Gerçek bir S3/R2/B2 hesabına yükleme, indirme ve geri yükleme yapılmadı; depolama hesabı
+  ve anahtarları gerekiyor. Anahtarlar `.env`'e girildikten sonra yapılacak tek deneme:
+  `docker compose exec app node scripts/backup.mjs` → çıktıdaki `s3://…` adresiyle yukarıdaki geri yükleme komutu boş
+  bir birime → o birimle uygulamayı başlatıp giriş yapmak.
 
 ## Cloudflare (Sites) sürümü
 

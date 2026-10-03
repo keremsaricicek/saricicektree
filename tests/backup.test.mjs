@@ -10,6 +10,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { signS3, backupDue } from "../src/offsite-backup.mjs";
 
@@ -256,4 +257,79 @@ test("S3 request signing matches the AWS reference signer", async () => {
     );
     assert.equal(mine.authorization, reference.headers.authorization, url);
   }
+});
+
+test("S3 round trip: upload, download and restore into an empty folder (local S3 stand-in checking AWS signatures)", async (t) => {
+  const { SignatureV4 } = await import("@smithy/signature-v4");
+  const { Sha256 } = await import("@aws-crypto/sha256-js");
+  const credentials = { accessKeyId: "AKIDLOCALTEST", secretAccessKey: "local-secret-for-tests-only" };
+  const objects = new Map(),
+    requests = [];
+  // Accepts PUT/HEAD/GET only with a valid Signature V4, recomputed by the AWS reference signer.
+  const s3 = createServer(async (req, res) => {
+    const chunks = [];
+    for await (const c of req) chunks.push(c);
+    const body = Buffer.concat(chunks),
+      u = new URL(req.url, "http://" + req.headers.host),
+      date = req.headers["x-amz-date"];
+    const signed =
+      String(req.headers.authorization || "")
+        .match(/SignedHeaders=([^,]+)/)?.[1]
+        .split(";") || [];
+    const expected = await new SignatureV4({ credentials, region: "auto", service: "s3", sha256: Sha256, uriEscapePath: false, applyChecksum: false }).sign(
+      {
+        method: req.method,
+        protocol: "http:",
+        hostname: u.hostname,
+        port: Number(u.port),
+        path: u.pathname,
+        query: {},
+        headers: Object.fromEntries(signed.map((h) => [h, String(req.headers[h])])),
+      },
+      { signingDate: new Date(date.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, "$1-$2-$3T$4:$5:$6Z")) },
+    );
+    requests.push(req.method);
+    if (expected.headers.authorization !== req.headers.authorization) return res.writeHead(403).end("SignatureDoesNotMatch");
+    if (req.method === "PUT") {
+      assert.equal(createHash("sha256").update(body).digest("hex"), req.headers["x-amz-content-sha256"], "payload hash matches the bytes");
+      objects.set(u.pathname, body);
+      return res.writeHead(200).end();
+    }
+    const obj = objects.get(u.pathname);
+    if (!obj) return res.writeHead(404).end("NoSuchKey");
+    res.writeHead(200, { "content-length": obj.length });
+    res.end(req.method === "HEAD" ? undefined : obj);
+  }).listen(0);
+  await once(s3, "listening");
+  const dir = mkdtempSync(join(tmpdir(), "sf-s3-")),
+    data = join(dir, "live"),
+    restored = join(dir, "restored");
+  t.after(() => (s3.close(), rmSync(dir, { recursive: true, force: true })));
+  await run(process.execPath, ["src/admin.mjs"], {
+    env: { ...process.env, DATA_DIR: data, ADMIN_EMAIL: "owner@s3.test", ADMIN_PASSWORD: "owner-long-password" },
+  });
+  mkdirSync(join(data, "uploads", "memories"), { recursive: true });
+  const photo = readFileSync("tests/fixtures/photo-1100.jpg");
+  writeFileSync(join(data, "uploads", "memories", "photo-1"), photo);
+  const s3env = {
+    BACKUP_S3_ENDPOINT: `http://localhost:${s3.address().port}`,
+    BACKUP_S3_REGION: "auto",
+    BACKUP_S3_ACCESS_KEY_ID: credentials.accessKeyId,
+    BACKUP_S3_SECRET_ACCESS_KEY: credentials.secretAccessKey,
+  };
+
+  const out = await script("backup.mjs", { DATA_DIR: data, BACKUP_TARGET: "s3://aile-yedek/saricicek", BACKUP_PASSPHRASE: PASS, ...s3env });
+  const where = out.stdout.match(/s3:\/\/aile-yedek\/saricicek\/saricicek-[^\s]+\.sfbk/)?.[0];
+  assert.ok(where, out.stdout);
+  assert.deepEqual(requests, ["PUT", "HEAD"], "uploaded, then its size checked");
+
+  // Wrong keys are refused by the store and nothing is written.
+  await assert.rejects(script("restore.mjs", { BACKUP_PASSPHRASE: PASS, ...s3env, BACKUP_S3_SECRET_ACCESS_KEY: "wrong" }, [where, restored]), /403/);
+  assert.equal(existsSync(join(restored, "family.sqlite")), false);
+
+  await script("restore.mjs", { BACKUP_PASSPHRASE: PASS, ...s3env }, [where, restored]);
+  assert.deepEqual(readFileSync(join(restored, "uploads", "memories", "photo-1")), photo, "file restored byte for byte");
+  const db = new DatabaseSync(join(restored, "family.sqlite"));
+  assert.equal(db.prepare("SELECT email FROM users").get().email, "owner@s3.test");
+  db.close();
 });
