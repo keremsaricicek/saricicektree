@@ -67,6 +67,32 @@ try {
       if (hash === "places") await page.waitForSelector("#family-map .leaflet-overlay-pane canvas", { state: "attached", timeout: 60000 });
       const ready = Date.now() - t0;
       await page.waitForTimeout(500);
+      // Map interaction: 10 pans and a zoom in/out, each until Leaflet has redrawn (moveend + two frames).
+      let mapMove = 0;
+      if (hash === "places")
+        mapMove = await page.evaluate(async () => {
+          const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          const t = performance.now();
+          for (let i = 0; i < 10; i++) {
+            familyMap.panBy([120, 40], { animate: false });
+            await frames();
+          }
+          familyMap.setZoom(5, { animate: false });
+          await frames();
+          familyMap.setZoom(3, { animate: false });
+          await frames();
+          return Math.round(performance.now() - t);
+        });
+      // Zooming in past the world view brings the full 1:50m outline: time until it is loaded and drawn.
+      let mapDetail = 0;
+      if (hash === "places")
+        mapDetail = await page.evaluate(async () => {
+          const t = performance.now();
+          familyMap.setZoom(5, { animate: false });
+          while (!window.FamilyWorldDetail) await new Promise((r) => setTimeout(r, 20));
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          return Math.round(performance.now() - t);
+        });
       const nav = await page.evaluate(() => {
         const n = performance.getEntriesByType("navigation")[0],
           fcp = performance.getEntriesByName("first-contentful-paint")[0];
@@ -79,6 +105,8 @@ try {
       samples.push({
         ...nav,
         ready,
+        mapMove,
+        mapDetail,
         scriptMs: Math.round(m.ScriptDuration * 1000),
         heapMB: +(m.JSHeapUsedSize / 1048576).toFixed(1),
         requests: files.length,
@@ -94,7 +122,23 @@ try {
     }
     const pick = (k) => median(samples.map((s) => s[k]));
     const summary = { page: label, runs };
-    for (const k of ["fcp", "dcl", "load", "ready", "scriptMs", "heapMB", "requests", "jsRaw", "jsGzip", "cssRaw", "cssGzip", "allRaw", "allGzip"])
+    for (const k of [
+      "fcp",
+      "dcl",
+      "load",
+      "ready",
+      "mapMove",
+      "mapDetail",
+      "scriptMs",
+      "heapMB",
+      "requests",
+      "jsRaw",
+      "jsGzip",
+      "cssRaw",
+      "cssGzip",
+      "allRaw",
+      "allGzip",
+    ])
       summary[k] = pick(k);
     summary.files = samples[0].files;
     results.push(summary);
@@ -106,7 +150,7 @@ try {
 const kb = (b) => (b / 1024).toFixed(0) + " KB";
 for (const r of results)
   console.log(
-    `${r.page}: FCP ${r.fcp} ms · DOMContentLoaded ${r.dcl} ms · load ${r.load} ms · hazır ${r.ready} ms · betik ${r.scriptMs} ms · ` +
+    `${r.page}: FCP ${r.fcp} ms · DOMContentLoaded ${r.dcl} ms · load ${r.load} ms · hazır ${r.ready} ms · ${r.mapMove ? "harita gezinme " + r.mapMove + " ms · yakınlaşınca tam ayrıntı " + r.mapDetail + " ms · " : ""}yığın ${r.heapMB} MB · betik ${r.scriptMs} ms · ` +
       `JS ${kb(r.jsRaw)} ham / ${kb(r.jsGzip)} gzip · CSS ${kb(r.cssRaw)} / ${kb(r.cssGzip)} · toplam ${kb(r.allRaw)} / ${kb(r.allGzip)} · ${r.requests} istek`,
   );
 if (outFile)

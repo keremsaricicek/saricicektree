@@ -297,7 +297,7 @@ function drawArchiveYear() {
 function drawMigrationMap() {
   if (!window.L || !window.FamilyWorld) return familyWithMap($("#ar-migration-map"), drawMigrationMap, $("#ar-migrations"));
   archiveMap = L.map("ar-migration-map", { minZoom: 2, maxZoom: 10 }).setView([36, 28], 3);
-  L.geoJSON(window.FamilyWorld, { style: { color: "#fff", weight: 1, fillColor: "#a9b797", fillOpacity: 1 } }).addTo(archiveMap);
+  familyWorldLayer(archiveMap, { style: { color: "#fff", weight: 1, fillColor: "#a9b797", fillOpacity: 1 } });
   archiveMap.attributionControl.addAttribution("Natural Earth");
   const entries = archiveItems.filter((e) => e.kind === "migration" && e.status === "approved");
   for (const e of entries) {
@@ -1250,7 +1250,7 @@ function archiveRoutePicker() {
   if (!window.L || !window.FamilyWorld) return familyWithMap($("#ar-route-picker"), archiveRoutePicker, $("#ar-route-pick-status"));
   archiveRouteMap?.remove();
   archiveRouteMap = L.map("ar-route-picker", { minZoom: 2, maxZoom: 10 }).setView([37, 35], 4);
-  L.geoJSON(window.FamilyWorld, { style: { color: "#fff", weight: 1, fillColor: "#a9b797", fillOpacity: 1 } }).addTo(archiveRouteMap);
+  familyWorldLayer(archiveRouteMap, { style: { color: "#fff", weight: 1, fillColor: "#a9b797", fillOpacity: 1 } });
   archiveRouteMap.attributionControl.addAttribution("Natural Earth");
   const marks = {};
   const draw = (side) => {

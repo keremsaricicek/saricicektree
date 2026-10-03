@@ -111,9 +111,9 @@ function uiTreeLayout(list) {
   const width = Math.max(760, ...[...pos.values()].map((p) => p.x + UI_TREE.w + UI_TREE.pad)),
     height = UI_TREE.top + sorted.length * UI_TREE.row - (UI_TREE.row - UI_TREE.h) + 72;
   // Connectors
+  // Each kind of connector is one SVG path made of many pieces, so a large tree adds a handful of elements, not thousands.
   const r = 14,
-    paths = [],
-    marks = [];
+    edges = { parent: [], adoptive: [], spouse: [], ring: [] };
   for (const rr of rel.filter((x) => x.type === "spouse")) {
     const a = pos.get(rr.personA),
       b = pos.get(rr.personB);
@@ -121,13 +121,14 @@ function uiTreeLayout(list) {
     if (a.row !== b.row) {
       // Rare: partners placed on different generations still get a visible link.
       const [t, btm] = a.y < b.y ? [a, b] : [b, a];
-      paths.push(`<path class="ds-edge-spouse" d="M${t.x + UI_TREE.w / 2} ${t.y + UI_TREE.h}L${btm.x + UI_TREE.w / 2} ${btm.y}"/>`);
+      edges.spouse.push(`M${t.x + UI_TREE.w / 2} ${t.y + UI_TREE.h}L${btm.x + UI_TREE.w / 2} ${btm.y}`);
       continue;
     }
     const [l, rgt] = a.x < b.x ? [a, b] : [b, a],
       y = l.y + UI_TREE.h / 2;
-    paths.push(`<path class="ds-edge-spouse" d="M${l.x + UI_TREE.w} ${y}H${rgt.x}"/>`);
-    marks.push(`<circle class="ds-edge-ring" cx="${(l.x + UI_TREE.w + rgt.x) / 2}" cy="${y}" r="5"/>`);
+    edges.spouse.push(`M${l.x + UI_TREE.w} ${y}H${rgt.x}`);
+    const cx = (l.x + UI_TREE.w + rgt.x) / 2;
+    edges.ring.push(`M${cx - 5} ${y}a5 5 0 1 0 10 0a5 5 0 1 0 -10 0`);
   }
   const families = new Map();
   for (const c of list) {
@@ -162,10 +163,19 @@ function uiTreeLayout(list) {
         Math.abs(cx - ox) < 1
           ? `M${ox} ${oy}V${cy}`
           : `M${ox} ${oy}V${bus - rad}Q${ox} ${bus} ${ox + dir * rad} ${bus}H${cx - dir * rad}Q${cx} ${bus} ${cx} ${bus + rad}V${cy}`;
-      paths.unshift(`<path class="ds-edge-parent ${k.adoptive ? "is-adoptive" : ""}" data-child="${esc(k.id)}" d="${d}"/>`);
+      edges[k.adoptive ? "adoptive" : "parent"].push(d);
     }
   }
-  return { pos, rows: sorted, width, height, svg: paths.join("") + marks.join("") };
+  const svg = [
+    ["ds-edge-parent", edges.parent],
+    ["ds-edge-parent is-adoptive", edges.adoptive],
+    ["ds-edge-spouse", edges.spouse],
+    ["ds-edge-ring", edges.ring],
+  ]
+    .filter(([, d]) => d.length)
+    .map(([cls, d]) => `<path class="${cls}" d="${d.join("")}"/>`)
+    .join("");
+  return { pos, rows: sorted, width, height, svg };
 }
 /* Profile portraits the viewer is allowed to see, loaded once per visit to the tree. */
 async function uiTreePortraits() {
@@ -217,11 +227,70 @@ function tree() {
   }
   const L = list.length ? uiTreeLayout(list) : null;
   ui.treeLayout = L;
+  ui.treeList = list;
+  ui.treeWindowed = list.length > UI_TREE_ALL;
   const focusName = treeFocus ? state.people.find((p) => p.id === treeFocus)?.name : "";
   const head = `<section class="page-head ds-tree-head"><div><span class="eyebrow">Köklerimiz</span><h1>Soy Ağacı</h1><p>${state.people.length} kişi · ${L ? L.rows.length : 0} kuşak${treeFocus ? " · " + esc(focusName) + " ve yakınları" : ""}</p></div><div class="row">${isStaff() ? button("Kişi ekle", "add-person", "user-plus", "primary") + button("Bağ ekle", "add-relation", "link-2") : ""}<button type="button" class="btn" data-ui="gedcom">${icon("file-text")}GEDCOM</button>${knButton(icon("circle-help"), "tree-help", 'aria-label="Soy ağacı kullanım bilgisi" title="Nasıl kullanılır?"', "icon-btn")}</div></section>`;
   if (!L) return head + empty("Köklerimizi birlikte çizelim.", "İlk aile üyesini ekleyerek başlayın.", isStaff() ? "add-person" : "");
-  return `${head}<div class="ds-tree-bar"><button type="button" class="search ds-tree-find" data-action="search-tree">${icon("search")}<span>İsim veya lakapla birini bul</span></button>${treeFocus ? `<div class="ds-focus-chip">${avatar(state.people.find((p) => p.id === treeFocus) || focusName)}<span>${esc(focusName)} ve yakınları</span>${button("", "tree-reset", "x", "icon-btn", 'aria-label="Tüm ağacı göster"')}</div>` : ""}</div><section class="tree-board kn-tree-board ds-tree-board"><div class="tree-viewport" tabindex="0" aria-label="Soy ağacı. Kaydırarak gezin; bir kişiye dokunarak profilini açın."><div class="tree-canvas" style="width:${L.width}px;height:${L.height}px;transform:scale(${zoom})"><svg width="${L.width}" height="${L.height}" fill="none" aria-hidden="true">${L.svg}</svg>${L.rows.map(([level], i) => `<span class="ds-gen" style="top:${UI_TREE.top + i * UI_TREE.row - 30}px">${Number(level) + 1}. kuşak</span>`).join("")}${list.map((p) => uiTreeNode(p, L.pos.get(p.id))).join("")}</div></div><canvas class="ds-minimap" aria-hidden="true" hidden></canvas><div class="tree-tools ds-tree-tools"><button data-action="zoom-in" aria-label="Yakınlaştır">${icon("plus")}</button><span id="zoom-label">${Math.round(zoom * 100)}%</span><button data-action="zoom-out" aria-label="Uzaklaştır">${icon("minus")}</button><button data-action="zoom-fit" aria-label="Ekrana sığdır">${icon("scan")}</button></div><div class="ds-tree-legend"><span><i class="is-parent"></i>Ebeveyn – çocuk</span><span><i class="is-spouse"></i>Eş</span><span><i class="is-adoptive"></i>Evlat edinme</span><span>${icon("flower-2")}Anısına</span></div></section><p class="ds-tree-note">${"Bir kişiye dokun: profilini aç ya da yalnızca yakınlarını gör. Ağacı sürükleyerek gezebilirsin."}</p>${isStaff() ? `<div class="ds-tree-foot">${button("Yazdır / PDF", "print-tree", "printer", "text-btn")}</div>` : ""}`;
+  return `${head}<div class="ds-tree-bar"><button type="button" class="search ds-tree-find" data-action="search-tree">${icon("search")}<span>İsim veya lakapla birini bul</span></button>${treeFocus ? `<div class="ds-focus-chip">${avatar(state.people.find((p) => p.id === treeFocus) || focusName)}<span>${esc(focusName)} ve yakınları</span>${button("", "tree-reset", "x", "icon-btn", 'aria-label="Tüm ağacı göster"')}</div>` : ""}</div><section class="tree-board kn-tree-board ds-tree-board"><div class="tree-viewport" tabindex="0" aria-label="Soy ağacı. Kaydırarak gezin; bir kişiye dokunarak profilini açın.${ui.treeWindowed ? " Büyük ağaçta yalnız görünen bölümdeki kişiler listelenir; birini bulmak için aramayı kullan." : ""}"><div class="tree-canvas" style="width:${L.width}px;height:${L.height}px;transform:scale(${zoom})"><svg width="${L.width}" height="${L.height}" fill="none" aria-hidden="true">${L.svg}</svg>${L.rows.map(([level], i) => `<span class="ds-gen" style="top:${UI_TREE.top + i * UI_TREE.row - 30}px">${Number(level) + 1}. kuşak</span>`).join("")}${ui.treeWindowed ? "" : list.map((p) => uiTreeNode(p, L.pos.get(p.id))).join("")}</div></div><canvas class="ds-minimap" aria-hidden="true" hidden></canvas><div class="tree-tools ds-tree-tools"><button data-action="zoom-in" aria-label="Yakınlaştır">${icon("plus")}</button><span id="zoom-label">${Math.round(zoom * 100)}%</span><button data-action="zoom-out" aria-label="Uzaklaştır">${icon("minus")}</button><button data-action="zoom-fit" aria-label="Ekrana sığdır">${icon("scan")}</button></div><div class="ds-tree-legend"><span><i class="is-parent"></i>Ebeveyn – çocuk</span><span><i class="is-spouse"></i>Eş</span><span><i class="is-adoptive"></i>Evlat edinme</span><span>${icon("flower-2")}Anısına</span></div></section><p class="ds-tree-note">${"Bir kişiye dokun: profilini aç ya da yalnızca yakınlarını gör. Ağacı sürükleyerek gezebilirsin."}</p>${isStaff() ? `<div class="ds-tree-foot">${button("Yazdır / PDF", "print-tree", "printer", "text-btn")}</div>` : ""}`;
 }
+/* Large trees: every person keeps a place in the layout, links and minimap, but only the cards in and around the
+   visible area are in the page. They are added and removed while panning and zooming; printing draws them all. */
+const UI_TREE_ALL = 120,
+  UI_TREE_BATCH = 150;
+function uiTreeWindow(all = false) {
+  const L = ui.treeLayout,
+    vp = $(".ds-tree-board .tree-viewport"),
+    canvas = $(".tree-canvas");
+  if (!ui.treeWindowed || !L || !vp || !canvas) return;
+  const margin = 480,
+    x0 = vp.scrollLeft / zoom - margin,
+    y0 = vp.scrollTop / zoom - margin,
+    x1 = (vp.scrollLeft + vp.clientWidth) / zoom + margin,
+    y1 = (vp.scrollTop + vp.clientHeight) / zoom + margin;
+  const want = new Set();
+  for (const p of ui.treeList) {
+    const c = L.pos.get(p.id);
+    if (all || (c.x + UI_TREE.w >= x0 && c.x <= x1 && c.y + UI_TREE.h >= y0 && c.y <= y1)) want.add(p.id);
+  }
+  for (const el of canvas.querySelectorAll(":scope > .ds-node"))
+    if (want.has(el.dataset.id)) want.delete(el.dataset.id);
+    else if (el !== document.activeElement) el.remove();
+  if (!want.size) return;
+  // Zoomed far out, hundreds of cards may be due at once: add the ones nearest the middle first, a frame at a time,
+  // so the page keeps answering while the rest arrive.
+  const mx = (x0 + x1) / 2,
+    my = (y0 + y1) / 2,
+    near = (id) => {
+      const c = L.pos.get(id);
+      return Math.abs(c.x - mx) + Math.abs(c.y - my);
+    },
+    batch = all ? [...want] : [...want].sort((a, b) => near(a) - near(b)).slice(0, UI_TREE_BATCH);
+  const add = new Set(batch);
+  canvas.insertAdjacentHTML(
+    "beforeend",
+    ui.treeList
+      .filter((p) => add.has(p.id))
+      .map((p) => uiTreeNode(p, L.pos.get(p.id)))
+      .join(""),
+  );
+  hydrate();
+  if (batch.length < want.size) ui.treeMore ||= requestAnimationFrame(() => ((ui.treeMore = 0), uiTreeWindow()));
+}
+function uiTreeWatch() {
+  const vp = $(".ds-tree-board .tree-viewport"),
+    canvas = $(".tree-canvas");
+  if (!ui.treeWindowed || !vp || vp.dataset.window) return;
+  vp.dataset.window = "1";
+  let frame = 0;
+  const update = () => frame || (frame = requestAnimationFrame(() => ((frame = 0), uiTreeWindow())));
+  vp.addEventListener("scroll", update, { passive: true });
+  // Zoom buttons, pinch and "fit" all change the canvas scale.
+  new MutationObserver(update).observe(canvas, { attributes: true, attributeFilter: ["style"] });
+  uiTreeWindow();
+}
+addEventListener("beforeprint", () => route === "tree" && uiTreeWindow(true));
+addEventListener("afterprint", () => route === "tree" && uiTreeWindow());
 /* Opening a person from the tree: a rich card with the next steps. */
 function uiTreeFit() {
   const vp = $(".ds-tree-board .tree-viewport"),
@@ -236,21 +305,24 @@ function uiTreeCentre(force = false) {
     canvas = $(".tree-canvas");
   if (!vp || !canvas) return;
   uiTreeFit();
-  const target = treeFocus && $(`.ds-node[data-id="${CSS.escape(treeFocus)}"]`);
+  const L = ui.treeLayout,
+    target = treeFocus && L?.pos.get(treeFocus);
   if (target) {
-    const x = parseFloat(target.style.left) * zoom,
-      y = parseFloat(target.style.top) * zoom;
+    const x = target.x * zoom,
+      y = target.y * zoom;
     vp.scrollTo({ left: Math.max(0, x - vp.clientWidth / 2 + (UI_TREE.w * zoom) / 2), top: Math.max(0, y - vp.clientHeight / 3), behavior: "instant" });
-  } else if (force || !ui.treeCentred) {
+  } else if (L && (force || !ui.treeCentred)) {
     // Centre on the eldest generation so the roots are the first thing seen.
-    const nodes = $$(".ds-node", canvas),
-      top = Math.min(...nodes.map((n) => parseFloat(n.style.top))),
-      roots = nodes.filter((n) => parseFloat(n.style.top) === top),
-      l = Math.min(...roots.map((n) => parseFloat(n.style.left))),
-      r = Math.max(...roots.map((n) => parseFloat(n.style.left) + UI_TREE.w));
+    const places = [...L.pos.values()],
+      top = Math.min(...places.map((c) => c.y)),
+      roots = places.filter((c) => c.y === top),
+      l = Math.min(...roots.map((c) => c.x)),
+      r = Math.max(...roots.map((c) => c.x + UI_TREE.w));
     vp.scrollLeft = Math.max(0, ((l + r) / 2) * zoom - vp.clientWidth / 2);
   }
   ui.treeCentred = true;
+  uiTreeWatch();
+  uiTreeWindow();
 }
 /* Desktop minimap: every person as a dot, the visible area as a frame; click or drag to move. */
 function uiTreeMinimap() {

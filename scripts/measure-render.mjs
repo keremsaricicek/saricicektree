@@ -95,6 +95,50 @@ try {
   await page.evaluate(() => (location.hash = "tree"));
   await page.waitForTimeout(3000);
   console.log(`Soy ağacı ziyareti: ${await renders()} sayfa çizimi`);
+
+  // Large tree: opening, memory, panning across it and zooming out to see all of it.
+  const cdp = await ctx.newCDPSession(page);
+  await page.evaluate(() => (location.hash = "people"));
+  await page.waitForTimeout(800);
+  const open = await page.evaluate(async () => {
+    const t = performance.now();
+    location.hash = "tree";
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    return Math.round(performance.now() - t);
+  });
+  await page.waitForTimeout(1500);
+  await cdp.send("HeapProfiler.collectGarbage");
+  const heap = (await cdp.send("Runtime.getHeapUsage")).usedSize;
+  const treeDom = await page.evaluate(() => document.querySelector(".tree-canvas").getElementsByTagName("*").length);
+  const pan = await page.evaluate(async () => {
+    const vp = document.querySelector(".tree-viewport"),
+      t = performance.now();
+    for (let i = 0; i < 20; i++) {
+      vp.scrollLeft += 300;
+      vp.scrollTop += 120;
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    }
+    return Math.round(performance.now() - t);
+  });
+  // "Fit": time until the page answers again (two frames), and until every card on screen is drawn.
+  const [fit, fitAll] = await page.evaluate(async () => {
+    const t = performance.now(),
+      frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    document.querySelector('[data-action="zoom-fit"]').click();
+    await frames();
+    const first = Math.round(performance.now() - t);
+    let n = -1;
+    while (n !== document.querySelectorAll(".tree-canvas .ds-node").length) {
+      n = document.querySelectorAll(".tree-canvas .ds-node").length;
+      await frames();
+    }
+    return [first, Math.round(performance.now() - t)];
+  });
+  const shown = await page.evaluate(() => document.querySelectorAll(".tree-canvas .ds-node").length);
+  console.log(
+    `Büyük ağaç: açılış ${open} ms, ağaçta ${treeDom} DOM öğesi, JS yığını ${(heap / 1048576).toFixed(1)} MB, 20 adım kaydırma ${pan} ms, ekrana sığdır: sayfa ${fit} ms sonra yanıt veriyor, ${shown} kartın tamamı ${fitAll} ms`,
+  );
+
   await page.evaluate(() => (location.hash = "people"));
   await page.waitForTimeout(1500);
   await reset();

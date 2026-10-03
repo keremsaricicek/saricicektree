@@ -70,8 +70,56 @@ Toplam boyutlara yazı tipleri ve görseller de dahildir.
   | Avlu | 46 ms | 212 |
   | Hayat | 230 ms | 1.447 |
 
+## Büyük soy ağacı: yalnız görüneni çizmek (Ekim 2026)
+
+Ölçüm: `node scripts/measure-render.mjs` (1.200 kişi, 390×844, CPU 4× yavaşlatma, aynı makinede 3 tekrarın ortancası).
+
+| Ölçü | Önce | Sonra |
+| --- | --- | --- |
+| Soy ağacına geçiş | 517 ms | 184 ms |
+| Ağacın açılışı (iki kare) | 371 ms | 89 ms |
+| Ağaçtaki DOM öğesi | 8.408 | 232 |
+| 20 adım kaydırma | 1.013 ms | 720 ms |
+| JS yığını (çöp toplama sonrası) | 3,2 MB | 3,1 MB |
+| "Ekrana sığdır": sayfa yanıt veriyor | 70 ms | ~170 ms |
+| "Ekrana sığdır": 1.200 kartın tamamı | 70 ms (zaten çizili) | ~1,9 s (kare kare) |
+
+- 120 kişiye kadar her şey eskisi gibi çizilir. Daha büyük ağaçta yerleşim, bağlar ve mini harita tüm kişileri
+  içerir; kartlar yalnız görünen alanın çevresinde (480 px pay) sayfadadır, kaydırma ve yakınlaştırmayla eklenip
+  çıkarılır. Çok uzaklaşınca kartlar ortadan dışa doğru, kare başına 150 tane eklenir; sayfa bu sırada yanıt verir.
+- Bağlar türüne göre tek bir SVG yolu olarak çizilir (1.199 öğe yerine 1–4).
+- Arama/odak, yakınlaştırma, sığdırma ve yazdırma çalışır (`tests/e2e/tree-large.spec.mjs`, 600 kişi). Yazdırmada
+  tüm kartlar çizilir.
+- Ekran okuyucu notu: büyük ağaçta yalnız görünen bölümdeki kişiler okunur; ağaç alanının etiketi bunu ve aramayı söyler.
+- Görünüm: demo ağacında (küçük) tek fark, iki çocuğa inen ortak gövde çizgisinin kenar yumuşatması (telefon
+  görüntüsünde 209 piksel, %0,05): eskiden iki ayrı çizgi üst üste çiziliyordu, şimdi bir kez çiziliyor. Diğer 21
+  demo ekranı piksel düzeyinde aynı.
+- Bedeli: tüm ağacı bir anda görmek ("Ekrana sığdır") artık kartları kademeli getirir.
+
+## Dünya haritası: hafif çizim, yakınlaşınca tam ayrıntı (Ekim 2026)
+
+Ölçüm: `node scripts/measure-load.mjs 5` (yukarıdaki koşullar; 5 tekrarın ortancası).
+
+| Ölçü (Bizimkiler Nerede?) | Önce | Sonra |
+| --- | --- | --- |
+| Harita hazır | 2.521 ms | 1.968 ms |
+| 10 kaydırma + yakınlaş/uzaklaş | 747 ms | 507 ms |
+| JS yığını | 40 MB | 20,5 MB |
+| Haritanın ülke dosyası (ilk açılış) | 756 KB ham / 237 KB gzip | 269 KB ham / 78 KB gzip |
+| İlk açılıştaki tüm JS | 1.308 KB / 421 KB gzip | 833 KB / 268 KB gzip |
+| Yakınlaşınca tam ayrıntı | — (hep yüklü) | +758 KB ham / 237 KB gzip, 793 ms |
+
+- İlk çizim, Natural Earth 1:50m setinin 241 ülkesinin tamamını içerir; dünya görünümünde bir ekran pikselinden
+  küçük köşeler derleme sırasında atılır (`topojson-simplify`, ağırlık 0,01 derece²). Zoom 4 ve üstünde tam 1:50m
+  çizim yüklenir ve yerine geçer; yüklenemezse hafif çizim kalır, sonraki yakınlaştırmada yeniden denenir
+  (`tests/e2e/map.spec.mjs`).
+- Görünüm: zoom 4, 5 ve 7'de önce/sonra piksel düzeyinde aynı. Dünya görünümünde (zoom 3) sınır çizgileri en fazla
+  bir piksel kayar (görüntünün %3,3'ü); ülkeler, adalar ve kıyılar yerinde.
+- Bedeli: yakınlaştıran kişi toplamda 269 KB fazla indirir.
+- Tek dosyalık dışa aktarım iki çizimi de içinde taşır; çevrimdışı tam ayrıntı çalışır.
+
 ## Kalanlar
 
-- **Soy ağacı.** 1.200 kişiyi tek seferde çiziyor (8.633 DOM öğesi; CPU 4× yavaşlatmayla 757 ms). Yalnız görünen bölümü çizmek (sanallaştırma) daha büyük bir değişiklik; bu turda yapılmadı.
-- **Dünya haritası.** `world-map.js` tek başına 755 KB'tır (Natural Earth 1:50m sınırları). Daha kaba 1:110m sınırlar dosyayı belirgin biçimde küçültür, ama yakınlaştırınca haritanın görünüşü değişir. Tasarım kararı gerektirdiği için yapılmadı.
-- **CSS.** 207 KB ham, 42 KB gzip; kullanılmayan kural temizliği yapılmadı.
+- **CSS.** 211 KB ham, 43 KB gzip; kullanılmayan kural temizliği yapılmadı.
+- **Gerçek cihaz.** Ölçümler Chromium öykünmesidir; gerçek telefonda ölçülmedi.
+- Büyük ağaç testi bir **tarayıcı** ölçümüdür; eşzamanlı kullanıcı kapasitesi değildir (kapasite: STRESS-RESULTS.md).

@@ -40,7 +40,32 @@ await build({ entryPoints: ["mobile/bridge.mjs"], bundle: true, format: "iife", 
   });
   await cp("node_modules/lucide/LICENSE", "public/assets/LUCIDE-LICENSE");
 }
-await build({ entryPoints: ["mobile/world-map.mjs"], bundle: true, format: "iife", target: "es2022", outfile: "public/assets/world-map.js", minify: true });
+// World map (Natural Earth country outlines, no tile server). world-map.js is the light outline drawn first: all 241
+// countries of the 1:50m set with corners smaller than a screen pixel at the world view removed (weight 0.01 square
+// degrees, about 0.18° per pixel at zoom 3). world-map-detail.js is the full 1:50m outline, loaded once a map is
+// zoomed in (familyWorldLayer in public/community.js). JSON.parse of a string is faster to start than a literal.
+{
+  const { readFileSync } = await import("node:fs");
+  const { presimplify, simplify } = await import("topojson-simplify");
+  const { quantize } = await import("topojson-client");
+  const full = JSON.parse(readFileSync("node_modules/world-atlas/countries-50m.json", "utf8"));
+  const light = quantize(simplify(presimplify(structuredClone(full)), 0.01), 1e4);
+  const world = (name, topology) =>
+    build({
+      stdin: {
+        contents: `import { feature } from "topojson-client";\nconst t = JSON.parse(${JSON.stringify(JSON.stringify(topology))});\nwindow.${name} = feature(t, t.objects.countries);`,
+        resolveDir: ".",
+        loader: "js",
+      },
+      bundle: true,
+      format: "iife",
+      target: "es2022",
+      minify: true,
+      outfile: name === "FamilyWorld" ? "public/assets/world-map.js" : "public/assets/world-map-detail.js",
+    });
+  await world("FamilyWorld", light);
+  await world("FamilyWorldDetail", full);
+}
 await cp("node_modules/world-atlas/LICENSE", "public/assets/WORLD-ATLAS-LICENSE");
 await cp("node_modules/topojson-client/LICENSE", "public/assets/TOPOJSON-LICENSE");
 

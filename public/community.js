@@ -121,6 +121,40 @@ function familyLoadMapLibraries() {
   });
   return familyMapLibraries;
 }
+/** Country outlines on `map`: the light outline first, replaced by the full 1:50m outline once the map is zoomed in
+    to where the difference shows (zoom 4). If that file cannot load, the light outline stays and the next zoom retries. */
+function familyWorldLayer(map, options) {
+  let layer = L.geoJSON(window.FamilyWorld, options).addTo(map);
+  const detail = () => {
+    if (map.getZoom() < 4) return;
+    map.off("zoomend", detail);
+    const ready = window.FamilyWorldDetail
+      ? Promise.resolve()
+      : new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = "assets/world-map-detail.js";
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.append(s);
+        });
+    ready.then(
+      () => {
+        if (!map.getContainer().isConnected) return;
+        const next = L.geoJSON(window.FamilyWorldDetail, options).addTo(map);
+        // Under the pins and routes drawn later, in the outline's own order (shared borders overlap the same way).
+        next
+          .getLayers()
+          .reverse()
+          .forEach((l) => l.bringToBack());
+        layer.remove();
+        layer = next;
+      },
+      () => map.on("zoomend", detail),
+    );
+  };
+  map.on("zoomend", detail);
+  detail();
+}
 /** Runs draw() once the map files are present, if the element is still on screen. */
 function familyWithMap(el, draw, status) {
   if (window.L && window.FamilyWorld) return draw();
@@ -149,7 +183,7 @@ function familyBind() {
       maxBoundsViscosity: 1,
       preferCanvas: true,
     }).setView([35, 24], 3);
-    L.geoJSON(window.FamilyWorld, {
+    familyWorldLayer(familyMap, {
       style: () => ({ color: "#fafaf2", weight: 1, fillColor: "#a9b797", fillOpacity: 1 }),
       onEachFeature: (feature, layer) => {
         const label = document.createElement("span");
@@ -159,7 +193,7 @@ function familyBind() {
         layer.on("mouseover", () => layer.setStyle({ fillColor: "#8eaa89" }));
         layer.on("mouseout", () => layer.setStyle({ fillColor: "#a9b797" }));
       },
-    }).addTo(familyMap);
+    });
     familyMap.attributionControl.addAttribution(
       '<a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a> · Gömülü dünya haritası',
     );

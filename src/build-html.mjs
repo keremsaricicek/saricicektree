@@ -5,7 +5,7 @@ const scripts = [];
 for (const match of html.matchAll(/<script\b[^>]*src="([^"]+)"[^>]*><\/script>/g)) scripts.push(await readFile("public/" + match[1].split("?")[0], "utf8"));
 html = html.replace(/<script\b[^>]*src="[^"]+"[^>]*><\/script>/g, "");
 // Online, the map files load on demand (public/community.js); the offline export carries them inline.
-for (const file of ["assets/leaflet.js", "assets/world-map.js"]) scripts.push(await readFile("public/" + file, "utf8"));
+for (const file of ["assets/leaflet.js", "assets/world-map.js", "assets/world-map-detail.js"]) scripts.push(await readFile("public/" + file, "utf8"));
 // The theme script must run before the first paint, so it stays in <head>.
 const themeAt = scripts.findIndex((x) => x.includes("sfTheme"));
 if (themeAt >= 0) {
