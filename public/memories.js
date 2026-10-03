@@ -189,126 +189,12 @@ function hmValid(p) {
   if (!p.date || !p.place?.trim() || !p.description?.trim() || (!p.peopleIds?.length && !p.outsiders?.trim()))
     throw Error("Tarih, yer, kişiler ve hatıra bilgilerini tamamla.");
 }
-photoForm = function () {
+function photoForm() {
   hmUpload(false);
-};
-function hmUpload(share = false) {
-  hm.uploads = [];
-  hm.index = 0;
-  hm.share = share;
-  hm.clientId = archiveDemoId();
-  modal(
-    share ? "Hayat’ta bir anı paylaş" : "Avlu’ya fotoğraf ekle",
-    `<div class="hm-upload-layout"><section class="hm-upload-stage"><label class="hm-file-zone">${icon("image-plus")}<strong>Bir anı seç.</strong><span>En fazla 8 fotoğraf · JPEG, PNG, WebP</span><input id="hm-files" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="Fotoğrafları seç"></label><div id="hm-thumbs"></div><div id="hm-marker-tools"></div><div id="hm-stage"></div><div id="hm-duplicates"></div></section><form id="hm-upload-form"><div id="hm-fields"><p class="hm-instruction">Fotoğraf seçtikten sonra tarihini, içindeki kişileri ve hikâyesini ekle.</p></div><section class="hm-publish"><label class="hm-check"><input type="checkbox" id="hm-share" ${share ? "checked" : ""}> Hayat’ta da paylaş</label>${area("Paylaşım yazın (arşiv hikâyesinden ayrı)", "body", share ? ff.draft.body : "", 'maxlength="6000"')}${select(
-      "Kimler görebilir?",
-      "visibility",
-      [
-        ["family", "Bütün aile"],
-        ["private", "Yalnızca ben"],
-        ["selected", "Seçtiğim kişiler"],
-        ["group", "Grubum"],
-      ],
-      "family",
-    )}<div id="hm-audience"></div><p id="hm-summary" class="hm-summary"></p></section><div class="form-error" role="alert"></div><div class="form-actions">${hmButton("Kılavuz", "guide", "", "text-btn")}<button class="btn primary" type="submit">Kaydet</button></div></form></div>`,
-    true,
-  );
-  const f = $("#hm-upload-form");
-  $("#hm-files").onchange = async (e) => {
-    try {
-      hmCapture();
-      const files = [...e.target.files];
-      if (files.length + hm.uploads.length > 8) throw Error("En fazla 8 fotoğraf seçebilirsin.");
-      for (const file of files) {
-        const data = await ffImage(file);
-        hm.uploads.push({ data, peopleIds: [], positions: [], datePrecision: "day", title: "", date: "", place: "", description: "", outsiders: "" });
-      }
-      hm.index = 0;
-      hmShowUpload();
-      for (const p of hm.uploads) {
-        if (!crypto.subtle) continue;
-        const bytes = Uint8Array.from(atob(p.data.split(",")[1]), (c) => c.charCodeAt(0)),
-          digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)))
-            .map((x) => x.toString(16).padStart(2, "0"))
-            .join("");
-        const r = await hmApi("/duplicates", "POST", { digest });
-        if ($("#hm-duplicates") && r.items.length) {
-          hmMerge(r.items);
-          $("#hm-duplicates").innerHTML =
-            `<div class="notice">Bu fotoğraf arşivde var. Tekrar yüklemek yerine mevcut kaydı açabilirsin.${r.items.map((x) => hmButton(esc(x.title), "open", `data-id="${esc(x.id)}"`)).join("")}</div>`;
-        }
-      }
-    } catch (e) {
-      $(".form-error", f).textContent = e.message;
-    }
-  };
-  $("#hm-share").onchange = hmSummary;
-  $("[name=visibility]", f).onchange = async () => {
-    const mode = $("[name=visibility]", f).value;
-    try {
-      if (["selected", "group"].includes(mode)) {
-        const [community, groups] = await Promise.all([familyApi("/api/community"), archiveApi("/groups")]);
-        $("#hm-audience").innerHTML =
-          mode === "group"
-            ? select(
-                "Grup",
-                "groupId",
-                (groups.items || []).map((g) => [g.id, g.name]),
-              )
-            : `<div class="tags-picker">${community.members.map((m) => `<label><input type="checkbox" name="userIds" value="${esc(m.id)}">${esc(m.name)}</label>`).join("")}</div>`;
-      } else $("#hm-audience").innerHTML = "";
-      hmSummary();
-    } catch (e) {
-      $(".form-error", f).textContent = e.message;
-    }
-  };
-  hmSummary();
-  f.onsubmit = async (e) => {
-    e.preventDefault();
-    hmCapture();
-    await archiveFormTask(f, async () => {
-      if (!hm.uploads.length) throw Error("Önce fotoğraf seç.");
-      for (let i = 0; i < hm.uploads.length; i++) {
-        try {
-          hmValid(hm.uploads[i]);
-        } catch (e) {
-          hm.index = i;
-          hmShowUpload();
-          throw e;
-        }
-      }
-      const fd = new FormData(f),
-        share = $("#hm-share").checked;
-      const saved = await hmApi("", "POST", {
-        clientId: hm.clientId,
-        photos: hm.uploads,
-        share,
-        body: fd.get("body"),
-        visibility: fd.get("visibility"),
-        userIds: fd.getAll("userIds"),
-        groupId: fd.get("groupId"),
-      });
-      hm.uploads = [];
-      hm.loaded = false;
-      ff.loaded = false;
-      if (share) ff.draft = { kind: "post", body: "", visibility: "family", peopleIds: [], userIds: [] };
-      closeModal();
-      await refresh();
-      toast(
-        (share ? "Hayat’ta paylaşıldı; fotoğraflar Avlu’da da saklanıyor." : isStaff() ? "Avlu’ya eklendi." : "Avlu için moderatör onayına gönderildi.") +
-          (saved?.copiesNote ? " " + saved.copiesNote : ""),
-      );
-    });
-  };
 }
 function hmCapture() {
   const f = $("#hm-upload-form");
   if (f && hm.uploads[hm.index] && $("#hm-fields [name=description]")) Object.assign(hm.uploads[hm.index], hmReadMeta(f));
-}
-function hmSummary() {
-  const f = $("#hm-upload-form");
-  if (!f) return;
-  $("#hm-summary").textContent =
-    "Avlu’ya eklenecek" + ($("#hm-share").checked ? " · Hayat’ta da paylaşılacak" : "") + " · " + $("[name=visibility] option:checked", f).textContent;
 }
 function hmShowUpload() {
   const p = hm.uploads[hm.index];
@@ -348,7 +234,7 @@ function hmShowUpload() {
   };
   hydrate();
 }
-photoDetail = async function (id) {
+async function photoDetail(id) {
   try {
     const p = await hmApi("/" + id);
     hmMerge([p]);
@@ -382,7 +268,7 @@ photoDetail = async function (id) {
   } catch (e) {
     toast(e.message);
   }
-};
+}
 async function hmEdit(id) {
   const p = await hmApi("/" + id);
   modal(p.canEdit ? "Fotoğrafın bilgileri" : "Düzeltme öner", form(hmMetaForm(p), p.canEdit ? "Değişiklikleri kaydet" : "Öneriyi gönder"), true);
@@ -665,58 +551,6 @@ async function hmWall(id, more = false) {
   } catch (e) {
     if (hm.wallToken === token && $("#ff-profile-posts")) $("#ff-profile-posts").textContent = e.message;
   }
-}
-function hmGuide() {
-  modal(
-    "Hayat ve Avlu · kullanım kılavuzu",
-    `<div class="hm-guide"><p>Hayat günlük paylaşımlarınız, Avlu kalıcı fotoğraf arşivinizdir.</p>${[
-      ["1", "Fotoğraf ekle", "Avlu’daki Fotoğraf ekle veya Hayat’taki fotoğraf simgesi aynı yükleme ekranını açar. En fazla 8 fotoğraf seç."],
-      [
-        "2",
-        "Bilgileri tamamla",
-        "Her fotoğrafın tarihini, yerini, içindeki kişileri ve hatırasını yaz. Kesin tarihi bilmiyorsan ay/yıl veya yalnızca yıl seç. Eksik bilgiyle kayıt yapılmaz.",
-      ],
-      [
-        "3",
-        "Kişileri işaretle",
-        "Soy ağacında isim veya lakap ara. İstersen önizlemede kişiyi seçip fotoğraftaki yerine dokun. İşarete dokunarak kaldırabilirsin.",
-      ],
-      ["4", "Kapak ve sıralama", "Küçük önizlemeler arasında geçiş yap. Oklarla fotoğrafı taşı; Kapak yap ile albümün ilk fotoğrafını seç."],
-      [
-        "5",
-        "Nereye gidecek?",
-        "Her fotoğraf Avlu’da saklanır. Hayat’ta da paylaş seçilirse yazınla birlikte akışa düşer. Kimler görebilir seçimini ve kayıt özetini kontrol et.",
-      ],
-      [
-        "6",
-        "Fotoğrafı aç",
-        "Fotoğraf büyük açılır; yanında hikâyesi, tarih, kişiler ve kaynak bulunur. İsimler profillere gider. Kapatınca bulunduğun akışta kalırsın.",
-      ],
-      [
-        "7",
-        "Anıyı zenginleştir",
-        "Bilgileri düzenle veya düzeltme öner. Fotoğraf sahibi/moderatör öneriyi kabul eder. Sesli hatıra ile kayıt yapabilir, ses dosyası seçebilir ve metin ekleyebilirsin.",
-      ],
-      [
-        "8",
-        "Duvarı ve profil",
-        "Duvarı kendi paylaşımlarını ve etiketlenen içerikleri toplar. Ağaç simgesi soy ağacına, kalem kişi bilgilerine, ayar simgesi profil resmi ve kapağına götürür.",
-      ],
-      [
-        "9",
-        "Akrabalık ve nesil",
-        "Akrabalık sana göre hesaplanır. Aile yöneticisi hesabını soy ağacındaki kaydına bağlamalıdır. Nesil, sisteme kayıtlı en eski atadan hesaplanır.",
-      ],
-      [
-        "10",
-        "Gizlilik",
-        "Özel veya seçili kişilere ait kayıtlar başkasının Duvarı’nda ve ilgili fotoğraflarda da gizli kalır. Avlu’ya doğrudan eklenen üye fotoğrafları onay bekler; Hayat paylaşımları seçilen kitleye doğrudan görünür.",
-      ],
-    ]
-      .map(([n, t, b]) => `<section><b>${n}</b><div><h3>${t}</h3><p>${b}</p></div></section>`)
-      .join("")}${hmButton("Resimli kılavuzu aç", "guide-full")}</div>`,
-    true,
-  );
 }
 async function hmHandle(a, el) {
   const id = el.dataset.id;

@@ -178,7 +178,7 @@ async function uiFeedChanges() {
 /* Shared stream: replaces the chat-only stream so Hayat and Mesajlar use one connection. */
 ui.stream = null;
 const uiWantsStream = () => state && (dm.windows.size || dm.inbox || route === "chat" || route === "home" || route === "profile");
-dmStream = async function () {
+async function dmStream() {
   if (demoMode || window.FamilyNative?.available || ui.stream) return;
   const controller = new AbortController();
   ui.stream = controller;
@@ -230,7 +230,7 @@ dmStream = async function () {
   } finally {
     if (ui.stream === controller) ui.stream = null;
   }
-};
+}
 /* Where no stream is possible (preview, native shell) a quiet poll does the same job. */
 setInterval(() => {
   if ((demoMode || window.FamilyNative?.available) && !document.hidden && !dialog.open) uiFeedChanges();

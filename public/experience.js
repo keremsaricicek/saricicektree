@@ -63,12 +63,12 @@ async function exApi(path, method = "GET", data) {
   }
   return api("/api/experience" + path, method, data);
 }
-communityChat = function () {
+function communityChat() {
   return (
     heading("ÖZEL MESAJLAR", "Mesajlar", "", exButton("Yeni grup", "group-new") + button("Bildirimler", "push-settings", "bell")) +
     `<section class="dm-inbox-page"><div id="dm-page-list"><label class="search">${icon("search")}<input data-dm-search placeholder="Kişi veya grup ara" aria-label="Mesajlarda ara"></label><div data-dm-list><p>Konuşmalar yükleniyor…</p></div></div><div id="dm-mobile"></div></section>`
   );
-};
+}
 navItems.find((n) => n[0] === "chat")[2] = "Mesajlar";
 navItems.splice(
   navItems.findIndex((n) => n[0] === "groups"),
@@ -551,11 +551,11 @@ function exMoments(id) {
       })),
   ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
 }
-archiveProfileExtras = function (id) {
+function archiveProfileExtras(id) {
   const list = exMoments(id);
   return `<section class="card ar-section"><div class="section-head"><h2>Hayatının zaman çizelgesi</h2>${exButton("Dönüm noktası ekle", "milestone", `data-id="${esc(id)}"`)}</div><div class="ex-life">${list.map((e) => `<article><small>${e.date ? dateText(e.date) : "Tarihi bilinmiyor"}</small><h3><button class="text-btn" data-action="${e.action}" data-id="${esc(e.id)}">${esc(e.title)}</button></h3>${e.photo ? `<img src="${esc(e.photo.url)}" alt="${esc(e.photo.title)}">` : ""}</article>`).join("") || "<p>Henüz bir dönüm noktası eklenmedi.</p>"}</div></section>`;
-};
-archiveToday = function () {
+}
+function archiveToday() {
   const today = exDate(),
     md = today.slice(5),
     year = Number(today.slice(0, 4)),
@@ -571,7 +571,7 @@ archiveToday = function () {
       items.push({ ...e, action: "ar-open", label: year - Number(d.slice(0, 4)) + " yıl önce bugün" });
   }
   return `<section class="card ar-section"><div class="section-head"><div><span class="eyebrow">${dateText(today)}</span><h2>Bugün ailemizde</h2></div></div><div class="ex-today">${items.map((e) => `<button data-action="${e.action}" data-id="${esc(e.id)}"><strong>${esc(e.title)}</strong><small>${esc(e.label)}</small></button>`).join("") || "<p>Bugüne denk gelen kayıt yok. Yeni tarihler ve anılar eklendikçe burada görünür.</p>"}</div></section>`;
-};
+}
 async function exProfile() {
   const id = personId,
     target = $(".profile-hero");
@@ -685,13 +685,6 @@ async function exAudience(kind, id) {
     toast("Görünürlük kaydedildi.");
   });
 }
-const oldPhotoDetail = photoDetail;
-photoDetail = function (id) {
-  oldPhotoDetail(id);
-  const p = state.photos.find((p) => p.id === id);
-  if (p?.createdBy === state.user.id)
-    $(".form-actions", dialog)?.insertAdjacentHTML("afterbegin", exButton("Kimler görebilir?", "audience", `data-kind="photo" data-id="${esc(id)}"`));
-};
 const oldArchiveOpen = archiveOpen;
 archiveOpen = async function (id) {
   await oldArchiveOpen(id);
@@ -805,55 +798,6 @@ window.addEventListener("beforeunload", (e) => {
 });
 
 if (state) render();
-async function dmStream() {
-  if (demoMode || window.FamilyNative?.available || dmStreamController) return;
-  const controller = new AbortController();
-  dmStreamController = controller;
-  try {
-    while (!controller.signal.aborted && state && (dm.windows.size || dm.inbox || route === "chat")) {
-      try {
-        const r = await fetch("/api/chat/stream", {
-          credentials: "same-origin",
-          headers: { "X-Family-Factor": sessionStorage.getItem("sf-factor") || "" },
-          signal: controller.signal,
-        });
-        if (!r.ok) throw Error("Bağlantı yenileniyor.");
-        const reader = r.body.getReader(),
-          decoder = new TextDecoder();
-        let buffer = "";
-        while (!controller.signal.aborted) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          let end;
-          while ((end = buffer.indexOf("\n\n")) >= 0) {
-            const event = buffer.slice(0, end);
-            buffer = buffer.slice(end + 2);
-            if (event.startsWith("event: change") && !document.hidden) {
-              await Promise.all([...dm.windows.values()].map((w) => dmLoad(w)));
-              await dmThreads();
-            }
-          }
-        }
-      } catch {
-        if (controller.signal.aborted) break;
-      }
-      await new Promise((resolve) => {
-        const timer = setTimeout(resolve, 2000);
-        controller.signal.addEventListener(
-          "abort",
-          () => {
-            clearTimeout(timer);
-            resolve();
-          },
-          { once: true },
-        );
-      });
-    }
-  } finally {
-    if (dmStreamController === controller) dmStreamController = null;
-  }
-}
 const dmOldCleanup = window.familyEnhancements.cleanup;
 window.familyEnhancements.cleanup = function () {
   dmOldCleanup();

@@ -59,12 +59,6 @@ function communityPlaces() {
     `<div class="map-layout"><section class="world-map-card"><div class="map-toolbar"><span>${icon("globe-2")} Ailemizin dünya haritası</span><span id="map-connection" role="status">Harita yükleniyor…</span></div><div id="family-map" aria-label="Aile konumlarının dünya haritası"></div><div class="map-key"><span><b class="map-dot live"></b> Son 2 dakika</span><span><b class="map-dot stale"></b> Son bilinen konum</span><span><b class="map-dot home"></b> Yaşadığı yer</span></div></section><aside class="card map-aside"><h2>Birbirimize yakınız.</h2><p>Konum paylaşımı isteğe bağlıdır. Pinler, son güncelleme saatiyle gösterilir.</p><div id="location-consent-state" class="notice">Paylaşım durumun kontrol ediliyor.</div><label class="search">${icon("search")}<input id="map-member-search" placeholder="Haritada isim ara" aria-label="Konum paylaşan üyeyi ara"></label><div id="map-members" class="map-member-list"></div></aside></div><p class="map-help">Yaklaşık paylaşım konumu yaklaşık 2 km düzeyinde yuvarlar. Konum geçmişi tutulmaz. Bu harita ülke ve kıyı sınırlarını gösterir; sokak haritası değildir. Konumlar 15 saniyede bir yenilenir; cihazın gönderim sıklığı izinlere ve işletim sistemine bağlıdır.</p>`
   );
 }
-function communityChat() {
-  return (
-    heading("AİLEMİZİN SOHBETİ", "Mesajlar", "Bir selam, bir haber, birlikte paylaşılan bir gün.", button("Telefon bildirimleri", "push-settings", "bell")) +
-    `<section class="chat-shell"><aside class="chat-sidebar"><label class="search">${icon("search")}<input id="chat-search" placeholder="Ailemizde birini ara" aria-label="Konuşma ara"></label><div id="chat-threads" aria-label="Konuşmalar">Konuşmalar yükleniyor…</div></aside><div class="chat-main"><header id="chat-heading"><h2>Bir sohbet başlat.</h2><p>Aile üyelerinden birini seçerek mesaj yazabilirsin.</p></header><div id="chat-state" role="status"></div><div id="chat-messages" role="log" aria-live="polite"></div><form id="chat-compose"><label class="sr-only" for="chat-text">Mesajın</label><textarea id="chat-text" placeholder="Bir mesaj yaz…" maxlength="4000" rows="2" disabled></textarea><button class="btn primary" type="submit" disabled>${icon("send")} Gönder</button></form><div class="chat-privacy">Mesajlar yalnızca iki katılımcıya açıktır. Şikâyet ettiğin mesaj moderatöre iletilir. Uçtan uca şifreleme kullanılmaz.</div></div></section>`
-  );
-}
 function communityDocuments() {
   return (
     heading(

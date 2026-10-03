@@ -15,28 +15,6 @@ const ff = {
 };
 const ffNames = { post: "Paylaşım", memory: "Bir aile anısı", question: "Aileye bir soru", event: "Birlikte buluşuyoruz" };
 const ffAction = (text, action, attrs = "", cls = "") => `<button type="button" class="${cls}" data-feed="${action}" ${attrs}>${text}</button>`;
-function ffComposerExtra() {
-  const d = ff.draft;
-  return d.kind === "memory"
-    ? `<div class="ff-detail-fields">${input("Anının tarihi (isteğe bağlı)", "date", d.date || "", "date")}${input("Nerede?", "place", d.place || "")}</div>`
-    : d.kind === "event"
-      ? select(
-          "Hangi etkinlik?",
-          "eventId",
-          [["", "Etkinlik seç"], ...state.events.filter((e) => e.status === "approved").map((e) => [e.id, e.title])],
-          d.eventId || "",
-        )
-      : d.kind === "question"
-        ? '<p class="ff-kind-note">Sorun, aile üyelerinin cevaplayabileceği bir soru kartı olarak görünür.</p>'
-        : "";
-}
-function ffTagDraft() {
-  return (ff.draft.peopleIds || [])
-    .map((id) => state.people.find((p) => p.id === id))
-    .filter(Boolean)
-    .map((p) => `<span class="ff-tag">${esc(p.name)}</span>`)
-    .join("");
-}
 function ffListMarkup() {
   const pins = ff.filter === "all" ? ff.pinned : [],
     ids = new Set(pins.map((p) => p.id)),
@@ -114,46 +92,6 @@ async function ffImage(file) {
     im.onerror = () => reject(Error("Fotoğraf açılamadı."));
     im.src = raw;
   });
-}
-function ffBindComposer() {
-  const form = $("#ff-compose");
-  if (!form) return;
-  form.oninput = (ev) => {
-    if (ev.target.name) ff.draft[ev.target.name] = ev.target.value;
-    ff.draft.clientId = null;
-  };
-  $("#ff-file").onchange = async (e) => {
-    try {
-      ff.draft.image = await ffImage(e.target.files[0]);
-      ff.draft.clientId = null;
-      $("#ff-image").innerHTML =
-        `<img src="${esc(ff.draft.image)}" alt="Paylaşılacak fotoğrafın önizlemesi">${ffAction("Fotoğrafı kaldır", "remove-image", "", "text-btn")}`;
-    } catch (err) {
-      $(".form-error", form).textContent = err.message;
-    }
-  };
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    const btn = $("[type=submit]", form);
-    btn.disabled = true;
-    $(".form-error", form).textContent = "";
-    try {
-      ff.draft.clientId ||= archiveDemoId();
-      await ffApi("", "POST", ff.draft);
-      ff.draft = { kind: "post", body: "", visibility: "family", peopleIds: [], userIds: [] };
-      await ffLoad();
-      if (route === "home") {
-        form.closest(".ff-composer").outerHTML = ffComposer();
-        ffBindComposer();
-        hydrate();
-      }
-      toast("Paylaşımın kaydedildi.");
-    } catch (err) {
-      $(".form-error", form).textContent = err.message + " Yazdıkların korunuyor.";
-    } finally {
-      btn.disabled = false;
-    }
-  };
 }
 async function ffAudience() {
   const [r, g] = await Promise.all([familyApi("/api/community"), archiveApi("/groups")]),

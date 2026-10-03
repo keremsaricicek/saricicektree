@@ -28,12 +28,12 @@ function knSaveDraft() {
   const label = $("#kn-draft-status");
   if (label) label.textContent = ok ? (ff.draft.body ? "Taslak bu cihazda saklandı" : "") : "Taslak saklanamadı; bu sayfayı kapatma.";
 }
-ffComposerExtra = function () {
+function ffComposerExtra() {
   return ff.draft.kind === "question"
     ? `<div class="kn-question-hint">${icon("circle-help")}<span>Tek bir soru yaz. Ailen cevaplarını bu paylaşımın altında biriktirsin.</span></div>`
     : "";
-};
-ffTagDraft = function () {
+}
+function ffTagDraft() {
   return (ff.draft.peopleIds || [])
     .map((id) => state.people.find((p) => p.id === id))
     .filter(Boolean)
@@ -42,7 +42,7 @@ ffTagDraft = function () {
         `<span class="kn-tag">@${esc(p.name)}${knButton(icon("x"), "untag", `data-id="${esc(p.id)}" aria-label="${esc(p.name)} etiketini kaldır"`, "icon-btn")}</span>`,
     )
     .join("");
-};
+}
 function knMention(input, selected, onChange) {
   if (!input || input.dataset.knMention) return;
   input.dataset.knMention = "true";
@@ -126,7 +126,7 @@ function knMention(input, selected, onChange) {
     }, 180),
   );
 }
-ffBindComposer = function () {
+function ffBindComposer() {
   const f = $("#ff-compose");
   if (!f) return;
   f.oninput = (e) => {
@@ -178,7 +178,7 @@ ffBindComposer = function () {
       btn.disabled = false;
     }
   };
-};
+}
 function knCreate() {
   modal(
     "Paylaş",
@@ -431,7 +431,7 @@ function knSavePhotos() {
     350,
   );
 }
-hmUpload = function (share = false) {
+function hmUpload(share = false) {
   hm.uploads = [];
   hm.index = 0;
   hm.share = share;
@@ -566,14 +566,14 @@ hmUpload = function (share = false) {
       );
     });
   };
-};
-hmSummary = function () {
+}
+function hmSummary() {
   if (!$("#hm-summary")) return;
   const share = $("#hm-share").checked;
   $("#kn-share-copy").hidden = !share;
   $("#hm-summary").textContent = `${hm.uploads.length} fotoğraf · Avlu${share ? " + Hayat" : ""} · Aile içinde`;
   $("#kn-upload-submit").textContent = share ? "Kaydet ve Hayat’ta paylaş" : "Avlu’ya kaydet";
-};
+}
 function knUploadGo(step) {
   knUploadStep = step;
   $(".kn-upload").dataset.step = step;
@@ -1088,7 +1088,7 @@ readRoute = function () {
     }
   }
 };
-hmGuide = function () {
+function hmGuide() {
   modal(
     "Sarıçiçek Konağı · kullanım kılavuzu",
     `<div class="hm-guide"><p>Hayat günlük paylaşımlarımız; Avlu, fotoğrafların kalıcı hikâyesi.</p>${[
@@ -1107,7 +1107,7 @@ hmGuide = function () {
       .join("")}${hmButton("Resimli kılavuzu aç", "guide-full")}</div>`,
     true,
   );
-};
+}
 const knArchiveOpen = archiveOpen;
 archiveOpen = async function (id) {
   await knArchiveOpen(id);

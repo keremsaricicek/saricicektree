@@ -802,20 +802,6 @@ async function archiveMerges() {
     toast("Kayıtlar birleştirildi.");
   });
 }
-function archiveProfileExtras(id) {
-  const p = state.people.find((p) => p.id === id);
-  if (!p) return "";
-  const list = archiveItems.filter((e) => e.personId === id);
-  return `<section class="card ar-section"><div class="section-head"><h2>${p.deathDate ? "Hatırasını birlikte yaşatıyoruz" : "Hayatının dönüm noktaları"}</h2>${aButton(p.deathDate ? "Bir hatıra bırak" : "Bir başarı paylaş", p.deathDate ? "profile-memorial" : "profile-achievement", id)}</div><div class="ar-grid">${list.map(archiveCard).join("") || "<p>Bu hayatın hikâyesine bir kayıt daha ekleyebiliriz.</p>"}</div><div class="row ar-section">${aButton("Bilgi / düzeltme öner", "profile-source", id)}${aButton("Akrabalık yolunu bul", "kin-person", id)}</div></section>`;
-}
-function archiveToday() {
-  const week = Date.now() - 7 * 86400000,
-    list = archiveItems
-      .filter((e) => e.kind === "achievement" || Date.parse(e.createdAt) >= week)
-      .filter((e) => e.status === "approved")
-      .slice(0, 6);
-  return `<section class="card ar-section"><div class="section-head"><div><span class="eyebrow">BUGÜN NE OLDU?</span><h2>Ailemizin güzel haberleri</h2></div>${aButton("Bir başarı paylaş", "new-kind", "achievement")}</div><div class="ar-grid">${list.map(archiveCard).join("") || "<p>Yeni bir mezuniyet, güzel bir haber veya anı paylaş.</p>"}</div><h3 class="ar-section">Bu hafta ailede</h3><p>${state.people.filter((p) => Date.parse(p.createdAt) >= week).length} yeni kişi kaydı · ${state.photos.filter((p) => Date.parse(p.createdAt) >= week).length} fotoğraf · ${archiveItems.filter((e) => Date.parse(e.createdAt) >= week).length} arşiv katkısı</p>${aButton("Tüm katkıları gör", "all")}</section>`;
-}
 async function archiveGovernance() {
   const members = demoMode ? [] : (await api("/api/community")).members;
   const options = [["", "Hesap seçin"], [state.user.id, state.user.name], ...members.map((m) => [m.id, m.name])];
